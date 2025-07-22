@@ -27,6 +27,7 @@ urlpatterns = [
     path('sections/<int:pk>/', views.SectionDetailView.as_view(), name='section_detail'),
     path('sections/nouvelle/', views.SectionCreateView.as_view(), name='section_create'),
     path('sections/<int:pk>/modifier/', views.SectionUpdateView.as_view(), name='section_update'),
+    path('sections/<int:pk>/supprimer/', views.SectionDeleteView.as_view(), name='section_delete'),
     
     # Compétences
     path('competences/', views.CompetenceListView.as_view(), name='competence_list'),

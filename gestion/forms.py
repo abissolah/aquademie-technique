@@ -8,7 +8,7 @@ class AdherentForm(forms.ModelForm):
         model = Adherent
         fields = [
             'nom', 'prenom', 'date_naissance', 'adresse', 'email', 
-            'telephone', 'photo', 'date_fin_validite_caci', 'niveau', 'statut'
+            'telephone', 'photo', 'date_fin_validite_caci', 'niveau', 'statut', 'sections'
         ]
         widgets = {
             'date_naissance': forms.DateInput(
@@ -20,6 +20,7 @@ class AdherentForm(forms.ModelForm):
                 format='%Y-%m-%d'
             ),
             'adresse': forms.Textarea(attrs={'rows': 3}),
+            'sections': forms.CheckboxSelectMultiple(),
         }
     
     def __init__(self, *args, **kwargs):

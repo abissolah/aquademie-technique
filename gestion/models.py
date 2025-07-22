@@ -3,6 +3,28 @@ from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 import uuid
 
+class Section(models.Model):
+    SECTIONS_CHOICES = [
+        ('bapteme', 'Baptême'),
+        ('prepa_niveau1', 'Prépa Niveau 1'),
+        ('prepa_niveau2', 'Prépa Niveau 2'),
+        ('prepa_niveau3', 'Prépa Niveau 3'),
+        ('prepa_niveau4', 'Prépa Niveau 4'),
+        ('niveau3', 'Niveau 3'),
+        ('niveau4', 'Niveau 4'),
+        ('encadrant', 'Encadrant'),
+    ]
+    
+    nom = models.CharField(max_length=20, choices=SECTIONS_CHOICES, unique=True)
+    description = models.TextField(blank=True)
+    
+    class Meta:
+        verbose_name = "Section"
+        verbose_name_plural = "Sections"
+    
+    def __str__(self):
+        return self.get_nom_display()
+
 class Adherent(models.Model):
     NIVEAUX_CHOICES = [
         ('debutant', 'Débutant'),
@@ -30,6 +52,7 @@ class Adherent(models.Model):
     date_fin_validite_caci = models.DateField()
     niveau = models.CharField(max_length=20, choices=NIVEAUX_CHOICES)
     statut = models.CharField(max_length=10, choices=STATUT_CHOICES, default='eleve')
+    sections = models.ManyToManyField(Section, related_name='adherents', blank=True, verbose_name="Sections")
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)
     
@@ -44,28 +67,6 @@ class Adherent(models.Model):
     @property
     def nom_complet(self):
         return f"{self.prenom} {self.nom}"
-
-class Section(models.Model):
-    SECTIONS_CHOICES = [
-        ('bapteme', 'Baptême'),
-        ('prepa_niveau1', 'Prépa Niveau 1'),
-        ('prepa_niveau2', 'Prépa Niveau 2'),
-        ('prepa_niveau3', 'Prépa Niveau 3'),
-        ('prepa_niveau4', 'Prépa Niveau 4'),
-        ('niveau3', 'Niveau 3'),
-        ('niveau4', 'Niveau 4'),
-        ('encadrant', 'Encadrant'),
-    ]
-    
-    nom = models.CharField(max_length=20, choices=SECTIONS_CHOICES, unique=True)
-    description = models.TextField(blank=True)
-    
-    class Meta:
-        verbose_name = "Section"
-        verbose_name_plural = "Sections"
-    
-    def __str__(self):
-        return self.get_nom_display()
 
 class Competence(models.Model):
     nom = models.CharField(max_length=200)

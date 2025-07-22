@@ -13,6 +13,9 @@
                 <a href="{% url 'section_update' section.pk %}" class="btn btn-warning">
                     <i class="fas fa-edit me-2"></i>Modifier
                 </a>
+                <a href="{% url 'section_delete' section.pk %}" class="btn btn-danger">
+                    <i class="fas fa-trash me-2"></i>Supprimer
+                </a>
                 <a href="{% url 'section_list' %}" class="btn btn-outline-secondary">
                     <i class="fas fa-arrow-left me-2"></i>Retour
                 </a>
@@ -46,6 +49,56 @@
                         <p><strong>Séances :</strong> {{ section.seances.count }}</p>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Adhérents inscrits -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-users me-2"></i>Adhérents inscrits ({{ section.adherents.count }})
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if section.adherents.all %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Niveau</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for adherent in section.adherents.all %}
+                            <tr>
+                                <td>{{ adherent.nom_complet }}</td>
+                                <td><span class="badge bg-info">{{ adherent.get_niveau_display }}</span></td>
+                                <td>
+                                    {% if adherent.statut == 'eleve' %}
+                                    <span class="badge bg-success">Élève</span>
+                                    {% else %}
+                                    <span class="badge bg-warning">Encadrant</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'adherent_detail' adherent.pk %}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">
+                    <i class="fas fa-users fa-2x mb-2"></i><br>
+                    Aucun adhérent inscrit dans cette section
+                </p>
+                {% endif %}
             </div>
         </div>
 

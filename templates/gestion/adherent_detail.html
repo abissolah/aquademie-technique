@@ -81,6 +81,19 @@
                         </p>
                     </div>
                 </div>
+                
+                <!-- Sections d'inscription -->
+                <hr>
+                <h6>Sections d'inscription :</h6>
+                {% if adherent.sections.all %}
+                <div class="d-flex flex-wrap gap-2">
+                    {% for section in adherent.sections.all %}
+                    <span class="badge bg-primary">{{ section.get_nom_display }}</span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">Aucune section d'inscription.</p>
+                {% endif %}
             </div>
         </div>
 
