@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Supprimer la compétence - Aquadémie Paris Plongée{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Confirmer la suppression
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Attention !
+                        </h5>
+                        <p class="mb-0">
+                            Vous êtes sur le point de supprimer la compétence <strong>"{{ object.nom }}"</strong> 
+                            de la section <strong>"{{ object.section.nom }}"</strong>.
+                        </p>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">Détails de la compétence</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong>Nom :</strong> {{ object.nom }}
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Section :</strong> {{ object.section.nom }}
+                                </div>
+                            </div>
+                            {% if object.description %}
+                            <div class="row mt-2">
+                                <div class="col-12">
+                                    <strong>Description :</strong> {{ object.description }}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Conséquences de la suppression
+                        </h6>
+                        <ul class="mb-0">
+                            <li>Cette compétence sera définitivement supprimée de la base de données</li>
+                            <li>Elle ne sera plus disponible pour les nouvelles séances</li>
+                            <li>Les séances existantes qui utilisent cette compétence ne seront pas affectées</li>
+                            <li>Les évaluations existantes pour cette compétence seront conservées</li>
+                        </ul>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'competence_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Annuler
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-2"></i>Confirmer la suppression
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

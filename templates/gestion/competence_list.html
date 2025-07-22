@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Compétences - Club de Plongée{% endblock %}
+{% block title %}Compétences - Aquadémie Paris Plongée{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -61,8 +61,11 @@
                 <p class="card-text text-muted">{{ competence.description|truncatewords:15 }}</p>
                 {% endif %}
                 <div class="mt-3">
-                    <a href="{% url 'competence_update' competence.pk %}" class="btn btn-outline-warning btn-sm">
+                    <a href="{% url 'competence_update' competence.pk %}" class="btn btn-outline-warning btn-sm me-2">
                         <i class="fas fa-edit me-1"></i>Modifier
+                    </a>
+                    <a href="{% url 'competence_delete' competence.pk %}" class="btn btn-outline-danger btn-sm">
+                        <i class="fas fa-trash me-1"></i>Supprimer
                     </a>
                 </div>
             </div>

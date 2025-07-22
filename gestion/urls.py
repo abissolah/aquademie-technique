@@ -33,6 +33,7 @@ urlpatterns = [
     path('competences/', views.CompetenceListView.as_view(), name='competence_list'),
     path('competences/nouvelle/', views.CompetenceCreateView.as_view(), name='competence_create'),
     path('competences/<int:pk>/modifier/', views.CompetenceUpdateView.as_view(), name='competence_update'),
+    path('competences/<int:pk>/supprimer/', views.CompetenceDeleteView.as_view(), name='competence_delete'),
     
     # Groupes de compétences
     path('groupes-competences/', views.GroupeCompetenceListView.as_view(), name='groupe_competence_list'),
