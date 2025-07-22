@@ -73,9 +73,21 @@ class SeanceForm(forms.ModelForm):
         
         # Filtrer les compétences selon la section sélectionnée
         if 'instance' in kwargs and kwargs['instance']:
+            # Pour une modification, utiliser la section de l'instance
             self.fields['competences'].queryset = Competence.objects.filter(section=kwargs['instance'].section)
         else:
+            # Pour une création, commencer avec un queryset vide
             self.fields['competences'].queryset = Competence.objects.none()
+        
+        # Si des données POST sont fournies, mettre à jour le queryset des compétences
+        if 'data' in kwargs and kwargs['data']:
+            section_id = kwargs['data'].get('section')
+            if section_id:
+                try:
+                    section = Section.objects.get(id=section_id)
+                    self.fields['competences'].queryset = Competence.objects.filter(section=section)
+                except Section.DoesNotExist:
+                    self.fields['competences'].queryset = Competence.objects.none()
 
 class EvaluationForm(forms.ModelForm):
     class Meta:

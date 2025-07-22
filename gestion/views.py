@@ -251,12 +251,26 @@ class SeanceCreateView(LoginRequiredMixin, CreateView):
     form_class = SeanceForm
     template_name = 'gestion/seance_form.html'
     success_url = reverse_lazy('seance_list')
+    
+    def form_valid(self, form):
+        # Mettre à jour le queryset des compétences avant la validation
+        section = form.cleaned_data.get('section')
+        if section:
+            form.fields['competences'].queryset = Competence.objects.filter(section=section)
+        return super().form_valid(form)
 
 class SeanceUpdateView(LoginRequiredMixin, UpdateView):
     model = Seance
     form_class = SeanceForm
     template_name = 'gestion/seance_form.html'
     success_url = reverse_lazy('seance_list')
+    
+    def form_valid(self, form):
+        # Mettre à jour le queryset des compétences avant la validation
+        section = form.cleaned_data.get('section')
+        if section:
+            form.fields['competences'].queryset = Competence.objects.filter(section=section)
+        return super().form_valid(form)
 
 class SeanceDeleteView(LoginRequiredMixin, DeleteView):
     model = Seance
