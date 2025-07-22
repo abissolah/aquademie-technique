@@ -190,6 +190,11 @@ class GroupeCompetenceUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'gestion/groupe_competence_form.html'
     success_url = reverse_lazy('groupe_competence_list')
 
+class GroupeCompetenceDeleteView(LoginRequiredMixin, DeleteView):
+    model = GroupeCompetence
+    template_name = 'gestion/groupe_competence_confirm_delete.html'
+    success_url = reverse_lazy('groupe_competence_list')
+
 # Vues pour les séances
 class SeanceListView(LoginRequiredMixin, ListView):
     model = Seance
