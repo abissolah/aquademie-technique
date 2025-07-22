@@ -54,6 +54,7 @@ urlpatterns = [
     
     # Liens d'évaluation
     path('seances/<int:pk>/generer-lien/', views.generer_lien_evaluation, name='generer_lien_evaluation'),
+    path('seances/<int:pk>/envoyer-email/', views.envoyer_lien_par_email, name='envoyer_lien_par_email'),
     path('evaluation/<uuid:token>/', views.evaluation_publique, name='evaluation_publique'),
     
     # PDF

@@ -231,6 +231,13 @@
                             <i class="fas fa-external-link-alt me-2"></i>Ouvrir le lien d'évaluation
                         </a>
                     </div>
+                    
+                    <!-- Bouton pour envoyer par email -->
+                    <div class="mb-3">
+                        <a href="{% url 'envoyer_lien_par_email' seance.pk %}" class="btn btn-outline-info">
+                            <i class="fas fa-envelope me-2"></i>Envoyer le lien à l'encadrant
+                        </a>
+                    </div>
                 {% else %}
                     <div class="alert alert-info">
                         <h6><i class="fas fa-info-circle me-2"></i>Aucun lien d'évaluation généré</h6>

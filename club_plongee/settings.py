@@ -142,3 +142,21 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
+
+# Configuration Email
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # À configurer selon votre fournisseur
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'votre-email@gmail.com'  # À configurer
+EMAIL_HOST_PASSWORD = 'votre-mot-de-passe-app'  # À configurer
+DEFAULT_FROM_EMAIL = 'Aquadémie Paris Plongée <votre-email@gmail.com>'
+
+# Adresses en copie par défaut
+EMAIL_CC_DEFAULT = [
+    'admin@aquademie-paris-plongee.fr',  # À configurer
+]
+
+# Configuration du site
+SITE_NAME = 'Aquadémie Paris Plongée'
+SITE_URL = 'http://127.0.0.1:8000'  # À configurer en production

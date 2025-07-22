@@ -20,6 +20,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation
 from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm
+from .utils import envoyer_lien_evaluation, envoyer_lien_evaluation_avec_cc
 
 # Vues d'accueil et de navigation
 @login_required
@@ -576,6 +577,37 @@ def get_eleves_section(request):
             return JsonResponse({'eleves': []})
     return JsonResponse({'eleves': []})
 
+
+@login_required
+def envoyer_lien_par_email(request, pk):
+    """Envoyer le lien d'évaluation par email à l'encadrant"""
+    seance = get_object_or_404(Seance, pk=pk)
+    
+    # Récupérer le lien actif
+    lien_actif = seance.liens_evaluation.filter(est_valide=True).first()
+    
+    if not lien_actif:
+        # Si pas de lien actif, récupérer le dernier lien généré
+        lien_actif = seance.liens_evaluation.order_by('-date_creation').first()
+    
+    if not lien_actif:
+        messages.error(request, 'Aucun lien d\'évaluation trouvé pour cette séance.')
+        return redirect('seance_detail', pk=pk)
+    
+    # Vérifier que l'encadrant a une adresse email
+    if not seance.encadrant.email:
+        messages.error(request, f'L\'encadrant {seance.encadrant.nom_complet} n\'a pas d\'adresse email configurée.')
+        return redirect('seance_detail', pk=pk)
+    
+    # Envoyer l'email
+    success, message = envoyer_lien_evaluation(lien_actif, request)
+    
+    if success:
+        messages.success(request, f'Lien d\'évaluation envoyé avec succès à {seance.encadrant.email}')
+    else:
+        messages.error(request, message)
+    
+    return redirect('seance_detail', pk=pk)
 
 
 # Vues d'authentification personnalisées
