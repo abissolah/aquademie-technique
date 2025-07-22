@@ -575,6 +575,5 @@ class CustomLoginView(LoginView):
     template_name = 'registration/login.html'
     redirect_authenticated_user = True
 
-@method_decorator(login_required, name='dispatch')
 class CustomLogoutView(LogoutView):
     next_page = 'login'
