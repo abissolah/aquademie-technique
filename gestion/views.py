@@ -552,19 +552,7 @@ def get_eleves_section(request):
             return JsonResponse({'eleves': []})
     return JsonResponse({'eleves': []})
 
-# Vues d'authentification
-def register(request):
-    """Inscription d'un nouvel utilisateur"""
-    if request.method == 'POST':
-        form = UserRegistrationForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Compte créé avec succès. Vous pouvez maintenant vous connecter.')
-            return redirect('login')
-    else:
-        form = UserRegistrationForm()
-    
-    return render(request, 'registration/register.html', {'form': form})
+
 
 # Vues d'authentification personnalisées
 from django.contrib.auth.views import LoginView, LogoutView

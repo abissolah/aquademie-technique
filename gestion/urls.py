@@ -60,7 +60,4 @@ urlpatterns = [
     # API
     path('api/competences-section/', views.get_competences_section, name='get_competences_section'),
     path('api/eleves-section/', views.get_eleves_section, name='get_eleves_section'),
-    
-    # Authentification
-    path('register/', views.register, name='register'),
 ] 

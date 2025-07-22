@@ -1,6 +1,4 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.models import User
 from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation
 
 class AdherentForm(forms.ModelForm):
@@ -112,9 +110,4 @@ class EvaluationBulkForm(forms.Form):
                     label=""
                 )
 
-class UserRegistrationForm(UserCreationForm):
-    email = forms.EmailField(required=True)
-    
-    class Meta:
-        model = User
-        fields = ('username', 'email', 'password1', 'password2') 
+ 
