@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Évaluer - {{ seance.palanquee }} - Club de Plongée{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-star me-2"></i>Évaluer - {{ seance.palanquee }}
+            </h1>
+            <a href="{% url 'seance_detail' seance.pk %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Retour à la séance
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Informations de la séance -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Informations de la séance
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Date :</strong> {{ seance.date|date:"d/m/Y" }}</p>
+                        <p><strong>Section :</strong> 
+                            <span class="badge bg-secondary">{{ seance.section.get_nom_display }}</span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Encadrant :</strong> {{ seance.encadrant.nom_complet }}</p>
+                        <p><strong>Élèves :</strong> {{ seance.eleves.count }} participant{{ seance.eleves.count|pluralize }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Formulaire d'évaluation -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-clipboard-check me-2"></i>Évaluation des compétences
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    {% for eleve in seance.eleves.all %}
+                    <div class="mb-4">
+                        <h6 class="border-bottom pb-2 mb-3">
+                            <i class="fas fa-user me-2"></i>{{ eleve.nom_complet }}
+                            <span class="badge bg-info ms-2">{{ eleve.get_niveau_display }}</span>
+                        </h6>
+                        
+                        {% for competence in seance.competences.all %}
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">{{ competence.nom }}</label>
+                                {% if competence.description %}
+                                <small class="text-muted d-block">{{ competence.description }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Note</label>
+                                <select name="note_{{ eleve.id }}_{{ competence.id }}" class="form-select" required>
+                                    <option value="">Choisir une note</option>
+                                    <option value="0">0 - Pas maîtrisé</option>
+                                    <option value="1">1 - Début de maîtrise</option>
+                                    <option value="2">2 - Maîtrise partielle</option>
+                                    <option value="3">3 - Maîtrise correcte</option>
+                                    <option value="4">4 - Bonne maîtrise</option>
+                                    <option value="5">5 - Maîtrise parfaite</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Commentaire</label>
+                                <textarea name="commentaire_{{ eleve.id }}_{{ competence.id }}" 
+                                          class="form-control" rows="2" 
+                                          placeholder="Commentaire optionnel..."></textarea>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'seance_detail' seance.pk %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Annuler
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Enregistrer les évaluations
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Instructions -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>Instructions d'évaluation
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Échelle de notation :</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>0 :</strong> Compétence pas maîtrisée du tout</li>
+                            <li><strong>1 :</strong> Début de maîtrise</li>
+                            <li><strong>2 :</strong> Maîtrise partielle</li>
+                            <li><strong>3 :</strong> Maîtrise correcte</li>
+                            <li><strong>4 :</strong> Bonne maîtrise</li>
+                            <li><strong>5 :</strong> Maîtrise parfaite</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Conseils :</h6>
+                        <ul class="list-unstyled">
+                            <li>• Évaluez objectivement chaque compétence</li>
+                            <li>• Utilisez les commentaires pour préciser</li>
+                            <li>• Les évaluations peuvent être modifiées ultérieurement</li>
+                            <li>• Tous les champs de note sont obligatoires</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    
+    form.addEventListener('submit', function(e) {
+        const requiredFields = form.querySelectorAll('select[required]');
+        let allFilled = true;
+        
+        requiredFields.forEach(field => {
+            if (!field.value) {
+                allFilled = false;
+                field.classList.add('is-invalid');
+            } else {
+                field.classList.remove('is-invalid');
+            }
+        });
+        
+        if (!allFilled) {
+            e.preventDefault();
+            alert('Veuillez remplir toutes les notes obligatoires.');
+        }
+    });
+    
+    // Validation en temps réel
+    const selects = form.querySelectorAll('select[required]');
+    selects.forEach(select => {
+        select.addEventListener('change', function() {
+            if (this.value) {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+            } else {
+                this.classList.remove('is-valid');
+                this.classList.add('is-invalid');
+            }
+        });
+    });
+});
+</script>
+{% endblock %} 

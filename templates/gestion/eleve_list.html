@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+
+{% block title %}Élèves - Aquadémie Paris Plongée{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-user-graduate me-2"></i>Élèves
+            </h1>
+            <a href="{% url 'adherent_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Nouvel élève
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Recherche -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-8">
+                        <label for="q" class="form-label">Rechercher un élève</label>
+                        <input type="text" class="form-control" id="q" name="q" 
+                               placeholder="Nom, prénom ou email..." value="{{ request.GET.q }}">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <div class="d-flex gap-2 w-100">
+                            <button type="submit" class="btn btn-primary flex-fill">
+                                <i class="fas fa-search me-2"></i>Rechercher
+                            </button>
+                            <a href="{% url 'eleve_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Liste des élèves -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                {% if eleves %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Photo</th>
+                                <th>Nom</th>
+                                <th>Prénom</th>
+                                <th>Email</th>
+                                <th>Téléphone</th>
+                                <th>Niveau</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for eleve in eleves %}
+                            <tr>
+                                <td>
+                                    {% if eleve.photo %}
+                                    <img src="{{ eleve.photo.url }}" alt="Photo de {{ eleve.nom_complet }}" 
+                                         class="rounded-circle" width="40" height="40" style="object-fit: cover;">
+                                    {% else %}
+                                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" 
+                                         style="width: 40px; height: 40px;">
+                                        <i class="fas fa-user text-white"></i>
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                <td><strong>{{ eleve.nom }}</strong></td>
+                                <td>{{ eleve.prenom }}</td>
+                                <td>
+                                    {% if eleve.email %}
+                                    <a href="mailto:{{ eleve.email }}">{{ eleve.email }}</a>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if eleve.telephone %}
+                                    <a href="tel:{{ eleve.telephone }}">{{ eleve.telephone }}</a>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ eleve.get_niveau_display }}</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'adherent_detail' eleve.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{% url 'adherent_update' eleve.pk %}" class="btn btn-sm btn-outline-warning" title="Modifier">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'adherent_delete' eleve.pk %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                {% if is_paginated %}
+                <nav aria-label="Pagination des élèves">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                <i class="fas fa-angle-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        <li class="page-item active">
+                            <span class="page-link">
+                                Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}
+                            </span>
+                        </li>
+                        
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                <i class="fas fa-angle-double-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+                
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-user-graduate fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted">Aucun élève trouvé</h4>
+                    <p class="text-muted">
+                        {% if request.GET.q %}
+                        Aucun élève ne correspond à votre recherche.
+                        {% else %}
+                        Commencez par ajouter votre premier élève.
+                        {% endif %}
+                    </p>
+                    <a href="{% url 'adherent_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Ajouter un élève
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

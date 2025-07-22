@@ -1,0 +1,298 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ seance.palanquee }} - Club de Plongée{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-calendar-alt me-2"></i>{{ seance.palanquee }}
+            </h1>
+            <div class="btn-group" role="group">
+                <a href="{% url 'seance_update' seance.pk %}" class="btn btn-warning">
+                    <i class="fas fa-edit me-2"></i>Modifier
+                </a>
+                <a href="{% url 'generer_fiche_seance_pdf' seance.pk %}" class="btn btn-info">
+                    <i class="fas fa-file-pdf me-2"></i>Générer PDF
+                </a>
+                <a href="{% url 'generer_lien_evaluation' seance.pk %}" class="btn btn-success">
+                    <i class="fas fa-link me-2"></i>Lien évaluation
+                </a>
+                <a href="{% url 'seance_delete' seance.pk %}" class="btn btn-danger">
+                    <i class="fas fa-trash me-2"></i>Supprimer
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Informations principales -->
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Informations générales
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Date :</strong> {{ seance.date|date:"d/m/Y" }}</p>
+                        <p><strong>Palanquée :</strong> {{ seance.palanquee }}</p>
+                        <p><strong>Section :</strong> 
+                            <span class="badge bg-secondary">{{ seance.section.get_nom_display }}</span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Encadrant :</strong> 
+                            <div class="d-flex align-items-center">
+                                {% if seance.encadrant.photo %}
+                                <img src="{{ seance.encadrant.photo.url }}" alt="Photo de {{ seance.encadrant.nom_complet }}" 
+                                     class="rounded-circle me-2" width="40" height="40" style="object-fit: cover;">
+                                {% else %}
+                                <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" 
+                                     style="width: 40px; height: 40px;">
+                                    <i class="fas fa-user text-white"></i>
+                                </div>
+                                {% endif %}
+                                {{ seance.encadrant.nom_complet }}
+                            </div>
+                        </p>
+                        <p><strong>Niveau encadrant :</strong> 
+                            <span class="badge bg-info">{{ seance.encadrant.get_niveau_display }}</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Élèves -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-users me-2"></i>Élèves ({{ seance.eleves.count }})
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if seance.eleves.all %}
+                <div class="row">
+                    {% for eleve in seance.eleves.all %}
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center p-3 border rounded">
+                            {% if eleve.photo %}
+                            <img src="{{ eleve.photo.url }}" alt="Photo de {{ eleve.nom_complet }}" 
+                                 class="rounded-circle me-3" width="50" height="50" style="object-fit: cover;">
+                            {% else %}
+                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-3" 
+                                 style="width: 50px; height: 50px;">
+                                <i class="fas fa-user text-white"></i>
+                            </div>
+                            {% endif %}
+                            <div>
+                                <h6 class="mb-1">{{ eleve.nom_complet }}</h6>
+                                <p class="mb-1 text-muted">{{ eleve.email }}</p>
+                                <span class="badge bg-info">{{ eleve.get_niveau_display }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">Aucun élève assigné à cette séance.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Compétences -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-star me-2"></i>Compétences ({{ seance.competences.count }})
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if seance.competences.all %}
+                <div class="row">
+                    {% for competence in seance.competences.all %}
+                    <div class="col-md-6 mb-2">
+                        <div class="p-3 border rounded">
+                            <h6 class="mb-1">{{ competence.nom }}</h6>
+                            {% if competence.description %}
+                            <p class="mb-1 text-muted small">{{ competence.description }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">Aucune compétence assignée à cette séance.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Précisions des exercices -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-clipboard-list me-2"></i>Précisions des exercices
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if seance.precision_exercices %}
+                <div class="bg-light p-3 rounded">
+                    {{ seance.precision_exercices|linebreaks }}
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">Aucune précision d'exercice renseignée.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions et métadonnées -->
+    <div class="col-lg-4">
+        <!-- Actions rapides -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-bolt me-2"></i>Actions rapides
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'seance_evaluation' seance.pk %}" class="btn btn-primary">
+                        <i class="fas fa-star me-2"></i>Évaluer les élèves
+                    </a>
+                    <a href="{% url 'seance_evaluation_view' seance.pk %}" class="btn btn-outline-primary">
+                        <i class="fas fa-eye me-2"></i>Voir les évaluations
+                    </a>
+                    <a href="{% url 'seance_update' seance.pk %}" class="btn btn-outline-warning">
+                        <i class="fas fa-edit me-2"></i>Modifier la séance
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Métadonnées -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock me-2"></i>Métadonnées
+                </h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Créée le :</strong> {{ seance.date_creation|date:"d/m/Y à H:i" }}</p>
+                <p><strong>Modifiée le :</strong> {{ seance.date_modification|date:"d/m/Y à H:i" }}</p>
+            </div>
+        </div>
+
+        <!-- Liens d'évaluation -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-link me-2"></i>Lien d'évaluation
+                </h5>
+                <a href="{% url 'generer_lien_evaluation' seance.pk %}" class="btn btn-sm btn-success">
+                    <i class="fas fa-plus me-2"></i>Générer un nouveau lien
+                </a>
+            </div>
+            <div class="card-body">
+                {% if lien_actif %}
+                    {% if lien_actif.est_valide %}
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-check-circle me-2"></i>Lien d'évaluation actif</h6>
+                            <p class="mb-2">Créé le {{ lien_actif.date_creation|date:"d/m/Y à H:i" }}</p>
+                            <p class="mb-2">Expire le {{ lien_actif.date_expiration|date:"d/m/Y à H:i" }}</p>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <h6><i class="fas fa-clock me-2"></i>Lien d'évaluation terminé</h6>
+                            <p class="mb-2">Créé le {{ lien_actif.date_creation|date:"d/m/Y à H:i" }}</p>
+                            <p class="mb-2">Terminé le {{ lien_actif.date_expiration|date:"d/m/Y à H:i" }}</p>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Lien toujours visible -->
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Lien d'évaluation :</strong></label>
+                        <div class="d-flex align-items-center">
+                            <input type="text" class="form-control me-2" value="{{ request.scheme }}://{{ request.get_host }}{{ lien_actif.url_evaluation }}" readonly>
+                            <button class="btn btn-outline-primary" onclick="copyToClipboard('{{ request.scheme }}://{{ request.get_host }}{{ lien_actif.url_evaluation }}')">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Bouton pour ouvrir le lien -->
+                    <div class="mb-3">
+                        <a href="{{ lien_actif.url_evaluation }}" target="_blank" class="btn btn-outline-success">
+                            <i class="fas fa-external-link-alt me-2"></i>Ouvrir le lien d'évaluation
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Aucun lien d'évaluation généré</h6>
+                        <p class="mb-3">Cliquez sur "Générer un nouveau lien" pour créer un lien d'évaluation.</p>
+                    </div>
+                {% endif %}
+                
+                <!-- Historique des liens -->
+                {% if liens_utilises %}
+                    <hr>
+                    <h6><i class="fas fa-history me-2"></i>Historique des liens</h6>
+                    <div class="list-group list-group-flush">
+                        {% for lien in liens_utilises %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted">{{ lien.date_creation|date:"d/m/Y H:i" }}</small>
+                                <span class="badge bg-secondary ms-2">Terminé</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Retour à la liste -->
+<div class="row mt-4">
+    <div class="col-12">
+        <a href="{% url 'seance_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Retour à la liste des séances
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        // Afficher une notification de succès
+        const toast = document.createElement('div');
+        toast.className = 'position-fixed top-0 end-0 p-3';
+        toast.style.zIndex = '1050';
+        toast.innerHTML = `
+            <div class="toast show" role="alert">
+                <div class="toast-header">
+                    <strong class="me-auto">Succès</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    Lien copié dans le presse-papiers !
+                </div>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            document.body.removeChild(toast);
+        }, 3000);
+    });
+}
+</script>
+{% endblock %} 

@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}
+{% if object %}Modifier l'adhérent{% else %}Nouvel adhérent{% endif %} - Club de Plongée
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-user me-2"></i>
+                {% if object %}Modifier l'adhérent{% else %}Nouvel adhérent{% endif %}
+            </h1>
+            <a href="{% url 'adherent_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Retour à la liste
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Informations de l'adhérent
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.prenom|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.nom|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.date_naissance|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.telephone|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    {{ form.email|as_crispy_field }}
+                    {{ form.adresse|as_crispy_field }}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.niveau|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.statut|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.date_fin_validite_caci|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.photo|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'adherent_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Annuler
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>
+                            {% if object %}Mettre à jour{% else %}Créer{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>Aide
+                </h5>
+            </div>
+            <div class="card-body">
+                <h6>Niveaux de plongée :</h6>
+                <ul class="list-unstyled small">
+                    <li><strong>Débutant :</strong> Première approche de la plongée</li>
+                    <li><strong>Niveau 1 :</strong> Plongeur autonome jusqu'à 20m</li>
+                    <li><strong>Niveau 2 :</strong> Plongeur autonome jusqu'à 40m</li>
+                    <li><strong>Niveau 3 :</strong> Plongeur autonome jusqu'à 60m</li>
+                    <li><strong>Initiateur 1 :</strong> Encadrant de palanquée</li>
+                    <li><strong>Initiateur 2 :</strong> Encadrant de formation</li>
+                    <li><strong>Moniteur fédéral 1 :</strong> Moniteur de club</li>
+                    <li><strong>Moniteur fédéral 2 :</strong> Moniteur de club confirmé</li>
+                </ul>
+                
+                <hr>
+                
+                <h6>Statuts :</h6>
+                <ul class="list-unstyled small">
+                    <li><strong>Élève :</strong> Personne en formation</li>
+                    <li><strong>Encadrant :</strong> Personne habilitée à encadrer</li>
+                </ul>
+                
+                <hr>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Note :</strong> Le CACI (Certificat d'Aptitude à la Conduite d'Embarcations de Plaisance) 
+                    est obligatoire pour certaines activités de plongée.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

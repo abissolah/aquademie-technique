@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}Supprimer {{ seance.palanquee }} - Club de Plongée{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirmation de suppression
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <i class="fas fa-calendar-times fa-3x text-danger mb-3"></i>
+                    <h4>Êtes-vous sûr de vouloir supprimer cette séance ?</h4>
+                </div>
+
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-info-circle me-2"></i>Informations de la séance :</h6>
+                    <ul class="mb-0">
+                        <li><strong>Palanquée :</strong> {{ seance.palanquee }}</li>
+                        <li><strong>Date :</strong> {{ seance.date|date:"d/m/Y" }}</li>
+                        <li><strong>Section :</strong> {{ seance.section.get_nom_display }}</li>
+                        <li><strong>Encadrant :</strong> {{ seance.encadrant.nom_complet }}</li>
+                        <li><strong>Élèves :</strong> {{ seance.eleves.count }} participant{{ seance.eleves.count|pluralize }}</li>
+                    </ul>
+                </div>
+
+                <div class="alert alert-danger">
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>Attention :</h6>
+                    <p class="mb-0">
+                        Cette action est <strong>irréversible</strong>. Toutes les données associées à cette séance 
+                        (évaluations, liens d'évaluation, etc.) seront également supprimées.
+                    </p>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'seance_detail' seance.pk %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Annuler
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash me-2"></i>Confirmer la suppression
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

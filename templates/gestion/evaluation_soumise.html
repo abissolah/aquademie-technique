@@ -1,0 +1,61 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Évaluation soumise - Club de Plongée</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .success-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 1rem;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center align-items-center min-vh-100">
+            <div class="col-md-8 col-lg-6">
+                <div class="success-card p-4 p-md-5 text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                        <h2 class="h3 mb-2">Évaluation soumise avec succès !</h2>
+                        <p class="text-muted">Merci pour votre évaluation. Les résultats ont été enregistrés.</p>
+                    </div>
+
+                    <div class="alert alert-success">
+                        <h6><i class="fas fa-info-circle me-2"></i>Ce qui s'est passé :</h6>
+                        <ul class="mb-0 text-start">
+                            <li>Vos évaluations ont été sauvegardées</li>
+                            <li>Le lien d'évaluation a été désactivé</li>
+                            <li>Les résultats sont maintenant disponibles dans l'application</li>
+                        </ul>
+                    </div>
+
+                    <div class="mt-4">
+                        <p class="text-muted small">
+                            <i class="fas fa-shield-alt me-1"></i>
+                            Vos données sont sécurisées et confidentielles.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 
