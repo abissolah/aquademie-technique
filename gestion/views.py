@@ -466,6 +466,74 @@ def get_competences_section(request):
         return JsonResponse({'competences': list(competences)})
     return JsonResponse({'competences': []})
 
+@login_required
+def get_eleves_section(request):
+    """API pour récupérer les élèves d'une section (AJAX)"""
+    section_id = request.GET.get('section_id')
+    if section_id:
+        try:
+            section = Section.objects.get(id=section_id)
+            
+            # Logique de filtrage des élèves selon la section
+            if section.nom == 'bapteme':
+                # Baptême : tous les élèves débutants
+                eleves = Adherent.objects.filter(
+                    statut='eleve',
+                    niveau='debutant'
+                ).values('id', 'nom', 'prenom').order_by('nom', 'prenom')
+            elif section.nom == 'prepa_niveau1':
+                # Prépa Niveau 1 : débutants et niveau 1
+                eleves = Adherent.objects.filter(
+                    statut='eleve',
+                    niveau__in=['debutant', 'niveau1']
+                ).values('id', 'nom', 'prenom').order_by('nom', 'prenom')
+            elif section.nom == 'prepa_niveau2':
+                # Prépa Niveau 2 : niveau 1 et niveau 2
+                eleves = Adherent.objects.filter(
+                    statut='eleve',
+                    niveau__in=['niveau1', 'niveau2']
+                ).values('id', 'nom', 'prenom').order_by('nom', 'prenom')
+            elif section.nom == 'prepa_niveau3':
+                # Prépa Niveau 3 : niveau 2 et niveau 3
+                eleves = Adherent.objects.filter(
+                    statut='eleve',
+                    niveau__in=['niveau2', 'niveau3']
+                ).values('id', 'nom', 'prenom').order_by('nom', 'prenom')
+            elif section.nom == 'prepa_niveau4':
+                # Prépa Niveau 4 : niveau 3
+                eleves = Adherent.objects.filter(
+                    statut='eleve',
+                    niveau='niveau3'
+                ).values('id', 'nom', 'prenom').order_by('nom', 'prenom')
+            elif section.nom == 'niveau3':
+                # Niveau 3 : niveau 3
+                eleves = Adherent.objects.filter(
+                    statut='eleve',
+                    niveau='niveau3'
+                ).values('id', 'nom', 'prenom').order_by('nom', 'prenom')
+            elif section.nom == 'niveau4':
+                # Niveau 4 : niveau 3 et plus
+                eleves = Adherent.objects.filter(
+                    statut='eleve',
+                    niveau__in=['niveau3', 'initiateur1', 'initiateur2', 'moniteur_federal1', 'moniteur_federal2']
+                ).values('id', 'nom', 'prenom').order_by('nom', 'prenom')
+            elif section.nom == 'encadrant':
+                # Encadrant : initiateurs et moniteurs
+                eleves = Adherent.objects.filter(
+                    statut='eleve',
+                    niveau__in=['initiateur1', 'initiateur2', 'moniteur_federal1', 'moniteur_federal2']
+                ).values('id', 'nom', 'prenom').order_by('nom', 'prenom')
+            else:
+                # Par défaut : tous les élèves
+                eleves = Adherent.objects.filter(
+                    statut='eleve'
+                ).values('id', 'nom', 'prenom').order_by('nom', 'prenom')
+            
+            return JsonResponse({'eleves': list(eleves)})
+        except Section.DoesNotExist:
+            return JsonResponse({'eleves': []})
+    return JsonResponse({'eleves': []})
+
 # Vues d'authentification
 def register(request):
     """Inscription d'un nouvel utilisateur"""

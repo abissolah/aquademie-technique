@@ -104,29 +104,65 @@
 document.addEventListener('DOMContentLoaded', function() {
     const sectionSelect = document.getElementById('id_section');
     const competencesSelect = document.getElementById('id_competences');
+    const elevesSelect = document.getElementById('id_eleves');
     
-    if (sectionSelect && competencesSelect) {
+    // Fonction pour charger les compétences d'une section
+    function loadCompetences(sectionId) {
+        if (sectionId) {
+            fetch(`/api/competences-section/?section_id=${sectionId}`)
+                .then(response => response.json())
+                .then(data => {
+                    competencesSelect.innerHTML = '<option value="">---------</option>';
+                    data.competences.forEach(competence => {
+                        const option = document.createElement('option');
+                        option.value = competence.id;
+                        option.textContent = competence.nom;
+                        competencesSelect.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Erreur lors du chargement des compétences:', error);
+                });
+        } else {
+            competencesSelect.innerHTML = '<option value="">---------</option>';
+        }
+    }
+    
+    // Fonction pour charger les élèves d'une section
+    function loadEleves(sectionId) {
+        if (sectionId) {
+            fetch(`/api/eleves-section/?section_id=${sectionId}`)
+                .then(response => response.json())
+                .then(data => {
+                    elevesSelect.innerHTML = '<option value="">---------</option>';
+                    data.eleves.forEach(eleve => {
+                        const option = document.createElement('option');
+                        option.value = eleve.id;
+                        option.textContent = `${eleve.nom} ${eleve.prenom}`;
+                        elevesSelect.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Erreur lors du chargement des élèves:', error);
+                });
+        } else {
+            elevesSelect.innerHTML = '<option value="">---------</option>';
+        }
+    }
+    
+    // Écouteur d'événement pour le changement de section
+    if (sectionSelect) {
         sectionSelect.addEventListener('change', function() {
             const sectionId = this.value;
-            if (sectionId) {
-                fetch(`/api/competences-section/?section_id=${sectionId}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        competencesSelect.innerHTML = '<option value="">---------</option>';
-                        data.competences.forEach(competence => {
-                            const option = document.createElement('option');
-                            option.value = competence.id;
-                            option.textContent = competence.nom;
-                            competencesSelect.appendChild(option);
-                        });
-                    })
-                    .catch(error => {
-                        console.error('Erreur lors du chargement des compétences:', error);
-                    });
-            } else {
-                competencesSelect.innerHTML = '<option value="">---------</option>';
-            }
+            loadCompetences(sectionId);
+            loadEleves(sectionId);
         });
+        
+        // Charger les données initiales si une section est déjà sélectionnée
+        if (sectionSelect.value) {
+            loadCompetences(sectionSelect.value);
+            loadEleves(sectionSelect.value);
+        }
     }
 });
 </script>
