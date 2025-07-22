@@ -54,6 +54,11 @@ class AdherentDetailView(LoginRequiredMixin, DetailView):
     model = Adherent
     template_name = 'gestion/adherent_detail.html'
     context_object_name = 'adherent'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['today'] = timezone.now().date()
+        return context
 
 class AdherentCreateView(LoginRequiredMixin, CreateView):
     model = Adherent

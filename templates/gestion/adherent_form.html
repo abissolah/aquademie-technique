@@ -62,6 +62,8 @@
                         </div>
                     </div>
                     
+                    {{ form.sections|as_crispy_field }}
+                    
                     <div class="row">
                         <div class="col-md-6">
                             {{ form.date_fin_validite_caci|as_crispy_field }}
@@ -111,6 +113,20 @@
                 <ul class="list-unstyled small">
                     <li><strong>Élève :</strong> Personne en formation</li>
                     <li><strong>Encadrant :</strong> Personne habilitée à encadrer</li>
+                </ul>
+                
+                <hr>
+                
+                <h6>Sections d'inscription :</h6>
+                <ul class="list-unstyled small">
+                    <li><strong>Baptême :</strong> Découverte de la plongée</li>
+                    <li><strong>Prépa Niveau 1 :</strong> Préparation au niveau 1</li>
+                    <li><strong>Prépa Niveau 2 :</strong> Préparation au niveau 2</li>
+                    <li><strong>Prépa Niveau 3 :</strong> Préparation au niveau 3</li>
+                    <li><strong>Prépa Niveau 4 :</strong> Préparation au niveau 4</li>
+                    <li><strong>Niveau 3 :</strong> Formation niveau 3</li>
+                    <li><strong>Niveau 4 :</strong> Formation niveau 4</li>
+                    <li><strong>Encadrant :</strong> Formation d'encadrant</li>
                 </ul>
                 
                 <hr>
