@@ -98,26 +98,44 @@ class GroupeCompetence(models.Model):
         return f"{self.section.get_nom_display()} - {self.intitule}"
 
 class Seance(models.Model):
-    palanquee = models.CharField(max_length=200)
     date = models.DateField()
-    section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name='seances')
-    encadrant = models.ForeignKey(Adherent, on_delete=models.CASCADE, related_name='seances_encadrees', limit_choices_to={'statut': 'encadrant'})
-    eleves = models.ManyToManyField(Adherent, related_name='seances_suivies', limit_choices_to={'statut': 'eleve'})
-    competences = models.ManyToManyField(Competence, related_name='seances')
-    precision_exercices = models.TextField()
+    lieu = models.CharField(max_length=200)
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)
     
     class Meta:
         verbose_name = "Séance"
         verbose_name_plural = "Séances"
-        ordering = ['-date', 'palanquee']
+        ordering = ['-date', 'lieu']
     
     def __str__(self):
-        return f"{self.date} - {self.palanquee} - {self.encadrant.nom_complet}"
+        return f"{self.date} - {self.lieu}"
+    
+    @property
+    def palanquees_count(self):
+        return self.palanquees.count()
+
+class Palanquee(models.Model):
+    nom = models.CharField(max_length=200)
+    seance = models.ForeignKey(Seance, on_delete=models.CASCADE, related_name='palanquees')
+    section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name='palanquees')
+    encadrant = models.ForeignKey(Adherent, on_delete=models.CASCADE, related_name='palanquees_encadrees', limit_choices_to={'statut': 'encadrant'})
+    eleves = models.ManyToManyField(Adherent, related_name='palanquees_suivies', limit_choices_to={'statut': 'eleve'})
+    competences = models.ManyToManyField(Competence, related_name='palanquees')
+    precision_exercices = models.TextField()
+    date_creation = models.DateTimeField(auto_now_add=True)
+    date_modification = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Palanquée"
+        verbose_name_plural = "Palanquées"
+        ordering = ['seance__date', 'nom']
+    
+    def __str__(self):
+        return f"{self.seance.date} - {self.nom} - {self.encadrant.nom_complet}"
 
 class Evaluation(models.Model):
-    seance = models.ForeignKey(Seance, on_delete=models.CASCADE, related_name='evaluations')
+    palanquee = models.ForeignKey(Palanquee, on_delete=models.CASCADE, related_name='evaluations')
     eleve = models.ForeignKey(Adherent, on_delete=models.CASCADE, related_name='evaluations_recues', limit_choices_to={'statut': 'eleve'})
     competence = models.ForeignKey(Competence, on_delete=models.CASCADE, related_name='evaluations')
     note = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)], help_text="0 = pas maîtrisé, 5 = parfaitement maîtrisé")
@@ -127,13 +145,13 @@ class Evaluation(models.Model):
     class Meta:
         verbose_name = "Évaluation"
         verbose_name_plural = "Évaluations"
-        unique_together = ['seance', 'eleve', 'competence']
+        unique_together = ['palanquee', 'eleve', 'competence']
     
     def __str__(self):
-        return f"{self.seance} - {self.eleve.nom_complet} - {self.competence.nom} ({self.note}/5)"
+        return f"{self.palanquee} - {self.eleve.nom_complet} - {self.competence.nom} ({self.note}/5)"
 
 class LienEvaluation(models.Model):
-    seance = models.ForeignKey(Seance, on_delete=models.CASCADE, related_name='liens_evaluation')
+    palanquee = models.ForeignKey(Palanquee, on_delete=models.CASCADE, related_name='liens_evaluation')
     token = models.UUIDField(default=uuid.uuid4, unique=True)
     date_creation = models.DateTimeField(auto_now_add=True)
     date_expiration = models.DateTimeField()
@@ -144,7 +162,7 @@ class LienEvaluation(models.Model):
         verbose_name_plural = "Liens d'évaluation"
     
     def __str__(self):
-        return f"Lien évaluation {self.seance} - {self.token}"
+        return f"Lien évaluation {self.palanquee} - {self.token}"
     
     @property
     def url_evaluation(self):

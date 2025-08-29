@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}
+    {% if form.instance.pk %}Modifier la Palanquée{% else %}Nouvelle Palanquée{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-users me-2"></i>
+                {% if form.instance.pk %}Modifier la Palanquée{% else %}Nouvelle Palanquée{% endif %}
+            </h1>
+            <a href="{% if form.instance.pk and form.instance.seance %}{% url 'seance_update' form.instance.seance.pk %}{% else %}{% url 'palanquee_list' %}{% endif %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>{% if form.instance.pk and form.instance.seance %}Retour à la séance{% else %}Retour à la liste{% endif %}
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Informations de la palanquée
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="palanqueeForm">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.seance|as_crispy_field }}
+                            {% if form.seance.help_text %}
+                            <small class="form-text text-muted">{{ form.seance.help_text }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.section|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.encadrant|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.eleves|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    {{ form.competences|as_crispy_field }}
+                    {{ form.precision_exercices|as_crispy_field }}
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% if form.instance.pk and form.instance.seance %}{% url 'seance_update' form.instance.seance.pk %}{% else %}{% url 'palanquee_list' %}{% endif %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Annuler
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>
+                            {% if form.instance.pk %}Mettre à jour{% else %}Créer{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>Aide
+                </h5>
+            </div>
+            <div class="card-body">
+                <h6>Comment créer une palanquée :</h6>
+                <ol class="small">
+                    <li>Assurez-vous qu'une séance existe déjà</li>
+                    <li>Sélectionnez la section appropriée</li>
+                    <li>Choisissez l'encadrant responsable</li>
+                    <li>Ajoutez les élèves participants</li>
+                    <li>Sélectionnez les compétences à travailler</li>
+                </ol>
+                
+                <hr>
+                
+                <h6>Notes importantes :</h6>
+                <ul class="small text-muted">
+                    <li>Une palanquée doit être rattachée à une séance existante</li>
+                    <li>Les compétences doivent correspondre à la section choisie</li>
+                    <li>Les élèves doivent avoir le niveau requis pour la section</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Prévisualisation de la séance -->
+        {% if form.seance.value %}
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-calendar me-2"></i>Séance sélectionnée
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="seance-info">
+                    <p class="text-muted">Sélectionnez une séance pour voir les détails</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

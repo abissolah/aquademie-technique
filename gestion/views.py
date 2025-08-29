@@ -18,8 +18,8 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
-from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation
-from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm
+from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation, Palanquee
+from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm
 from .utils import envoyer_lien_evaluation, envoyer_lien_evaluation_avec_cc
 
 # Vues d'accueil et de navigation
@@ -29,7 +29,9 @@ def dashboard(request):
     context = {
         'total_adherents': Adherent.objects.count(),
         'total_seances': Seance.objects.count(),
+        'total_palanquees': Palanquee.objects.count(),
         'seances_recentes': Seance.objects.all()[:5],
+        'palanquees_recentes': Palanquee.objects.select_related('seance', 'section').prefetch_related('eleves')[:5],
         'adherents_eleves': Adherent.objects.filter(statut='eleve').count(),
         'adherents_encadrants': Adherent.objects.filter(statut='encadrant').count(),
     }
@@ -204,23 +206,19 @@ class SeanceListView(LoginRequiredMixin, ListView):
     paginate_by = 10
     
     def get_queryset(self):
-        queryset = Seance.objects.select_related('section', 'encadrant').prefetch_related('eleves', 'competences')
+        queryset = Seance.objects.prefetch_related('palanquees')
         date_debut = self.request.GET.get('date_debut')
         date_fin = self.request.GET.get('date_fin')
-        section_id = self.request.GET.get('section')
         
         if date_debut:
             queryset = queryset.filter(date__gte=date_debut)
         if date_fin:
             queryset = queryset.filter(date__lte=date_fin)
-        if section_id:
-            queryset = queryset.filter(section_id=section_id)
             
         return queryset
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['sections'] = Section.objects.all()
         return context
 
 class SeanceDetailView(LoginRequiredMixin, DetailView):
@@ -232,18 +230,8 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         seance = self.get_object()
         
-        # Récupérer le lien actif s'il existe
-        lien_actif = seance.liens_evaluation.filter(est_valide=True).first()
-        
-        # Si pas de lien actif, récupérer le dernier lien généré (même s'il n'est plus actif)
-        if not lien_actif:
-            lien_actif = seance.liens_evaluation.order_by('-date_creation').first()
-        
-        # Récupérer tous les autres liens utilisés
-        liens_utilises = seance.liens_evaluation.filter(est_valide=False).exclude(id=lien_actif.id if lien_actif else None)
-        
-        context['lien_actif'] = lien_actif
-        context['liens_utilises'] = liens_utilises
+        # Récupérer les palanquées associées
+        context['palanquees'] = seance.palanquees.all()
         
         return context
 
@@ -252,26 +240,12 @@ class SeanceCreateView(LoginRequiredMixin, CreateView):
     form_class = SeanceForm
     template_name = 'gestion/seance_form.html'
     success_url = reverse_lazy('seance_list')
-    
-    def form_valid(self, form):
-        # Mettre à jour le queryset des compétences avant la validation
-        section = form.cleaned_data.get('section')
-        if section:
-            form.fields['competences'].queryset = Competence.objects.filter(section=section)
-        return super().form_valid(form)
 
 class SeanceUpdateView(LoginRequiredMixin, UpdateView):
     model = Seance
     form_class = SeanceForm
     template_name = 'gestion/seance_form.html'
     success_url = reverse_lazy('seance_list')
-    
-    def form_valid(self, form):
-        # Mettre à jour le queryset des compétences avant la validation
-        section = form.cleaned_data.get('section')
-        if section:
-            form.fields['competences'].queryset = Competence.objects.filter(section=section)
-        return super().form_valid(form)
 
 class SeanceDeleteView(LoginRequiredMixin, DeleteView):
     model = Seance
@@ -280,216 +254,50 @@ class SeanceDeleteView(LoginRequiredMixin, DeleteView):
 
 # Vues pour les évaluations
 @login_required
-def seance_evaluation(request, pk):
-    """Page d'évaluation d'une séance"""
-    seance = get_object_or_404(Seance, pk=pk)
+def evaluation_detail(request, pk):
+    """Voir le détail d'une évaluation"""
+    evaluation = get_object_or_404(Evaluation, pk=pk)
+    return render(request, 'gestion/evaluation_detail.html', {'evaluation': evaluation})
+
+@login_required
+def evaluation_update(request, pk):
+    """Modifier une évaluation"""
+    evaluation = get_object_or_404(Evaluation, pk=pk)
     
     if request.method == 'POST':
-        form = EvaluationBulkForm(seance, request.POST)
+        form = EvaluationBulkForm(evaluation.palanquee, request.POST)
         if form.is_valid():
-            # Sauvegarder les évaluations
-            for eleve in seance.eleves.all():
-                for competence in seance.competences.all():
-                    note = form.cleaned_data.get(f'eval_{eleve.id}_{competence.id}')
-                    commentaire = form.cleaned_data.get(f'comment_{eleve.id}_{competence.id}')
-                    
-                    if note is not None:
-                        evaluation, created = Evaluation.objects.get_or_create(
-                            seance=seance,
-                            eleve=eleve,
-                            competence=competence,
-                            defaults={'note': note, 'commentaire': commentaire}
-                        )
-                        if not created:
-                            evaluation.note = note
-                            evaluation.commentaire = commentaire
-                            evaluation.save()
+            # Sauvegarder l'évaluation
+            note = form.cleaned_data.get(f'eval_{evaluation.eleve.id}_{evaluation.competence.id}')
+            commentaire = form.cleaned_data.get(f'comment_{evaluation.eleve.id}_{evaluation.competence.id}')
             
-            messages.success(request, 'Évaluations sauvegardées avec succès.')
-            return redirect('seance_detail', pk=pk)
+            if note is not None:
+                evaluation.note = note
+                evaluation.commentaire = commentaire
+                evaluation.save()
+                messages.success(request, 'Évaluation mise à jour avec succès.')
+                return redirect('palanquee_detail', pk=evaluation.palanquee.pk)
     else:
-        form = EvaluationBulkForm(seance)
+        form = EvaluationBulkForm(evaluation.palanquee)
     
     context = {
-        'seance': seance,
+        'evaluation': evaluation,
         'form': form,
     }
-    return render(request, 'gestion/seance_evaluation.html', context)
+    return render(request, 'gestion/evaluation_update.html', context)
 
 @login_required
-def seance_evaluation_view(request, pk):
-    """Voir les évaluations d'une séance"""
-    seance = get_object_or_404(Seance, pk=pk)
-    evaluations = Evaluation.objects.filter(seance=seance).select_related('eleve', 'competence')
-    
-    # Organiser les évaluations par élève (liste d'évaluations)
-    evaluations_par_eleve = {}
-    for evaluation in evaluations:
-        if evaluation.eleve not in evaluations_par_eleve:
-            evaluations_par_eleve[evaluation.eleve] = []
-        evaluations_par_eleve[evaluation.eleve].append(evaluation)
-    
-    context = {
-        'seance': seance,
-        'evaluations_par_eleve': evaluations_par_eleve,
-    }
-    return render(request, 'gestion/seance_evaluation_view.html', context)
-
-# Vues pour les liens d'évaluation
-@login_required
-def generer_lien_evaluation(request, pk):
-    """Générer un lien d'évaluation pour une séance"""
-    seance = get_object_or_404(Seance, pk=pk)
-    
-    # Vérifier s'il existe déjà un lien valide pour cette séance
-    lien_existant = LienEvaluation.objects.filter(seance=seance, est_valide=True).first()
-    
-    if lien_existant:
-        # Marquer l'ancien lien comme utilisé
-        lien_existant.est_valide = False
-        lien_existant.save()
-        messages.info(request, f'L\'ancien lien a été désactivé.')
-    
-    # Créer un nouveau lien d'évaluation
-    lien = LienEvaluation.objects.create(
-        seance=seance,
-        date_expiration=timezone.now() + timedelta(days=30)  # Lien valide 30 jours
-    )
-    
-    messages.success(request, f'Nouveau lien d\'évaluation généré : {request.build_absolute_uri(lien.url_evaluation)}')
-    return redirect('seance_detail', pk=pk)
-
-def evaluation_publique(request, token):
-    """Page d'évaluation publique accessible sans connexion"""
-    lien = get_object_or_404(LienEvaluation, token=token, est_valide=True)
-    
-    if timezone.now() > lien.date_expiration:
-        messages.error(request, 'Ce lien d\'évaluation a expiré.')
-        return render(request, 'gestion/evaluation_expiree.html')
-    
-    seance = lien.seance
+def evaluation_delete(request, pk):
+    """Supprimer une évaluation"""
+    evaluation = get_object_or_404(Evaluation, pk=pk)
+    palanquee_pk = evaluation.palanquee.pk
     
     if request.method == 'POST':
-        form = EvaluationBulkForm(seance, request.POST)
-        if form.is_valid():
-            # Sauvegarder les évaluations
-            evaluations_sauvegardees = 0
-            total_evaluations_attendues = seance.eleves.count() * seance.competences.count()
-            
-            for eleve in seance.eleves.all():
-                for competence in seance.competences.all():
-                    note = form.cleaned_data.get(f'eval_{eleve.id}_{competence.id}')
-                    commentaire = form.cleaned_data.get(f'comment_{eleve.id}_{competence.id}')
-                    
-                    if note is not None:
-                        evaluation, created = Evaluation.objects.get_or_create(
-                            seance=seance,
-                            eleve=eleve,
-                            competence=competence,
-                            defaults={'note': note, 'commentaire': commentaire}
-                        )
-                        if not created:
-                            evaluation.note = note
-                            evaluation.commentaire = commentaire
-                            evaluation.save()
-                        evaluations_sauvegardees += 1
-            
-            # Vérifier si toutes les évaluations ont été soumises
-            if evaluations_sauvegardees == total_evaluations_attendues:
-                # Toutes les évaluations sont complètes, marquer le lien comme utilisé
-                lien.est_valide = False
-                lien.save()
-                messages.success(request, 'Toutes les évaluations ont été soumises avec succès. Le lien d\'évaluation est maintenant fermé.')
-                return render(request, 'gestion/evaluation_soumise.html')
-            else:
-                # Évaluations partielles, garder le lien actif
-                messages.success(request, f'{evaluations_sauvegardees}/{total_evaluations_attendues} évaluations sauvegardées. Vous pouvez continuer à évaluer les compétences restantes.')
-                return redirect('evaluation_publique', token=token)
-    else:
-        form = EvaluationBulkForm(seance)
+        evaluation.delete()
+        messages.success(request, 'Évaluation supprimée avec succès.')
+        return redirect('palanquee_detail', pk=palanquee_pk)
     
-    # Charger les évaluations existantes pour pré-remplir le formulaire
-    evaluations_existantes = {}
-    for evaluation in Evaluation.objects.filter(seance=seance):
-        key = f'eval_{evaluation.eleve.id}_{evaluation.competence.id}'
-        evaluations_existantes[key] = evaluation.note
-        
-        key_comment = f'comment_{evaluation.eleve.id}_{evaluation.competence.id}'
-        evaluations_existantes[key_comment] = evaluation.commentaire
-    
-    # Pré-remplir le formulaire avec les données existantes
-    if evaluations_existantes:
-        form = EvaluationBulkForm(seance, initial=evaluations_existantes)
-    
-    context = {
-        'seance': seance,
-        'form': form,
-        'token': token,
-    }
-    return render(request, 'gestion/evaluation_publique.html', context)
-
-# Vues pour la génération de PDF
-@login_required
-def generer_fiche_seance_pdf(request, pk):
-    """Générer la fiche PDF d'une séance"""
-    seance = get_object_or_404(Seance, pk=pk)
-    
-    # Créer le PDF
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="fiche_seance_{seance.date}_{seance.palanquee}.pdf"'
-    
-    doc = SimpleDocTemplate(response, pagesize=A4)
-    elements = []
-    
-    # Styles
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=16,
-        spaceAfter=30,
-        alignment=TA_CENTER
-    )
-    heading_style = ParagraphStyle(
-        'CustomHeading',
-        parent=styles['Heading2'],
-        fontSize=14,
-        spaceAfter=12,
-        spaceBefore=20
-    )
-    normal_style = styles['Normal']
-    
-    # Titre
-    elements.append(Paragraph(f"Fiche de Séance - {seance.palanquee}", title_style))
-    elements.append(Spacer(1, 20))
-    
-    # Informations générales
-    elements.append(Paragraph("Informations générales", heading_style))
-    elements.append(Paragraph(f"<b>Date :</b> {seance.date.strftime('%d/%m/%Y')}", normal_style))
-    elements.append(Paragraph(f"<b>Encadrant :</b> {seance.encadrant.nom_complet}", normal_style))
-    elements.append(Paragraph(f"<b>Section :</b> {seance.section.get_nom_display()}", normal_style))
-    elements.append(Spacer(1, 12))
-    
-    # Élèves
-    elements.append(Paragraph("Élèves", heading_style))
-    eleves_list = [eleve.nom_complet for eleve in seance.eleves.all()]
-    elements.append(Paragraph(f"<b>Participants :</b> {', '.join(eleves_list)}", normal_style))
-    elements.append(Spacer(1, 12))
-    
-    # Compétences
-    elements.append(Paragraph("Compétences", heading_style))
-    competences_list = [competence.nom for competence in seance.competences.all()]
-    for i, competence in enumerate(competences_list, 1):
-        elements.append(Paragraph(f"{i}. {competence}", normal_style))
-    elements.append(Spacer(1, 12))
-    
-    # Précisions des exercices
-    elements.append(Paragraph("Précisions des exercices", heading_style))
-    elements.append(Paragraph(seance.precision_exercices, normal_style))
-    
-    # Construire le PDF
-    doc.build(elements)
-    return response
+    return render(request, 'gestion/evaluation_confirm_delete.html', {'evaluation': evaluation})
 
 # Vues utilitaires
 @login_required
@@ -577,38 +385,252 @@ def get_eleves_section(request):
             return JsonResponse({'eleves': []})
     return JsonResponse({'eleves': []})
 
+# Vues pour l'import Excel
+@login_required
+def import_adherents_excel(request):
+    """Import en masse d'adhérents depuis un fichier Excel"""
+    if request.method == 'POST':
+        if 'excel_file' in request.FILES:
+            excel_file = request.FILES['excel_file']
+            
+            # Vérifier l'extension du fichier
+            if not excel_file.name.endswith(('.xlsx', '.xls')):
+                messages.error(request, 'Veuillez sélectionner un fichier Excel (.xlsx ou .xls)')
+                return render(request, 'gestion/import_adherents_excel.html')
+            
+            try:
+                import pandas as pd
+                from datetime import datetime
+                import re
+                
+                # Lire le fichier Excel
+                if excel_file.name.endswith('.xlsx'):
+                    df = pd.read_excel(excel_file, engine='openpyxl')
+                else:
+                    df = pd.read_excel(excel_file, engine='xlrd')
+                
+                # Vérifier les colonnes requises
+                required_columns = ['nom', 'prenom', 'date_naissance', 'adresse', 'email', 
+                                  'telephone', 'date_fin_validite_caci', 'niveau', 'statut']
+                missing_columns = [col for col in required_columns if col not in df.columns]
+                
+                if missing_columns:
+                    messages.error(request, f'Colonnes manquantes dans le fichier : {", ".join(missing_columns)}')
+                    return render(request, 'gestion/import_adherents_excel.html')
+                
+                # Valeurs autorisées pour la validation
+                niveaux_valides = ['debutant', 'niveau1', 'niveau2', 'niveau3', 'initiateur1', 'initiateur2', 'moniteur_federal1', 'moniteur_federal2']
+                statuts_valides = ['eleve', 'encadrant']
+                
+                # Traitement des données
+                success_count = 0
+                error_count = 0
+                errors = []
+                imported_adherents = []
+                
+                for index, row in df.iterrows():
+                    try:
+                        # Nettoyer les données
+                        nom = str(row['nom']).strip() if pd.notna(row['nom']) else ''
+                        prenom = str(row['prenom']).strip() if pd.notna(row['prenom']) else ''
+                        email = str(row['email']).strip() if pd.notna(row['email']) else ''
+                        
+                        # Vérifier les champs obligatoires
+                        if not nom or not prenom or not email:
+                            errors.append(f"Ligne {index + 2}: nom, prénom et email sont obligatoires")
+                            error_count += 1
+                            continue
+                        
+                        # Vérifier si l'adhérent existe déjà (email OU nom+prénom)
+                        if Adherent.objects.filter(email=email).exists():
+                            errors.append(f"Ligne {index + 2}: l'email {email} existe déjà")
+                            error_count += 1
+                            continue
+                        
+                        if Adherent.objects.filter(nom=nom, prenom=prenom).exists():
+                            errors.append(f"Ligne {index + 2}: l'adhérent {nom} {prenom} existe déjà")
+                            error_count += 1
+                            continue
+                        
+                        # Validation du format des dates (DD/MM/YYYY uniquement)
+                        date_naissance = None
+                        date_fin_validite_caci = None
+                        
+                        # Validation date de naissance
+                        if pd.notna(row['date_naissance']):
+                            date_str = str(row['date_naissance']).strip()
+                            if re.match(r'^\d{2}/\d{2}/\d{4}$', date_str):
+                                try:
+                                    date_naissance = datetime.strptime(date_str, '%d/%m/%Y').date()
+                                except ValueError:
+                                    errors.append(f"Ligne {index + 2}: date de naissance '{date_str}' invalide (format DD/MM/YYYY attendu)")
+                                    error_count += 1
+                                    continue
+                            else:
+                                errors.append(f"Ligne {index + 2}: date de naissance '{date_str}' format incorrect (DD/MM/YYYY attendu)")
+                                error_count += 1
+                                continue
+                        else:
+                            date_naissance = datetime.now().date()
+                        
+                        # Validation date fin validité CACI
+                        if pd.notna(row['date_fin_validite_caci']):
+                            date_str = str(row['date_fin_validite_caci']).strip()
+                            if re.match(r'^\d{2}/\d{2}/\d{4}$', date_str):
+                                try:
+                                    date_fin_validite_caci = datetime.strptime(date_str, '%d/%m/%Y').date()
+                                except ValueError:
+                                    errors.append(f"Ligne {index + 2}: date fin validité CACI '{date_str}' invalide (format DD/MM/YYYY attendu)")
+                                    error_count += 1
+                                    continue
+                            else:
+                                errors.append(f"Ligne {index + 2}: date fin validité CACI '{date_str}' format incorrect (DD/MM/YYYY attendu)")
+                                error_count += 1
+                                continue
+                        else:
+                            date_fin_validite_caci = datetime.now().date()
+                        
+                        # Validation du niveau
+                        niveau = str(row['niveau']).strip() if pd.notna(row['niveau']) else 'debutant'
+                        if niveau not in niveaux_valides:
+                            errors.append(f"Ligne {index + 2}: niveau '{niveau}' invalide (valeurs: {', '.join(niveaux_valides)})")
+                            error_count += 1
+                            continue
+                        
+                        # Validation du statut
+                        statut = str(row['statut']).strip() if pd.notna(row['statut']) else 'eleve'
+                        if statut not in statuts_valides:
+                            errors.append(f"Ligne {index + 2}: statut '{statut}' invalide (valeurs: {', '.join(statuts_valides)})")
+                            error_count += 1
+                            continue
+                        
+                        # Validation des sections
+                        sections_invalides = []
+                        if 'sections' in df.columns and pd.notna(row['sections']):
+                            sections_str = str(row['sections']).strip()
+                            if sections_str:
+                                section_names = [s.strip() for s in sections_str.split(',')]
+                                for section_name in section_names:
+                                    if not Section.objects.filter(nom=section_name).exists():
+                                        sections_invalides.append(section_name)
+                        
+                        if sections_invalides:
+                            errors.append(f"Ligne {index + 2}: sections inexistantes: {', '.join(sections_invalides)}")
+                            error_count += 1
+                            continue
+                        
+                        # Si toutes les validations passent, créer l'adhérent
+                        adherent = Adherent.objects.create(
+                            nom=nom,
+                            prenom=prenom,
+                            date_naissance=date_naissance,
+                            adresse=str(row['adresse']).strip() if pd.notna(row['adresse']) else '',
+                            email=email,
+                            telephone=str(row['telephone']).strip() if pd.notna(row['telephone']) else '',
+                            date_fin_validite_caci=date_fin_validite_caci,
+                            niveau=niveau,
+                            statut=statut,
+                        )
+                        
+                        # Ajouter les sections
+                        if 'sections' in df.columns and pd.notna(row['sections']):
+                            sections_str = str(row['sections']).strip()
+                            if sections_str:
+                                section_names = [s.strip() for s in sections_str.split(',')]
+                                for section_name in section_names:
+                                    try:
+                                        section = Section.objects.get(nom=section_name)
+                                        adherent.sections.add(section)
+                                    except Section.DoesNotExist:
+                                        pass
+                        
+                        success_count += 1
+                        imported_adherents.append(f"{nom} {prenom}")
+                        
+                    except Exception as e:
+                        errors.append(f"Ligne {index + 2}: {str(e)}")
+                        error_count += 1
+                
+                # Stocker les résultats dans la session pour l'affichage
+                request.session['import_results'] = {
+                    'success_count': success_count,
+                    'error_count': error_count,
+                    'errors': errors,
+                    'imported_adherents': imported_adherents
+                }
+                
+                # Messages de résultat
+                if success_count > 0:
+                    messages.success(request, f'{success_count} adhérent(s) importé(s) avec succès')
+                
+                if error_count > 0:
+                    messages.warning(request, f'{error_count} erreur(s) lors de l\'import')
+                
+                return render(request, 'gestion/import_adherents_excel.html')
+                
+            except Exception as e:
+                messages.error(request, f'Erreur lors de la lecture du fichier Excel : {str(e)}')
+                return render(request, 'gestion/import_adherents_excel.html')
+        else:
+            messages.error(request, 'Aucun fichier sélectionné')
+            return render(request, 'gestion/import_adherents_excel.html')
+    
+    # Affichage de la page d'import (GET request)
+    return render(request, 'gestion/import_adherents_excel.html')
 
 @login_required
-def envoyer_lien_par_email(request, pk):
-    """Envoyer le lien d'évaluation par email à l'encadrant"""
-    seance = get_object_or_404(Seance, pk=pk)
+def download_excel_template(request):
+    """Télécharger le modèle Excel pour l'import d'adhérents"""
+    import pandas as pd
+    from datetime import date, timedelta
     
-    # Récupérer le lien actif
-    lien_actif = seance.liens_evaluation.filter(est_valide=True).first()
+    # Créer un DataFrame d'exemple
+    data = {
+        'nom': ['Dupont', 'Martin', 'Bernard'],
+        'prenom': ['Jean', 'Marie', 'Pierre'],
+        'date_naissance': ['15/05/1990', '03/12/1985', '22/08/1992'],
+        'adresse': ['123 Rue de la Paix, Paris', '456 Avenue des Champs, Lyon', '789 Boulevard de la Mer, Nice'],
+        'email': ['jean.dupont@email.com', 'marie.martin@email.com', 'pierre.bernard@email.com'],
+        'telephone': ['0123456789', '0987654321', '0567891234'],
+        'date_fin_validite_caci': ['31/12/2025', '30/06/2026', '15/09/2025'],
+        'niveau': ['niveau1', 'niveau2', 'debutant'],
+        'statut': ['eleve', 'eleve', 'eleve'],
+        'sections': ['bapteme,prepa_niveau1', 'prepa_niveau2', 'bapteme']
+    }
     
-    if not lien_actif:
-        # Si pas de lien actif, récupérer le dernier lien généré
-        lien_actif = seance.liens_evaluation.order_by('-date_creation').first()
+    df = pd.DataFrame(data)
     
-    if not lien_actif:
-        messages.error(request, 'Aucun lien d\'évaluation trouvé pour cette séance.')
-        return redirect('seance_detail', pk=pk)
+    # Créer la réponse HTTP
+    from django.http import HttpResponse
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="modele_import_adherents.xlsx"'
     
-    # Vérifier que l'encadrant a une adresse email
-    if not seance.encadrant.email:
-        messages.error(request, f'L\'encadrant {seance.encadrant.nom_complet} n\'a pas d\'adresse email configurée.')
-        return redirect('seance_detail', pk=pk)
+    # Écrire le fichier Excel
+    with pd.ExcelWriter(response, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Adhérents', index=False)
+        
+        # Ajouter une feuille avec les instructions
+        instructions = pd.DataFrame({
+            'Colonne': ['nom', 'prenom', 'date_naissance', 'adresse', 'email', 'telephone', 'date_fin_validite_caci', 'niveau', 'statut', 'sections'],
+            'Description': [
+                'Nom de famille (obligatoire)',
+                'Prénom (obligatoire)',
+                'Date de naissance (format: DD/MM/YYYY)',
+                'Adresse complète',
+                'Email (obligatoire, unique)',
+                'Numéro de téléphone',
+                'Date de fin de validité CACI (format: DD/MM/YYYY)',
+                'Niveau de plongée (debutant, niveau1, niveau2, niveau3, initiateur1, initiateur2, moniteur_federal1, moniteur_federal2)',
+                'Statut (eleve ou encadrant)',
+                'Sections (séparées par des virgules: bapteme,prepa_niveau1,prepa_niveau2)'
+            ],
+            'Obligatoire': ['Oui', 'Oui', 'Non', 'Non', 'Oui', 'Non', 'Non', 'Non', 'Non', 'Non'],
+            'Exemple': ['Dupont', 'Jean', '15/05/1990', '123 Rue de la Paix, Paris', 'jean.dupont@email.com', '0123456789', '31/12/2025', 'niveau1', 'eleve', 'bapteme,prepa_niveau1']
+        })
+        
+        instructions.to_excel(writer, sheet_name='Instructions', index=False)
     
-    # Envoyer l'email
-    success, message = envoyer_lien_evaluation(lien_actif, request)
-    
-    if success:
-        messages.success(request, f'Lien d\'évaluation envoyé avec succès à {seance.encadrant.email}')
-    else:
-        messages.error(request, message)
-    
-    return redirect('seance_detail', pk=pk)
-
+    return response
 
 # Vues d'authentification personnalisées
 from django.contrib.auth.views import LoginView, LogoutView
@@ -621,3 +643,4 @@ class CustomLoginView(LoginView):
 
 class CustomLogoutView(LogoutView):
     next_page = 'login'
+

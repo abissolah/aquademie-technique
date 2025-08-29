@@ -2,7 +2,7 @@
 {% load crispy_forms_tags %}
 
 {% block title %}
-{% if object %}Modifier la séance{% else %}Nouvelle séance{% endif %} - Club de Plongée
+    {% if object %}Modifier la séance{% else %}Nouvelle séance{% endif %} - Club de Plongée
 {% endblock %}
 
 {% block content %}
@@ -34,25 +34,12 @@
                     
                     <div class="row">
                         <div class="col-md-6">
-                            {{ form.palanquee|as_crispy_field }}
-                        </div>
-                        <div class="col-md-6">
                             {{ form.date|as_crispy_field }}
                         </div>
-                    </div>
-                    
-                    <div class="row">
                         <div class="col-md-6">
-                            {{ form.section|as_crispy_field }}
-                        </div>
-                        <div class="col-md-6">
-                            {{ form.encadrant|as_crispy_field }}
+                            {{ form.lieu|as_crispy_field }}
                         </div>
                     </div>
-                    
-                    {{ form.eleves|as_crispy_field }}
-                    {{ form.competences|as_crispy_field }}
-                    {{ form.precision_exercices|as_crispy_field }}
                     
                     <div class="d-flex justify-content-between">
                         <a href="{% url 'seance_list' %}" class="btn btn-outline-secondary">
@@ -64,6 +51,71 @@
                         </button>
                     </div>
                 </form>
+                
+                <!-- Section des palanquées (uniquement en mode édition) -->
+                {% if object %}
+                <hr class="my-4">
+                
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">
+                        <i class="fas fa-users me-2"></i>Palanquées de cette séance
+                    </h6>
+                    <a href="{% url 'palanquee_create' %}?seance={{ object.pk }}" class="btn btn-success btn-sm">
+                        <i class="fas fa-plus me-2"></i>Nouvelle palanquée
+                    </a>
+                </div>
+                
+                {% if object.palanquees.all %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Section</th>
+                                <th>Encadrant</th>
+                                <th>Élèves</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for palanquee in object.palanquees.all %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-info">{{ palanquee.section.nom }}</span>
+                                </td>
+                                <td>{{ palanquee.encadrant.nom_complet }}</td>
+                                <td>
+                                    {% for eleve in palanquee.eleves.all %}
+                                    <span class="badge bg-secondary me-1">{{ eleve.nom_complet }}</span>
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{% url 'palanquee_detail' palanquee.pk %}" class="btn btn-outline-primary" title="Voir">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{% url 'palanquee_update' palanquee.pk %}" class="btn btn-outline-warning" title="Modifier">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'palanquee_delete' palanquee.pk %}" class="btn btn-outline-danger" title="Supprimer">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-3 text-muted">
+                    <i class="fas fa-users fa-2x mb-2"></i>
+                    <p>Aucune palanquée créée pour cette séance</p>
+                    <a href="{% url 'palanquee_create' %}?seance={{ object.pk }}" class="btn btn-success">
+                        <i class="fas fa-plus me-2"></i>Créer la première palanquée
+                    </a>
+                </div>
+                {% endif %}
+                {% endif %}
             </div>
         </div>
     </div>
@@ -78,92 +130,25 @@
             <div class="card-body">
                 <h6>Création d'une séance :</h6>
                 <ol class="small">
-                    <li><strong>Palanquée :</strong> Nom ou identifiant de la séance</li>
                     <li><strong>Date :</strong> Date prévue pour la séance</li>
-                    <li><strong>Section :</strong> Type de formation concerné</li>
-                    <li><strong>Encadrant :</strong> Moniteur responsable de la séance</li>
-                    <li><strong>Élèves :</strong> Participants à la séance</li>
-                    <li><strong>Compétences :</strong> Objectifs pédagogiques</li>
-                    <li><strong>Précisions :</strong> Détails des exercices prévus</li>
+                    <li><strong>Lieu :</strong> Endroit où se déroulera la séance</li>
                 </ol>
                 
                 <hr>
                 
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle me-2"></i>
-                    <strong>Note :</strong> Les compétences disponibles dépendent de la section sélectionnée.
+                    <strong>Note :</strong> Une fois la séance créée, vous pourrez y ajouter des palanquées avec les détails des exercices, encadrants et élèves.
                 </div>
+                
+                <h6>Workflow :</h6>
+                <ol class="small">
+                    <li>Créez d'abord la séance (date + lieu)</li>
+                    <li>Ajoutez ensuite des palanquées à cette séance</li>
+                    <li>Chaque palanquée aura ses propres détails</li>
+                </ol>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const sectionSelect = document.getElementById('id_section');
-    const competencesSelect = document.getElementById('id_competences');
-    const elevesSelect = document.getElementById('id_eleves');
-    
-    // Fonction pour charger les compétences d'une section
-    function loadCompetences(sectionId) {
-        if (sectionId) {
-            fetch(`/api/competences-section/?section_id=${sectionId}`)
-                .then(response => response.json())
-                .then(data => {
-                    competencesSelect.innerHTML = '<option value="">---------</option>';
-                    data.competences.forEach(competence => {
-                        const option = document.createElement('option');
-                        option.value = competence.id;
-                        option.textContent = competence.nom;
-                        competencesSelect.appendChild(option);
-                    });
-                })
-                .catch(error => {
-                    console.error('Erreur lors du chargement des compétences:', error);
-                });
-        } else {
-            competencesSelect.innerHTML = '<option value="">---------</option>';
-        }
-    }
-    
-    // Fonction pour charger les élèves d'une section
-    function loadEleves(sectionId) {
-        if (sectionId) {
-            fetch(`/api/eleves-section/?section_id=${sectionId}`)
-                .then(response => response.json())
-                .then(data => {
-                    elevesSelect.innerHTML = '<option value="">---------</option>';
-                    data.eleves.forEach(eleve => {
-                        const option = document.createElement('option');
-                        option.value = eleve.id;
-                        option.textContent = `${eleve.nom} ${eleve.prenom}`;
-                        elevesSelect.appendChild(option);
-                    });
-                })
-                .catch(error => {
-                    console.error('Erreur lors du chargement des élèves:', error);
-                });
-        } else {
-            elevesSelect.innerHTML = '<option value="">---------</option>';
-        }
-    }
-    
-    // Écouteur d'événement pour le changement de section
-    if (sectionSelect) {
-        sectionSelect.addEventListener('change', function() {
-            const sectionId = this.value;
-            loadCompetences(sectionId);
-            loadEleves(sectionId);
-        });
-        
-        // Charger les données initiales si une section est déjà sélectionnée
-        if (sectionSelect.value) {
-            loadCompetences(sectionSelect.value);
-            loadEleves(sectionSelect.value);
-        }
-    }
-});
-</script>
 {% endblock %} 

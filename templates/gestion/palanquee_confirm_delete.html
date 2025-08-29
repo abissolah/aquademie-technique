@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Supprimer la Palanquée{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow">
+                <div class="card-header py-3 bg-danger text-white">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-exclamation-triangle"></i> Confirmer la suppression
+                    </h6>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-trash fa-3x text-danger mb-3"></i>
+                        <h4>Êtes-vous sûr ?</h4>
+                        <p class="text-muted">
+                            Cette action ne peut pas être annulée. Toutes les données associées à cette palanquée seront définitivement supprimées.
+                        </p>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-info-circle"></i> Palanquée à supprimer :</h6>
+                        <p class="mb-0">
+                            <strong>Date :</strong> {{ palanquee.seance.date|date:"d/m/Y" }}<br>
+                            <strong>Lieu :</strong> {{ palanquee.seance.lieu }}<br>
+                            <strong>Section :</strong> {{ palanquee.section.get_nom_display }}<br>
+                            <strong>Encadrant :</strong> {{ palanquee.encadrant.nom_complet }}<br>
+                            <strong>Élèves :</strong> {{ palanquee.eleves.count }} participant(s)
+                        </p>
+                    </div>
+
+                    <div class="alert alert-danger">
+                        <h6><i class="fas fa-exclamation-triangle"></i> Attention :</h6>
+                        <ul class="mb-0 text-start">
+                            <li>Toutes les évaluations associées seront supprimées</li>
+                            <li>Tous les liens d'évaluation seront supprimés</li>
+                            <li>Cette action est irréversible</li>
+                        </ul>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'palanquee_detail' palanquee.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Confirmer la suppression
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,5 +1,12 @@
 from django.urls import path
 from . import views
+from .palanquee_views import (
+    PalanqueeListView, PalanqueeDetailView, PalanqueeCreateView,
+    PalanqueeUpdateView, PalanqueeDeleteView,
+    palanquee_evaluation, palanquee_evaluation_view,
+    generer_lien_evaluation, evaluation_publique,
+    generer_fiche_palanquee_pdf, envoyer_lien_par_email
+)
 
 urlpatterns = [
     # URLs d'authentification
@@ -15,6 +22,8 @@ urlpatterns = [
     path('adherents/nouveau/', views.AdherentCreateView.as_view(), name='adherent_create'),
     path('adherents/<int:pk>/modifier/', views.AdherentUpdateView.as_view(), name='adherent_update'),
     path('adherents/<int:pk>/supprimer/', views.AdherentDeleteView.as_view(), name='adherent_delete'),
+    path('adherents/import-excel/', views.import_adherents_excel, name='import_adherents_excel'),
+    path('adherents/telecharger-modele/', views.download_excel_template, name='download_excel_template'),
     
     # Élèves
     path('eleves/', views.EleveListView.as_view(), name='eleve_list'),
@@ -48,19 +57,31 @@ urlpatterns = [
     path('seances/<int:pk>/modifier/', views.SeanceUpdateView.as_view(), name='seance_update'),
     path('seances/<int:pk>/supprimer/', views.SeanceDeleteView.as_view(), name='seance_delete'),
     
-    # Évaluations
-    path('seances/<int:pk>/evaluation/', views.seance_evaluation, name='seance_evaluation'),
-    path('seances/<int:pk>/evaluation/voir/', views.seance_evaluation_view, name='seance_evaluation_view'),
+    # Palanquées
+    path('palanquees/', PalanqueeListView.as_view(), name='palanquee_list'),
+    path('palanquees/<int:pk>/', PalanqueeDetailView.as_view(), name='palanquee_detail'),
+    path('palanquees/nouvelle/', PalanqueeCreateView.as_view(), name='palanquee_create'),
+    path('palanquees/<int:pk>/modifier/', PalanqueeUpdateView.as_view(), name='palanquee_update'),
+    path('palanquees/<int:pk>/supprimer/', PalanqueeDeleteView.as_view(), name='palanquee_delete'),
+    
+    # Évaluations des palanquées
+    path('palanquees/<int:pk>/evaluation/', palanquee_evaluation, name='palanquee_evaluation'),
+    path('palanquees/<int:pk>/evaluation/voir/', palanquee_evaluation_view, name='palanquee_evaluation_view'),
     
     # Liens d'évaluation
-    path('seances/<int:pk>/generer-lien/', views.generer_lien_evaluation, name='generer_lien_evaluation'),
-    path('seances/<int:pk>/envoyer-email/', views.envoyer_lien_par_email, name='envoyer_lien_par_email'),
-    path('evaluation/<uuid:token>/', views.evaluation_publique, name='evaluation_publique'),
+    path('palanquees/<int:pk>/generer-lien/', generer_lien_evaluation, name='generer_lien_evaluation'),
+    path('palanquees/<int:pk>/envoyer-email/', envoyer_lien_par_email, name='envoyer_lien_par_email'),
+    path('evaluation/<str:token>/', evaluation_publique, name='evaluation_publique'),
     
-    # PDF
-    path('seances/<int:pk>/pdf/', views.generer_fiche_seance_pdf, name='generer_fiche_seance_pdf'),
+    # Génération de PDF
+    path('palanquees/<int:pk>/pdf/', generer_fiche_palanquee_pdf, name='generer_fiche_palanquee_pdf'),
     
-    # API
+    # Évaluations
+    path('evaluations/<int:pk>/', views.evaluation_detail, name='evaluation_detail'),
+    path('evaluations/<int:pk>/modifier/', views.evaluation_update, name='evaluation_update'),
+    path('evaluations/<int:pk>/supprimer/', views.evaluation_delete, name='evaluation_delete'),
+    
+    # APIs
     path('api/competences-section/', views.get_competences_section, name='get_competences_section'),
     path('api/eleves-section/', views.get_eleves_section, name='get_eleves_section'),
 ] 

@@ -9,9 +9,9 @@
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- Custom CSS -->
-    <link href="{% static 'css/style.css' %}" rel="stylesheet">
+    <!-- <link href="{% static 'css/style.css' %}" rel="stylesheet"> -->
     
     {% block extra_css %}{% endblock %}
 </head>
@@ -23,70 +23,55 @@
                 <i class="fas fa-water me-2"></i>Aquadémie Paris Plongée
             </a>
             
+            {% if user.is_authenticated %}
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             
             <div class="collapse navbar-collapse" id="navbarNav">
-                {% if user.is_authenticated %}
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'dashboard' %}">
                             <i class="fas fa-tachometer-alt me-1"></i>Tableau de bord
                         </a>
                     </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-users me-1"></i>Adhérents
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'adherent_list' %}">Liste des adhérents</a></li>
-                            <li><a class="dropdown-item" href="{% url 'eleve_list' %}">Liste des élèves</a></li>
-                            <li><a class="dropdown-item" href="{% url 'encadrant_list' %}">Liste des encadrants</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{% url 'adherent_create' %}">Nouvel adhérent</a></li>
-                        </ul>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-graduation-cap me-1"></i>Formation
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'section_list' %}">Sections</a></li>
-                            <li><a class="dropdown-item" href="{% url 'competence_list' %}">Compétences</a></li>
-                            <li><a class="dropdown-item" href="{% url 'groupe_competence_list' %}">Groupes de compétences</a></li>
-                        </ul>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'seance_list' %}">
                             <i class="fas fa-calendar-alt me-1"></i>Séances
                         </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'seance_list' %}">Liste des séances</a></li>
-                            <li><a class="dropdown-item" href="{% url 'seance_create' %}">Nouvelle séance</a></li>
-                        </ul>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'adherent_list' %}">
+                            <i class="fas fa-user-friends me-1"></i>Adhérents
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'section_list' %}">
+                            <i class="fas fa-layer-group me-1"></i>Sections
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'competence_list' %}">
+                            <i class="fas fa-star me-1"></i>Compétences
+                        </a>
                     </li>
                 </ul>
                 
                 <ul class="navbar-nav">
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-user me-1"></i>{{ user.username }}
                         </a>
-                        <ul class="dropdown-menu">
-                            <li>
-                                <form method="post" action="{% url 'logout' %}" style="display: inline;">
-                                    {% csrf_token %}
-                                    <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">
-                                        <i class="fas fa-sign-out-alt me-1"></i>Déconnexion
-                                    </button>
-                                </form>
-                            </li>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{% url 'logout' %}">
+                                <i class="fas fa-sign-out-alt me-1"></i>Déconnexion
+                            </a></li>
                         </ul>
                     </li>
                 </ul>
-                {% endif %}
             </div>
+            {% endif %}
         </div>
     </nav>
 
@@ -94,8 +79,7 @@
     {% if messages %}
     <div class="container mt-3">
         {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show message-alert" 
-             data-message-type="{{ message.tags }}" role="alert">
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
@@ -111,16 +95,16 @@
     <!-- Footer -->
     <footer class="bg-light py-4 mt-5">
         <div class="container text-center">
-            <p class="text-muted mb-0">
-                &copy; {% now "Y" %} Aquadémie Paris Plongée - Application de gestion
-            </p>
+            <p class="text-muted mb-0">&copy; 2025 Aquadémie Paris Plongée. Tous droits réservés.</p>
         </div>
     </footer>
 
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
-    <script src="{% static 'js/main.js' %}"></script>
+    <!-- <script src="{% static 'js/main.js' %}"></script> -->
     
     {% block extra_js %}{% endblock %}
 </body>

@@ -1,0 +1,367 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Import Excel - Adhérents{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-file-excel me-2"></i>Import Excel - Adhérents
+            </h1>
+            <a href="{% url 'adherent_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Retour à la liste
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-upload me-2"></i>Importer des adhérents
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="excel_file" class="form-label">Fichier Excel (.xlsx ou .xls)</label>
+                        <input type="file" class="form-control" id="excel_file" name="excel_file" accept=".xlsx,.xls" required>
+                        <div class="form-text">
+                            Sélectionnez un fichier Excel contenant les données des adhérents à importer.
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'adherent_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Annuler
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-2"></i>Importer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Affichage des résultats d'import -->
+        {% if request.session.import_results %}
+        <div class="card mt-4">
+            <div class="card-header {% if request.session.import_results.error_count > 0 %}bg-warning text-dark{% else %}bg-success text-white{% endif %}">
+                <h6 class="mb-0">
+                    <i class="fas fa-{% if request.session.import_results.error_count > 0 %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
+                    Résultats de l'import
+                </h6>
+            </div>
+            <div class="card-body">
+                <!-- Résumé -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            <span class="fw-bold">{{ request.session.import_results.success_count }}</span> adhérent(s) importé(s) avec succès
+                        </div>
+                    </div>
+                    {% if request.session.import_results.error_count > 0 %}
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                            <span class="fw-bold">{{ request.session.import_results.error_count }}</span> erreur(s) détectée(s)
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Adhérents importés -->
+                {% if request.session.import_results.imported_adherents %}
+                <div class="mb-3">
+                    <h6 class="text-success">
+                        <i class="fas fa-users me-2"></i>Adhérents importés :
+                    </h6>
+                    <ul class="list-unstyled">
+                        {% for adherent in request.session.import_results.imported_adherents %}
+                        <li class="text-success">
+                            <i class="fas fa-check me-1"></i>{{ adherent }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <!-- Erreurs détaillées -->
+                {% if request.session.import_results.errors %}
+                <div class="mb-3">
+                    <h6 class="text-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Erreurs détectées :
+                    </h6>
+                    <ul class="list-unstyled">
+                        {% for error in request.session.import_results.errors %}
+                        <li class="text-danger mb-1">
+                            <i class="fas fa-times-circle me-1"></i>{{ error }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <!-- Boutons d'action -->
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-info" onclick="showImportReport()">
+                        <i class="fas fa-eye me-2"></i>Voir le rapport complet
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="downloadImportReport()">
+                        <i class="fas fa-download me-2"></i>Télécharger le rapport
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-download me-2"></i>Télécharger le modèle
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Téléchargez le modèle Excel avec toutes les colonnes nécessaires et des exemples de données.
+                </p>
+                <a href="{% url 'download_excel_template' %}" class="btn btn-success w-100">
+                    <i class="fas fa-download me-2"></i>Télécharger le modèle
+                </a>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Instructions
+                </h5>
+            </div>
+            <div class="card-body">
+                <h6>Colonnes obligatoires :</h6>
+                <ul class="small">
+                    <li><strong>nom</strong> - Nom de famille</li>
+                    <li><strong>prenom</strong> - Prénom</li>
+                    <li><strong>email</strong> - Adresse email (unique)</li>
+                </ul>
+                
+                <h6>Colonnes optionnelles :</h6>
+                <ul class="small">
+                    <li><strong>date_naissance</strong> - Format DD/MM/YYYY</li>
+                    <li><strong>adresse</strong> - Adresse complète</li>
+                    <li><strong>telephone</strong> - Numéro de téléphone</li>
+                    <li><strong>date_fin_validite_caci</strong> - Format DD/MM/YYYY</li>
+                    <li><strong>niveau</strong> - Niveau de plongée</li>
+                    <li><strong>statut</strong> - eleve ou encadrant</li>
+                    <li><strong>sections</strong> - Sections séparées par des virgules</li>
+                </ul>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    <strong>Conseil :</strong> Commencez par télécharger le modèle et remplissez-le avec vos données.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour le rapport complet -->
+<div class="modal fade" id="importReportModal" tabindex="-1" aria-labelledby="importReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importReportModalLabel">
+                    <i class="fas fa-file-alt me-2"></i>Rapport complet de l'import
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {% if request.session.import_results %}
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card border-success">
+                            <div class="card-body text-center">
+                                <i class="fas fa-check-circle text-success fa-3x mb-2"></i>
+                                <h4 class="text-success">{{ request.session.import_results.success_count }}</h4>
+                                <p class="mb-0">Adhérent(s) importé(s) avec succès</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% if request.session.import_results.error_count > 0 %}
+                    <div class="col-md-6">
+                        <div class="card border-warning">
+                            <div class="card-body text-center">
+                                <i class="fas fa-exclamation-triangle text-warning fa-3x mb-2"></i>
+                                <h4 class="text-warning">{{ request.session.import_results.error_count }}</h4>
+                                <p class="mb-0">Erreur(s) détectée(s)</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Détails des adhérents importés -->
+                {% if request.session.import_results.imported_adherents %}
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-users me-2"></i>Adhérents importés avec succès
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Nom complet</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for adherent in request.session.import_results.imported_adherents %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td>{{ adherent }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Détails des erreurs -->
+                {% if request.session.import_results.errors %}
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Détail des erreurs
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Erreur</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for error in request.session.import_results.errors %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td class="text-danger">{{ error }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                <button type="button" class="btn btn-success" onclick="downloadImportReport()">
+                    <i class="fas fa-download me-2"></i>Télécharger le rapport
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Popup de notification -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="importNotification" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong class="me-auto">Résultat de l'import</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body">
+            {% if request.session.import_results %}
+            {% if request.session.import_results.success_count > 0 %}
+            <div class="text-success">
+                <i class="fas fa-check-circle me-1"></i>
+                {{ request.session.import_results.success_count }} adhérent(s) importé(s) avec succès
+            </div>
+            {% endif %}
+            {% if request.session.import_results.error_count > 0 %}
+            <div class="text-warning mt-2">
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                {{ request.session.import_results.error_count }} erreur(s) détectée(s)
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Afficher le popup de notification au chargement de la page
+document.addEventListener('DOMContentLoaded', function() {
+    {% if request.session.import_results %}
+    const toast = new bootstrap.Toast(document.getElementById('importNotification'));
+    toast.show();
+    {% endif %}
+});
+
+// Fonction pour afficher le rapport complet
+function showImportReport() {
+    const modal = new bootstrap.Modal(document.getElementById('importReportModal'));
+    modal.show();
+}
+
+// Fonction pour télécharger le rapport
+function downloadImportReport() {
+    // Créer le contenu du rapport
+    {% if request.session.import_results %}
+    let reportContent = 'RAPPORT D\'IMPORT EXCEL - ADHÉRENTS\n';
+    reportContent += '=====================================\n\n';
+    reportContent += 'Résumé :\n';
+    reportContent += '- Adhérents importés avec succès : {{ request.session.import_results.success_count }}\n';
+    reportContent += '- Erreurs détectées : {{ request.session.import_results.error_count }}\n\n';
+    
+    {% if request.session.import_results.imported_adherents %}
+    reportContent += 'Adhérents importés :\n';
+    {% for adherent in request.session.import_results.imported_adherents %}
+    reportContent += '{{ forloop.counter }}. {{ adherent }}\n';
+    {% endfor %}
+    reportContent += '\n';
+    {% endif %}
+    
+    {% if request.session.import_results.errors %}
+    reportContent += 'Erreurs détectées :\n';
+    {% for error in request.session.import_results.errors %}
+    reportContent += '{{ forloop.counter }}. {{ error }}\n';
+    {% endfor %}
+    {% endif %}
+    
+    // Créer et télécharger le fichier
+    const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'rapport_import_adherents.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    {% endif %}
+}
+</script>
+{% endblock %}

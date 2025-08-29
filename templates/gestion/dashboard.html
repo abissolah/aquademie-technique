@@ -13,7 +13,7 @@
 
 <!-- Statistiques -->
 <div class="row mb-4">
-    <div class="col-md-3 mb-3">
+    <div class="col-md-2 mb-3">
         <a href="{% url 'adherent_list' %}" class="text-decoration-none">
             <div class="card bg-primary text-white h-100 dashboard-card">
                 <div class="card-body">
@@ -31,7 +31,7 @@
         </a>
     </div>
     
-    <div class="col-md-3 mb-3">
+    <div class="col-md-2 mb-3">
         <a href="{% url 'eleve_list' %}" class="text-decoration-none">
             <div class="card bg-success text-white h-100 dashboard-card">
                 <div class="card-body">
@@ -49,7 +49,7 @@
         </a>
     </div>
     
-    <div class="col-md-3 mb-3">
+    <div class="col-md-2 mb-3">
         <a href="{% url 'encadrant_list' %}" class="text-decoration-none">
             <div class="card bg-info text-white h-100 dashboard-card">
                 <div class="card-body">
@@ -84,6 +84,24 @@
             </div>
         </a>
     </div>
+    
+    <div class="col-md-3 mb-3">
+        <a href="{% url 'palanquee_list' %}" class="text-decoration-none">
+            <div class="card bg-secondary text-white h-100 dashboard-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ total_palanquees }}</h4>
+                            <p class="card-text">Palanquées</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
 </div>
 
 <!-- Actions rapides -->
@@ -98,23 +116,23 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-3 mb-2">
-                        <a href="{% url 'adherent_create' %}" class="btn btn-outline-primary w-100">
+                        <a href="{% url 'adherent_create' %}" class="btn btn-primary w-100">
                             <i class="fas fa-user-plus me-2"></i>Nouvel adhérent
                         </a>
                     </div>
                     <div class="col-md-3 mb-2">
-                        <a href="{% url 'seance_create' %}" class="btn btn-outline-success w-100">
-                            <i class="fas fa-plus me-2"></i>Nouvelle séance
+                        <a href="{% url 'seance_create' %}" class="btn btn-warning w-100">
+                            <i class="fas fa-calendar-plus me-2"></i>Nouvelle séance
                         </a>
                     </div>
                     <div class="col-md-3 mb-2">
-                        <a href="{% url 'competence_create' %}" class="btn btn-outline-info w-100">
+                        <a href="{% url 'palanquee_create' %}" class="btn btn-secondary w-100">
+                            <i class="fas fa-users me-2"></i>Nouvelle palanquée
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'competence_create' %}" class="btn btn-success w-100">
                             <i class="fas fa-star me-2"></i>Nouvelle compétence
-                        </a>
-                    </div>
-                    <div class="col-md-3 mb-2">
-                        <a href="{% url 'section_create' %}" class="btn btn-outline-warning w-100">
-                            <i class="fas fa-layer-group me-2"></i>Nouvelle section
                         </a>
                     </div>
                 </div>
@@ -124,58 +142,115 @@
 </div>
 
 <!-- Séances récentes -->
-<div class="row">
-    <div class="col-12">
+<div class="row mb-4">
+    <div class="col-md-6">
         <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-header">
                 <h5 class="mb-0">
-                    <i class="fas fa-calendar me-2"></i>Séances récentes
+                    <i class="fas fa-calendar-alt me-2"></i>Séances récentes
                 </h5>
-                <a href="{% url 'seance_list' %}" class="btn btn-sm btn-outline-primary">
-                    Voir toutes
-                </a>
             </div>
             <div class="card-body">
                 {% if seances_recentes %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Palanquée</th>
-                                <th>Section</th>
-                                <th>Encadrant</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for seance in seances_recentes %}
-                            <tr>
-                                <td>{{ seance.date|date:"d/m/Y" }}</td>
-                                <td>{{ seance.palanquee }}</td>
-                                <td>
-                                    <span class="badge bg-secondary">{{ seance.section.get_nom_display }}</span>
-                                </td>
-                                <td>{{ seance.encadrant.nom_complet }}</td>
-                                <td>
-                                    <a href="{% url 'seance_detail' seance.pk %}" class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="{% url 'seance_update' seance.pk %}" class="btn btn-sm btn-outline-warning">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                    <div class="list-group list-group-flush">
+                        {% for seance in seances_recentes %}
+                            <a href="{% url 'seance_detail' seance.pk %}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ seance.date|date:"d/m/Y" }}</h6>
+                                    <small class="text-muted">{{ seance.palanquees.count }} palanquée(s)</small>
+                                </div>
+                                <p class="mb-1">{{ seance.lieu }}</p>
+                            </a>
+                        {% endfor %}
+                    </div>
+                    <div class="mt-3">
+                        <a href="{% url 'seance_list' %}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-list me-2"></i>Voir toutes les séances
+                        </a>
+                    </div>
                 {% else %}
-                <p class="text-muted text-center py-3">
-                    <i class="fas fa-calendar-times fa-2x mb-2"></i><br>
-                    Aucune séance programmée
-                </p>
+                    <p class="text-muted text-center py-3">Aucune séance programmée.</p>
                 {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-users me-2"></i>Palanquées récentes
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if palanquees_recentes %}
+                    <div class="list-group list-group-flush">
+                        {% for palanquee in palanquees_recentes %}
+                            <a href="{% url 'palanquee_detail' palanquee.pk %}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ palanquee.section.get_nom_display }}</h6>
+                                    <small class="text-muted">{{ palanquee.eleves.count }} élève(s)</small>
+                                </div>
+                                <p class="mb-1">{{ palanquee.seance.date|date:"d/m/Y" }} - {{ palanquee.seance.lieu }}</p>
+                                <small class="text-muted">{{ palanquee.encadrant.nom_complet }}</small>
+                            </a>
+                        {% endfor %}
+                    </div>
+                    <div class="mt-3">
+                        <a href="{% url 'palanquee_list' %}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-list me-2"></i>Voir toutes les palanquées
+                        </a>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center py-3">Aucune palanquée créée.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Navigation rapide -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-compass me-2"></i>Navigation rapide
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-2 mb-2">
+                        <a href="{% url 'adherent_list' %}" class="btn btn-outline-primary w-100">
+                            <i class="fas fa-users me-2"></i>Adhérents
+                        </a>
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <a href="{% url 'section_list' %}" class="btn btn-outline-info w-100">
+                            <i class="fas fa-layer-group me-2"></i>Sections
+                        </a>
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <a href="{% url 'competence_list' %}" class="btn btn-outline-success w-100">
+                            <i class="fas fa-star me-2"></i>Compétences
+                        </a>
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <a href="{% url 'groupe_competence_list' %}" class="btn btn-outline-warning w-100">
+                            <i class="fas fa-tasks me-2"></i>Groupes
+                        </a>
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <a href="{% url 'seance_list' %}" class="btn btn-outline-warning w-100">
+                            <i class="fas fa-calendar me-2"></i>Séances
+                        </a>
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <a href="{% url 'palanquee_list' %}" class="btn btn-outline-secondary w-100">
+                            <i class="fas fa-users me-2"></i>Palanquées
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

@@ -27,26 +27,15 @@
             </div>
             <div class="card-body">
                 <form method="get" class="row g-3">
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <label for="date_debut" class="form-label">Date début</label>
                         <input type="date" class="form-control" id="date_debut" name="date_debut" value="{{ request.GET.date_debut }}">
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <label for="date_fin" class="form-label">Date fin</label>
                         <input type="date" class="form-control" id="date_fin" name="date_fin" value="{{ request.GET.date_fin }}">
                     </div>
-                    <div class="col-md-3">
-                        <label for="section" class="form-label">Section</label>
-                        <select class="form-select" id="section" name="section">
-                            <option value="">Toutes les sections</option>
-                            {% for section in sections %}
-                            <option value="{{ section.id }}" {% if request.GET.section == section.id|stringformat:"s" %}selected{% endif %}>
-                                {{ section.get_nom_display }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-3 d-flex align-items-end">
+                    <div class="col-md-4 d-flex align-items-end">
                         <div class="d-flex gap-2 w-100">
                             <button type="submit" class="btn btn-primary flex-fill">
                                 <i class="fas fa-search me-2"></i>Filtrer
@@ -73,11 +62,8 @@
                         <thead>
                             <tr>
                                 <th>Date</th>
-                                <th>Palanquée</th>
-                                <th>Section</th>
-                                <th>Encadrant</th>
-                                <th>Élèves</th>
-                                <th>Compétences</th>
+                                <th>Lieu</th>
+                                <th>Palanquées</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -87,44 +73,22 @@
                                 <td>
                                     <strong>{{ seance.date|date:"d/m/Y" }}</strong>
                                 </td>
-                                <td>{{ seance.palanquee }}</td>
+                                <td>{{ seance.lieu }}</td>
                                 <td>
-                                    <span class="badge bg-secondary">{{ seance.section.get_nom_display }}</span>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        {% if seance.encadrant.photo %}
-                                        <img src="{{ seance.encadrant.photo.url }}" alt="Photo de {{ seance.encadrant.nom_complet }}" 
-                                             class="rounded-circle me-2" width="30" height="30" style="object-fit: cover;">
+                                    <div class="small">
+                                        {% if seance.palanquees.exists %}
+                                            <span class="badge bg-success">{{ seance.palanquees.count }} palanquée{{ seance.palanquees.count|pluralize:"s" }}</span>
+                                            <div class="mt-1">
+                                                {% for palanquee in seance.palanquees.all|slice:":3" %}
+                                                    <span class="badge bg-secondary me-1">{{ palanquee.nom }}</span>
+                                                {% endfor %}
+                                                {% if seance.palanquees.count > 3 %}
+                                                    <span class="badge bg-light text-dark">+{{ seance.palanquees.count|add:"-3" }} autres</span>
+                                                {% endif %}
+                                            </div>
                                         {% else %}
-                                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" 
-                                             style="width: 30px; height: 30px;">
-                                            <i class="fas fa-user text-white" style="font-size: 12px;"></i>
-                                        </div>
+                                            <span class="badge bg-warning">Aucune palanquée</span>
                                         {% endif %}
-                                        {{ seance.encadrant.nom_complet }}
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="small">
-                                        {% for eleve in seance.eleves.all %}
-                                            <div class="mb-1">
-                                                <span class="badge bg-info">{{ eleve.nom_complet }}</span>
-                                            </div>
-                                        {% empty %}
-                                            <span class="text-muted">Aucun élève</span>
-                                        {% endfor %}
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="small">
-                                        {% for competence in seance.competences.all %}
-                                            <div class="mb-1">
-                                                <span class="badge bg-success">{{ competence.nom }}</span>
-                                            </div>
-                                        {% empty %}
-                                            <span class="text-muted">Aucune compétence</span>
-                                        {% endfor %}
                                     </div>
                                 </td>
                                 <td>
@@ -134,12 +98,6 @@
                                         </a>
                                         <a href="{% url 'seance_update' seance.pk %}" class="btn btn-sm btn-outline-warning" title="Modifier">
                                             <i class="fas fa-edit"></i>
-                                        </a>
-                                        <a href="{% url 'generer_fiche_seance_pdf' seance.pk %}" class="btn btn-sm btn-outline-info" title="Générer PDF">
-                                            <i class="fas fa-file-pdf"></i>
-                                        </a>
-                                        <a href="{% url 'generer_lien_evaluation' seance.pk %}" class="btn btn-sm btn-outline-success" title="Lien évaluation">
-                                            <i class="fas fa-link"></i>
                                         </a>
                                         <a href="{% url 'seance_delete' seance.pk %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
                                             <i class="fas fa-trash"></i>
@@ -196,7 +154,7 @@
                     <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
                     <h4 class="text-muted">Aucune séance trouvée</h4>
                     <p class="text-muted">
-                        {% if request.GET.date_debut or request.GET.date_fin or request.GET.section %}
+                        {% if request.GET.date_debut or request.GET.date_fin %}
                         Aucune séance ne correspond à vos critères de recherche.
                         {% else %}
                         Commencez par créer votre première séance.

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation
+from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, LienEvaluation
 
 @admin.register(Adherent)
 class AdherentAdmin(admin.ModelAdmin):
@@ -50,24 +50,53 @@ class GroupeCompetenceAdmin(admin.ModelAdmin):
         }),
     )
 
+class PalanqueeInline(admin.TabularInline):
+    model = Palanquee
+    extra = 0
+    readonly_fields = ['date_creation', 'date_modification']
+    fields = ['nom', 'seance', 'section', 'encadrant', 'eleves', 'competences', 'precision_exercices']
+
+@admin.register(Seance)
+class SeanceAdmin(admin.ModelAdmin):
+    list_display = ['date', 'lieu', 'nombre_palanquees']
+    list_filter = ['date']
+    search_fields = ['lieu']
+    date_hierarchy = 'date'
+    readonly_fields = ['date_creation', 'date_modification']
+    inlines = [PalanqueeInline]
+    
+    fieldsets = (
+        ('Informations générales', {
+            'fields': ('date', 'lieu')
+        }),
+        ('Métadonnées', {
+            'fields': ('date_creation', 'date_modification'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def nombre_palanquees(self, obj):
+        return obj.palanquees.count()
+    nombre_palanquees.short_description = 'Nombre de palanquées'
+
 class EvaluationInline(admin.TabularInline):
     model = Evaluation
     extra = 0
     readonly_fields = ['date_evaluation']
 
-@admin.register(Seance)
-class SeanceAdmin(admin.ModelAdmin):
-    list_display = ['palanquee', 'date', 'section', 'encadrant', 'nombre_eleves']
-    list_filter = ['date', 'section', 'encadrant']
-    search_fields = ['palanquee', 'encadrant__nom', 'encadrant__prenom']
-    date_hierarchy = 'date'
+@admin.register(Palanquee)
+class PalanqueeAdmin(admin.ModelAdmin):
+    list_display = ['nom', 'seance', 'section', 'encadrant', 'nombre_eleves']
+    list_filter = ['seance__date', 'section', 'encadrant']
+    search_fields = ['nom', 'encadrant__nom', 'encadrant__prenom']
+    date_hierarchy = 'seance__date'
     filter_horizontal = ['eleves', 'competences']
     readonly_fields = ['date_creation', 'date_modification']
     inlines = [EvaluationInline]
     
     fieldsets = (
         ('Informations générales', {
-            'fields': ('palanquee', 'date', 'section', 'encadrant')
+            'fields': ('nom', 'seance', 'section', 'encadrant')
         }),
         ('Participants', {
             'fields': ('eleves', 'competences')
@@ -87,16 +116,16 @@ class SeanceAdmin(admin.ModelAdmin):
 
 @admin.register(Evaluation)
 class EvaluationAdmin(admin.ModelAdmin):
-    list_display = ['seance', 'eleve', 'competence', 'note', 'date_evaluation']
-    list_filter = ['seance__date', 'seance__section', 'note']
+    list_display = ['palanquee', 'eleve', 'competence', 'note', 'date_evaluation']
+    list_filter = ['palanquee__seance__date', 'palanquee__section', 'note']
     search_fields = ['eleve__nom', 'eleve__prenom', 'competence__nom']
     readonly_fields = ['date_evaluation']
     date_hierarchy = 'date_evaluation'
 
 @admin.register(LienEvaluation)
 class LienEvaluationAdmin(admin.ModelAdmin):
-    list_display = ['seance', 'token', 'date_creation', 'date_expiration', 'est_valide']
+    list_display = ['palanquee', 'token', 'date_creation', 'date_expiration', 'est_valide']
     list_filter = ['est_valide', 'date_creation', 'date_expiration']
-    search_fields = ['seance__palanquee']
+    search_fields = ['palanquee__nom']
     readonly_fields = ['token', 'date_creation']
     date_hierarchy = 'date_creation'

@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Détail de la Palanquée{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Détail de la Palanquée</h1>
+        <div>
+            <a href="{% url 'palanquee_update' palanquee.pk %}" class="btn btn-warning me-2">
+                <i class="fas fa-edit"></i> Modifier
+            </a>
+            <a href="{% url 'palanquee_list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Retour
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Informations principales -->
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Informations générales</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Date :</strong> {{ palanquee.seance.date|date:"d/m/Y" }}</p>
+                            <p><strong>Lieu :</strong> {{ palanquee.seance.lieu }}</p>
+                            <p><strong>Section :</strong> {{ palanquee.section.get_nom_display }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Encadrant :</strong> {{ palanquee.encadrant.nom_complet }}</p>
+                            <p><strong>Nombre d'élèves :</strong> {{ palanquee.eleves.count }}</p>
+                            <p><strong>Nombre de compétences :</strong> {{ palanquee.competences.count }}</p>
+                        </div>
+                    </div>
+                    
+                    {% if palanquee.precision_exercices %}
+                    <div class="mt-3">
+                        <strong>Précisions des exercices :</strong>
+                        <p class="mt-2">{{ palanquee.precision_exercices }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Élèves -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Élèves participants</h6>
+                </div>
+                <div class="card-body">
+                    {% if palanquee.eleves.all %}
+                    <div class="row">
+                        {% for eleve in palanquee.eleves.all %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-left-info">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ eleve.nom_complet }}</h6>
+                                    <p class="card-text">
+                                        <small class="text-muted">
+                                            Niveau : {{ eleve.get_niveau_display }}<br>
+                                            Email : {{ eleve.email|default:"Non renseigné" }}
+                                        </small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Aucun élève assigné à cette palanquée.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Compétences -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Compétences travaillées</h6>
+                </div>
+                <div class="card-body">
+                    {% if palanquee.competences.all %}
+                    <div class="row">
+                        {% for competence in palanquee.competences.all %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-left-success">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ competence.nom }}</h6>
+                                    <p class="card-text">
+                                        <small class="text-muted">
+                                            Section : {{ competence.section.get_nom_display }}
+                                        </small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Aucune compétence assignée à cette palanquée.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions et liens -->
+        <div class="col-lg-4">
+            <!-- Actions rapides -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Actions rapides</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'palanquee_evaluation' palanquee.pk %}" class="btn btn-success">
+                            <i class="fas fa-star"></i> Évaluer
+                        </a>
+                        <a href="{% url 'palanquee_evaluation_view' palanquee.pk %}" class="btn btn-info">
+                            <i class="fas fa-eye"></i> Voir les évaluations
+                        </a>
+                        <a href="{% url 'generer_fiche_palanquee_pdf' palanquee.pk %}" class="btn btn-secondary">
+                            <i class="fas fa-file-pdf"></i> Générer PDF
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Liens d'évaluation -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Liens d'évaluation</h6>
+                </div>
+                <div class="card-body">
+                    {% if lien_actif %}
+                    <div class="alert alert-success">
+                        <h6><i class="fas fa-link"></i> Lien actif</h6>
+                        <p class="mb-2">Expire le : {{ lien_actif.date_expiration|date:"d/m/Y H:i" }}</p>
+                        <a href="{{ lien_actif.url_evaluation }}" target="_blank" class="btn btn-sm btn-success">
+                            Accéder au lien
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <p class="mb-2">Aucun lien d'évaluation actif</p>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-grid gap-2 mt-3">
+                        <a href="{% url 'generer_lien_evaluation' palanquee.pk %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-plus"></i> Générer un lien
+                        </a>
+                        {% if lien_actif %}
+                        <a href="{% url 'envoyer_lien_par_email' palanquee.pk %}" class="btn btn-info btn-sm">
+                            <i class="fas fa-envelope"></i> Envoyer par email
+                        </a>
+                        {% endif %}
+                    </div>
+
+                    {% if liens_utilises %}
+                    <div class="mt-3">
+                        <h6>Liens utilisés :</h6>
+                        <ul class="list-unstyled">
+                            {% for lien in liens_utilises %}
+                            <li class="mb-1">
+                                <small class="text-muted">
+                                    Créé le {{ lien.date_creation|date:"d/m/Y" }} - 
+                                    <a href="{{ lien.url_evaluation }}" target="_blank">Voir</a>
+                                </small>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Statistiques -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Statistiques</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="border-right">
+                                <h4 class="text-primary">{{ palanquee.eleves.count }}</h4>
+                                <small class="text-muted">Élèves</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div>
+                                <h4 class="text-success">{{ palanquee.competences.count }}</h4>
+                                <small class="text-muted">Compétences</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,5 +1,5 @@
 from django import forms
-from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation
+from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation
 
 class AdherentForm(forms.ModelForm):
     class Meta:
@@ -59,17 +59,56 @@ class GroupeCompetenceForm(forms.ModelForm):
 class SeanceForm(forms.ModelForm):
     class Meta:
         model = Seance
-        fields = ['palanquee', 'date', 'section', 'encadrant', 'eleves', 'competences', 'precision_exercices']
+        fields = ['date', 'lieu']
         widgets = {
-            'date': forms.DateInput(attrs={'type': 'date'}),
-            'precision_exercices': forms.Textarea(attrs={'rows': 5}),
+            'date': forms.DateInput(
+                attrs={'type': 'date'},
+                format='%Y-%m-%d'
+            ),
+            'lieu': forms.TextInput(attrs={'placeholder': 'Lieu de la séance'}),
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # S'assurer que la date est formatée correctement pour l'affichage HTML
+        if self.instance and self.instance.pk:
+            if self.instance.date:
+                self.fields['date'].initial = self.instance.date.strftime('%Y-%m-%d')
+
+class PalanqueeForm(forms.ModelForm):
+    class Meta:
+        model = Palanquee
+        fields = ['nom', 'seance', 'section', 'encadrant', 'eleves', 'competences', 'precision_exercices']
+        widgets = {
+            'nom': forms.TextInput(attrs={'placeholder': 'Nom de la palanquée'}),
+            'precision_exercices': forms.Textarea(attrs={'rows': 5}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        # Récupérer la séance depuis les paramètres GET ou l'instance
+        seance_id = kwargs.pop('seance_id', None)
+        super().__init__(*args, **kwargs)
+        
         # Filtrer les adhérents selon leur statut
         self.fields['encadrant'].queryset = Adherent.objects.filter(statut='encadrant')
         self.fields['eleves'].queryset = Adherent.objects.filter(statut='eleve')
+        
+        # Gestion de la séance
+        if seance_id:
+            # Si une séance est spécifiée, la pré-sélectionner et la rendre en lecture seule
+            try:
+                seance = Seance.objects.get(pk=seance_id)
+                self.fields['seance'].initial = seance
+                self.fields['seance'].widget.attrs['readonly'] = True
+                self.fields['seance'].widget.attrs['class'] = 'form-control-plaintext'
+                self.fields['seance'].help_text = f"Séance sélectionnée : {seance.date} - {seance.lieu}"
+            except Seance.DoesNotExist:
+                pass
+        elif self.instance and self.instance.pk:
+            # Pour une modification, rendre la séance en lecture seule
+            self.fields['seance'].widget.attrs['readonly'] = True
+            self.fields['seance'].widget.attrs['class'] = 'form-control-plaintext'
+            self.fields['seance'].help_text = f"Séance : {self.instance.seance.date} - {self.instance.seance.lieu}"
         
         # Filtrer les compétences selon la section sélectionnée
         if 'instance' in kwargs and kwargs['instance']:
@@ -99,13 +138,13 @@ class EvaluationForm(forms.ModelForm):
         }
 
 class EvaluationBulkForm(forms.Form):
-    def __init__(self, seance, *args, **kwargs):
+    def __init__(self, palanquee, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.seance = seance
+        self.palanquee = palanquee
         
         # Créer un champ pour chaque élève et compétence
-        for eleve in seance.eleves.all():
-            for competence in seance.competences.all():
+        for eleve in palanquee.eleves.all():
+            for competence in palanquee.competences.all():
                 field_name = f"eval_{eleve.id}_{competence.id}"
                 self.fields[field_name] = forms.ChoiceField(
                     choices=[(i, f"{i} étoile{'s' if i > 1 else ''}") for i in range(6)],

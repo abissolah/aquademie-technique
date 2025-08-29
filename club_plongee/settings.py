@@ -148,13 +148,13 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'  # À configurer selon votre fournisseur
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'votre-email@gmail.com'  # À configurer
-EMAIL_HOST_PASSWORD = 'votre-mot-de-passe-app'  # À configurer
-DEFAULT_FROM_EMAIL = 'Aquadémie Paris Plongée <votre-email@gmail.com>'
+EMAIL_HOST_USER = 'ab.issolah@gmail.com'  # À configurer
+EMAIL_HOST_PASSWORD = 'oanc zszb gxhf icqy'  # À configurer
+DEFAULT_FROM_EMAIL = 'Aquadémie Paris Plongée <ab.issolah@gmail.com>'
 
 # Adresses en copie par défaut
 EMAIL_CC_DEFAULT = [
-    'admin@aquademie-paris-plongee.fr',  # À configurer
+    'ab.issolah@gmail.com',  # À configurer
 ]
 
 # Configuration du site

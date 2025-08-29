@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import date, timedelta
-from gestion.models import Adherent, Section, Competence, GroupeCompetence, Seance
+from gestion.models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee
 
 class Command(BaseCommand):
     help = 'Crée des données de test pour l\'application Club de Plongée'
@@ -145,56 +145,81 @@ class Command(BaseCommand):
         # Créer des séances de test
         seances_data = [
             {
-                'palanquee': 'Baptême découverte',
                 'date': date.today() + timedelta(days=7),
-                'section': sections['bapteme'],
-                'encadrant': adherents['Jean Dupont'],
-                'eleves': ['Lucas Robert'],
-                'competences': ['Découverte de l\'équipement', 'Respiration en surface'],
-                'precision_exercices': 'Séance de découverte pour débutant. Focus sur la familiarisation avec l\'équipement et la respiration.',
+                'lieu': 'Piscine municipale de Paris',
+                'palanquees': [
+                    {
+                        'nom': 'Baptême découverte',
+                        'section': sections['bapteme'],
+                        'encadrant': adherents['Jean Dupont'],
+                        'eleves': ['Lucas Robert'],
+                        'competences': ['Découverte de l\'équipement', 'Respiration en surface'],
+                        'precision_exercices': 'Séance de découverte pour débutant. Focus sur la familiarisation avec l\'équipement et la respiration.',
+                    }
+                ]
             },
             {
-                'palanquee': 'Prépa Niveau 1 - Groupe A',
                 'date': date.today() + timedelta(days=14),
-                'section': sections['prepa_niveau1'],
-                'encadrant': adherents['Marie Martin'],
-                'eleves': ['Sophie Petit', 'Pierre Bernard'],
-                'competences': ['Préparation de l\'équipement', 'Contrôle de la flottabilité'],
-                'precision_exercices': 'Travail sur la préparation autonome de l\'équipement et les exercices de flottabilité.',
+                'lieu': 'Centre de plongée de Marseille',
+                'palanquees': [
+                    {
+                        'nom': 'Prépa Niveau 1 - Groupe A',
+                        'section': sections['prepa_niveau1'],
+                        'encadrant': adherents['Marie Martin'],
+                        'eleves': ['Sophie Petit', 'Pierre Bernard'],
+                        'competences': ['Préparation de l\'équipement', 'Contrôle de la flottabilité'],
+                        'precision_exercices': 'Travail sur la préparation autonome de l\'équipement et les exercices de flottabilité.',
+                    }
+                ]
             },
             {
-                'palanquee': 'Niveau 2 - Navigation',
                 'date': date.today() + timedelta(days=21),
-                'section': sections['prepa_niveau2'],
-                'encadrant': adherents['Jean Dupont'],
-                'eleves': ['Pierre Bernard'],
-                'competences': ['Navigation sous-marine', 'Gestion des paliers'],
-                'precision_exercices': 'Exercices de navigation avec boussole et gestion des paliers de décompression.',
+                'lieu': 'Base nautique de Nice',
+                'palanquees': [
+                    {
+                        'nom': 'Niveau 2 - Navigation',
+                        'section': sections['prepa_niveau2'],
+                        'encadrant': adherents['Jean Dupont'],
+                        'eleves': ['Pierre Bernard'],
+                        'competences': ['Navigation sous-marine', 'Gestion des paliers'],
+                        'precision_exercices': 'Exercices de navigation avec boussole et gestion des paliers de décompression.',
+                    }
+                ]
             },
         ]
 
         for seance_data in seances_data:
+            # Créer d'abord la séance
             seance = Seance.objects.create(
-                palanquee=seance_data['palanquee'],
                 date=seance_data['date'],
-                section=seance_data['section'],
-                encadrant=seance_data['encadrant'],
-                precision_exercices=seance_data['precision_exercices'],
+                lieu=seance_data['lieu'],
             )
             
-            # Ajouter les élèves
-            for eleve_nom in seance_data['eleves']:
-                for adherent in adherents.values():
-                    if adherent.prenom in eleve_nom:
-                        seance.eleves.add(adherent)
-                        break
+            # Créer les palanquées associées
+            for palanquee_data in seance_data['palanquees']:
+                palanquee = Palanquee.objects.create(
+                    nom=palanquee_data['nom'],
+                    seance=seance,
+                    section=palanquee_data['section'],
+                    encadrant=palanquee_data['encadrant'],
+                    precision_exercices=palanquee_data['precision_exercices'],
+                )
+                
+                # Ajouter les élèves
+                for eleve_nom in palanquee_data['eleves']:
+                    for adherent in adherents.values():
+                        if adherent.prenom in eleve_nom:
+                            palanquee.eleves.add(adherent)
+                            break
+                
+                # Ajouter les compétences
+                for competence_nom in palanquee_data['competences']:
+                    if competence_nom in competences:
+                        palanquee.competences.add(competences[competence_nom])
+                
+                self.stdout.write(f'Palanquée créée : {palanquee.nom} dans la séance du {seance.date}')
             
-            # Ajouter les compétences
-            for competence_nom in seance_data['competences']:
-                if competence_nom in competences:
-                    seance.competences.add(competences[competence_nom])
-            
-            self.stdout.write(f'Séance créée : {seance.palanquee}')
+            self.stdout.write(f'Séance créée : {seance.date} - {seance.lieu}')
 
         self.stdout.write(
             self.style.SUCCESS('Données de test créées avec succès !')

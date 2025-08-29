@@ -9,9 +9,17 @@
             <h1>
                 <i class="fas fa-users me-2"></i>Adhérents
             </h1>
-            <a href="{% url 'adherent_create' %}" class="btn btn-primary">
-                <i class="fas fa-plus me-2"></i>Nouvel adhérent
-            </a>
+            <div class="d-flex gap-2">
+                <a href="{% url 'download_excel_template' %}" class="btn btn-success">
+                    <i class="fas fa-download me-2"></i>Télécharger modèle
+                </a>
+                <a href="{% url 'import_adherents_excel' %}" class="btn btn-info">
+                    <i class="fas fa-file-excel me-2"></i>Import Excel
+                </a>
+                <a href="{% url 'adherent_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Nouvel adhérent
+                </a>
+            </div>
         </div>
     </div>
 </div>
