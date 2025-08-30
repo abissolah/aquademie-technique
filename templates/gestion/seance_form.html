@@ -33,10 +33,18 @@
                     {% csrf_token %}
                     
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             {{ form.date|as_crispy_field }}
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
+                            {{ form.heure_debut|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.heure_fin|as_crispy_field }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
                             {{ form.lieu|as_crispy_field }}
                         </div>
                     </div>
@@ -151,4 +159,26 @@
         </div>
     </div>
 </div>
+{% endblock %} 
+
+{% block extra_js %}
+<script>
+    function pad(n) { return n < 10 ? '0' + n : n; }
+    document.addEventListener('DOMContentLoaded', function() {
+        var debut = document.getElementById('id_heure_debut');
+        var fin = document.getElementById('id_heure_fin');
+        if (debut && fin) {
+            debut.addEventListener('change', function() {
+                if (debut.value) {
+                    var parts = debut.value.split(':');
+                    var h = parseInt(parts[0], 10);
+                    var m = parseInt(parts[1], 10);
+                    h = (h + 1) % 24;
+                    // On garde les minutes identiques (quarts d'heure)
+                    fin.value = pad(h) + ':' + pad(m);
+                }
+            });
+        }
+    });
+</script>
 {% endblock %} 

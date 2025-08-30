@@ -1,12 +1,13 @@
 from django import forms
-from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation
+from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, Lieu
 
 class AdherentForm(forms.ModelForm):
     class Meta:
         model = Adherent
         fields = [
             'nom', 'prenom', 'date_naissance', 'adresse', 'email', 
-            'telephone', 'photo', 'date_fin_validite_caci', 'niveau', 'statut', 'sections'
+            'telephone', 'photo', 'date_fin_validite_caci', 'niveau', 'statut', 'sections',
+            'type_personne', 'caci_fichier'
         ]
         widgets = {
             'date_naissance': forms.DateInput(
@@ -59,13 +60,20 @@ class GroupeCompetenceForm(forms.ModelForm):
 class SeanceForm(forms.ModelForm):
     class Meta:
         model = Seance
-        fields = ['date', 'lieu']
+        fields = ['date', 'heure_debut', 'heure_fin', 'lieu']
         widgets = {
             'date': forms.DateInput(
                 attrs={'type': 'date'},
                 format='%Y-%m-%d'
             ),
-            'lieu': forms.TextInput(attrs={'placeholder': 'Lieu de la séance'}),
+            'heure_debut': forms.TimeInput(
+                attrs={'type': 'time', 'step': 900},  # 900s = 15min
+                format='%H:%M'
+            ),
+            'heure_fin': forms.TimeInput(
+                attrs={'type': 'time', 'step': 900},
+                format='%H:%M'
+            ),
         }
     
     def __init__(self, *args, **kwargs):
@@ -74,6 +82,9 @@ class SeanceForm(forms.ModelForm):
         if self.instance and self.instance.pk:
             if self.instance.date:
                 self.fields['date'].initial = self.instance.date.strftime('%Y-%m-%d')
+        # Utiliser une liste déroulante pour le lieu
+        self.fields['lieu'].queryset = Lieu.objects.all()
+        self.fields['lieu'].label_from_instance = lambda obj: f"{obj.nom} - {obj.ville}"
 
 class PalanqueeForm(forms.ModelForm):
     class Meta:
@@ -160,5 +171,28 @@ class EvaluationBulkForm(forms.Form):
                     required=False,
                     label=""
                 )
+
+class NonAdherentInscriptionForm(forms.ModelForm):
+    class Meta:
+        model = Adherent
+        fields = [
+            'nom', 'prenom', 'date_naissance', 'adresse', 'email',
+            'telephone', 'date_fin_validite_caci', 'niveau', 'statut', 'sections', 'caci_fichier'
+        ]
+        widgets = {
+            'date_naissance': forms.DateInput(
+                attrs={'type': 'date'},
+                format='%Y-%m-%d'
+            ),
+            'date_fin_validite_caci': forms.DateInput(
+                attrs={'type': 'date'},
+                format='%Y-%m-%d'
+            ),
+            'adresse': forms.Textarea(attrs={'rows': 3}),
+            'sections': forms.CheckboxSelectMultiple(),
+        }
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['caci_fichier'].required = True
 
  

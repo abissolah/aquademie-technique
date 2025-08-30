@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Supprimer l'inscription - Club de Plongée{% endblock %}
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Confirmation de suppression</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-warning me-2"></i>Attention !</h6>
+                        <p class="mb-0">Vous êtes sur le point de supprimer l'inscription de <strong>{{ inscription.personne.nom }} {{ inscription.personne.prenom }}</strong> à la séance du <strong>{{ inscription.seance.date|date:'d/m/Y' }}</strong> ({{ inscription.seance.lieu.nom }}).</p>
+                    </div>
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'seance_detail' inscription.seance.pk %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Annuler
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash-alt me-2"></i>Confirmer la suppression
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

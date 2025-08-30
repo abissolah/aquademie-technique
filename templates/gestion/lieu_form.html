@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}
+{% if form.instance.pk %}Modifier le lieu{% else %}Nouveau lieu{% endif %} - Club de Plongée
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-map-marker-alt me-2"></i>
+                {% if form.instance.pk %}Modifier le lieu{% else %}Nouveau lieu{% endif %}
+            </h1>
+            <a href="{% url 'lieu_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Retour
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-edit me-2"></i>Informations du lieu
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.nom|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.adresse|as_crispy_field }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.code_postal|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.ville|as_crispy_field }}
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-3">
+                        <a href="{% url 'lieu_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Annuler
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save me-2"></i>
+                            {% if form.instance.pk %}Modifier{% else %}Créer{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

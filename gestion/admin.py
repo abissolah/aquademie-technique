@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, LienEvaluation
+from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, LienEvaluation, Lieu
 
 @admin.register(Adherent)
 class AdherentAdmin(admin.ModelAdmin):
@@ -129,3 +129,9 @@ class LienEvaluationAdmin(admin.ModelAdmin):
     search_fields = ['palanquee__nom']
     readonly_fields = ['token', 'date_creation']
     date_hierarchy = 'date_creation'
+
+@admin.register(Lieu)
+class LieuAdmin(admin.ModelAdmin):
+    list_display = ['nom', 'ville', 'code_postal', 'adresse']
+    search_fields = ['nom', 'ville', 'code_postal']
+    ordering = ['nom', 'ville']

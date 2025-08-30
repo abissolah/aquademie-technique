@@ -62,6 +62,8 @@
                         <thead>
                             <tr>
                                 <th>Date</th>
+                                <th>Début</th>
+                                <th>Fin</th>
                                 <th>Lieu</th>
                                 <th>Palanquées</th>
                                 <th>Actions</th>
@@ -73,7 +75,9 @@
                                 <td>
                                     <strong>{{ seance.date|date:"d/m/Y" }}</strong>
                                 </td>
-                                <td>{{ seance.lieu }}</td>
+                                <td>{{ seance.heure_debut|default:"-"|time:"H:i" }}</td>
+                                <td>{{ seance.heure_fin|default:"-"|time:"H:i" }}</td>
+                                <td>{{ seance.lieu.nom }} - {{ seance.lieu.ville }}</td>
                                 <td>
                                     <div class="small">
                                         {% if seance.palanquees.exists %}

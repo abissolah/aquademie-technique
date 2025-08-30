@@ -1,0 +1,15 @@
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;">
+    <h2>Inscription à la prochaine séance de plongée</h2>
+    <p>
+        <strong>Séance :</strong> {{ seance.date|date:'d/m/Y' }}<br>
+        <strong>Heure :</strong> {{ seance.heure_debut|default:'--'|time:'H:i' }} - {{ seance.heure_fin|default:'--'|time:'H:i' }}<br>
+        <strong>Lieu :</strong> {{ seance.lieu.nom }}<br>
+    </p>
+    <p>
+        Pour vous inscrire, cliquez sur le bouton ci-dessous (valable jusqu'au <strong>{{ lien.date_expiration|date:'d/m/Y H:i' }}</strong>) :
+    </p>
+    <p style="text-align:center;">
+        <a href="{{ url }}" style="background:#007bff;color:#fff;padding:12px 24px;border-radius:5px;text-decoration:none;font-size:18px;">S'inscrire à la séance</a>
+    </p>
+    <p style="margin-top:30px;">Merci et à bientôt sous l'eau !<br><strong>Club de Plongée</strong></p>
+</div>

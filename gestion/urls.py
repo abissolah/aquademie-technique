@@ -56,6 +56,8 @@ urlpatterns = [
     path('seances/nouvelle/', views.SeanceCreateView.as_view(), name='seance_create'),
     path('seances/<int:pk>/modifier/', views.SeanceUpdateView.as_view(), name='seance_update'),
     path('seances/<int:pk>/supprimer/', views.SeanceDeleteView.as_view(), name='seance_delete'),
+    path('seances/<int:seance_id>/generer-lien-inscription/', views.generer_lien_inscription_seance, name='generer_lien_inscription_seance'),
+    path('seances/<int:seance_id>/envoyer-invitation/', views.envoyer_mail_invitation_seance, name='envoyer_mail_invitation_seance'),
     
     # Palanquées
     path('palanquees/', PalanqueeListView.as_view(), name='palanquee_list'),
@@ -81,7 +83,19 @@ urlpatterns = [
     path('evaluations/<int:pk>/modifier/', views.evaluation_update, name='evaluation_update'),
     path('evaluations/<int:pk>/supprimer/', views.evaluation_delete, name='evaluation_delete'),
     
+    # Lieux
+    path('lieux/', views.LieuListView.as_view(), name='lieu_list'),
+    path('lieux/nouveau/', views.LieuCreateView.as_view(), name='lieu_create'),
+    path('lieux/<int:pk>/modifier/', views.LieuUpdateView.as_view(), name='lieu_update'),
+    path('lieux/<int:pk>/supprimer/', views.LieuDeleteView.as_view(), name='lieu_delete'),
+    
     # APIs
     path('api/competences-section/', views.get_competences_section, name='get_competences_section'),
     path('api/eleves-section/', views.get_eleves_section, name='get_eleves_section'),
+    path('inscription/<uuid:uuid>/', views.inscription_seance_uuid, name='inscription_seance_uuid'),
+    path('api/membres-app/', views.api_membres_app, name='api_membres_app'),
+    path('api/inscrire-membre-app/', views.api_inscrire_membre_app, name='api_inscrire_membre_app'),
+    path('api/recherche-non-membre/', views.api_recherche_non_membre, name='api_recherche_non_membre'),
+    path('api/inscrire-non-membre/', views.api_inscrire_non_membre, name='api_inscrire_non_membre'),
+    path('inscription/<int:inscription_id>/supprimer/', views.supprimer_inscription_seance, name='supprimer_inscription_seance'),
 ] 

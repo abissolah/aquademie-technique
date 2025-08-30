@@ -7,7 +7,7 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from django.urls import reverse_lazy
 from django.db.models import Q
 from django.utils import timezone
-from datetime import timedelta
+from datetime import datetime, timedelta
 import json
 from io import BytesIO
 from reportlab.pdfgen import canvas
@@ -17,9 +17,15 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from django.views.decorators.http import require_GET
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from django.core.mail import send_mass_mail
+from django.template.loader import render_to_string
+from django.core.mail import send_mail
 
-from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation, Palanquee
-from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm
+from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation, Palanquee, Lieu, LienInscriptionSeance, InscriptionSeance
+from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm
 from .utils import envoyer_lien_evaluation, envoyer_lien_evaluation_avec_cc
 
 # Vues d'accueil et de navigation
@@ -233,6 +239,11 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         # Récupérer les palanquées associées
         context['palanquees'] = seance.palanquees.all()
         
+        # Liste des inscrits (adhérents et non-adhérents)
+        inscrits = seance.inscriptions.select_related('personne').all()
+        context['inscrits_adherents'] = [i for i in inscrits if i.personne.type_personne == 'adherent']
+        context['inscrits_non_adherents'] = [i for i in inscrits if i.personne.type_personne == 'non_adherent']
+        context['today'] = timezone.now().date()
         return context
 
 class SeanceCreateView(LoginRequiredMixin, CreateView):
@@ -384,6 +395,49 @@ def get_eleves_section(request):
         except Section.DoesNotExist:
             return JsonResponse({'eleves': []})
     return JsonResponse({'eleves': []})
+
+@require_GET
+def api_membres_app(request):
+    q = request.GET.get('q', '').strip()
+    membres = Adherent.objects.filter(type_personne='adherent')
+    if q:
+        membres = membres.filter(Q(nom__icontains=q) | Q(prenom__icontains=q))
+    membres = membres.order_by('nom', 'prenom')
+    data = [
+        {
+            'id': m.id,
+            'nom': m.nom,
+            'prenom': m.prenom,
+            'niveau': m.get_niveau_display(),
+            'sections': [s.get_nom_display() for s in m.sections.all()],
+            'statut': m.get_statut_display(),
+            'date_fin_validite_caci': m.date_fin_validite_caci.strftime('%d/%m/%Y') if m.date_fin_validite_caci else '',
+        }
+        for m in membres
+    ]
+    return JsonResponse({'membres': data})
+
+@require_GET
+def api_recherche_non_membre(request):
+    nom = request.GET.get('nom', '').strip()
+    prenom = request.GET.get('prenom', '').strip()
+    non_membre = Adherent.objects.filter(type_personne='non_adherent', nom__iexact=nom, prenom__iexact=prenom).first()
+    if non_membre:
+        data = {
+            'id': non_membre.id,
+            'nom': non_membre.nom,
+            'prenom': non_membre.prenom,
+            'email': non_membre.email,
+            'telephone': non_membre.telephone,
+            'niveau': non_membre.niveau,
+            'statut': non_membre.statut,
+            'sections': [s.id for s in non_membre.sections.all()],
+            'date_naissance': non_membre.date_naissance.strftime('%Y-%m-%d') if non_membre.date_naissance else '',
+            'adresse': non_membre.adresse,
+            'date_fin_validite_caci': non_membre.date_fin_validite_caci.strftime('%Y-%m-%d') if non_membre.date_fin_validite_caci else '',
+        }
+        return JsonResponse({'found': True, 'data': data})
+    return JsonResponse({'found': False})
 
 # Vues pour l'import Excel
 @login_required
@@ -643,4 +697,152 @@ class CustomLoginView(LoginView):
 
 class CustomLogoutView(LogoutView):
     next_page = 'login'
+
+# Vues pour les lieux
+class LieuListView(LoginRequiredMixin, ListView):
+    model = Lieu
+    template_name = 'gestion/lieu_list.html'
+    context_object_name = 'lieux'
+
+class LieuCreateView(LoginRequiredMixin, CreateView):
+    model = Lieu
+    fields = ['nom', 'adresse', 'code_postal', 'ville']  # Nom, adresse, CP, ville
+    template_name = 'gestion/lieu_form.html'
+    success_url = reverse_lazy('lieu_list')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        # Réordonne les champs : nom, adresse, code_postal, ville
+        form.order_fields(['nom', 'adresse', 'code_postal', 'ville'])
+        return form
+
+class LieuUpdateView(LoginRequiredMixin, UpdateView):
+    model = Lieu
+    fields = ['nom', 'adresse', 'code_postal', 'ville']
+    template_name = 'gestion/lieu_form.html'
+    success_url = reverse_lazy('lieu_list')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.order_fields(['nom', 'adresse', 'code_postal', 'ville'])
+        return form
+
+class LieuDeleteView(LoginRequiredMixin, DeleteView):
+    model = Lieu
+    template_name = 'gestion/lieu_confirm_delete.html'
+    success_url = reverse_lazy('lieu_list')
+
+@login_required
+def generer_lien_inscription_seance(request, seance_id):
+    seance = get_object_or_404(Seance, pk=seance_id)
+    today = timezone.now().date()
+    days_until_next_wed = (2 - today.weekday() + 7) % 7 + 7  # 2 = mercredi
+    expiration = timezone.make_aware(datetime.combine(today + timedelta(days=days_until_next_wed), datetime.min.time()))
+    lien, created = LienInscriptionSeance.objects.update_or_create(
+        seance=seance,
+        defaults={'date_expiration': expiration}
+    )
+    messages.success(request, "Lien d'inscription généré !")
+    return redirect('seance_detail', pk=seance.pk)
+
+@login_required
+def envoyer_mail_invitation_seance(request, seance_id):
+    seance = get_object_or_404(Seance, pk=seance_id)
+    lien = seance.liens_inscription.last()
+    if not lien:
+        messages.error(request, "Aucun lien d'inscription généré pour cette séance.")
+        return redirect('seance_detail', pk=seance_id)
+    # Récupère tous les adhérents du club
+    adherents = Adherent.objects.filter(type_personne='adherent')
+    emails = [a.email for a in adherents if a.email]
+    if not emails:
+        messages.error(request, "Aucun email d'adhérent trouvé.")
+        return redirect('seance_detail', pk=seance_id)
+    # Prépare le message
+    subject = f"Inscription à la séance du {seance.date.strftime('%d/%m/%Y')} - {seance.lieu.nom}"
+    url = request.build_absolute_uri(f"/inscription/{lien.uuid}/")
+    message_txt = render_to_string('gestion/email_invitation_seance.txt', {'seance': seance, 'lien': lien, 'url': url})
+    message_html = render_to_string('gestion/email_invitation_seance.html', {'seance': seance, 'lien': lien, 'url': url})
+    datatuple = [(subject, message_txt, None, [email]) for email in emails]
+    send_mass_mail(datatuple, fail_silently=False)
+    messages.success(request, f"Invitation envoyée à {len(emails)} adhérents.")
+    return redirect('seance_detail', pk=seance_id)
+
+@login_required
+def inscription_seance_uuid(request, uuid):
+    lien = get_object_or_404(LienInscriptionSeance, uuid=uuid)
+    now = timezone.now()
+    if now > lien.date_expiration:
+        return render(request, 'gestion/inscription_expiree.html', {'seance': lien.seance})
+    return render(request, 'gestion/inscription_seance.html', {'seance': lien.seance, 'lien': lien})
+
+@csrf_exempt
+@require_POST
+def api_inscrire_membre_app(request):
+    import json
+    try:
+        data = json.loads(request.body)
+        uuid = data.get('uuid')
+        membre_id = data.get('membre_id')
+        lien = LienInscriptionSeance.objects.get(uuid=uuid)
+        seance = lien.seance
+        membre = Adherent.objects.get(id=membre_id, type_personne='adherent')
+        from .models import InscriptionSeance
+        if InscriptionSeance.objects.filter(seance=seance, personne=membre).exists():
+            return JsonResponse({'success': False, 'message': 'Vous êtes déjà inscrit à cette séance.'})
+        InscriptionSeance.objects.create(seance=seance, personne=membre)
+        # Envoi mail confirmation
+        if membre.email:
+            subject = f"Confirmation d'inscription à la séance du {seance.date.strftime('%d/%m/%Y')}"
+            url = request.build_absolute_uri(f"/inscription/{lien.uuid}/")
+            message = render_to_string('gestion/email_confirmation_inscription.txt', {'seance': seance, 'personne': membre, 'url': url})
+            send_mail(subject, message, None, [membre.email], fail_silently=True)
+        return JsonResponse({'success': True, 'message': 'Inscription réussie ! Un email de confirmation vous a été envoyé.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+@csrf_exempt
+@require_POST
+def api_inscrire_non_membre(request):
+    uuid = request.POST.get('uuid')
+    lien = get_object_or_404(LienInscriptionSeance, uuid=uuid)
+    seance = lien.seance
+    nom = request.POST.get('nom', '').strip()
+    prenom = request.POST.get('prenom', '').strip()
+    non_membre = Adherent.objects.filter(type_personne='non_adherent', nom__iexact=nom, prenom__iexact=prenom).first()
+    from .models import InscriptionSeance
+    if non_membre and InscriptionSeance.objects.filter(seance=seance, personne=non_membre).exists():
+        return JsonResponse({'success': False, 'message': 'Vous êtes déjà inscrit à cette séance.'})
+    if non_membre:
+        form = NonAdherentInscriptionForm(request.POST, request.FILES, instance=non_membre)
+    else:
+        form = NonAdherentInscriptionForm(request.POST, request.FILES)
+    if form.is_valid():
+        personne = form.save(commit=False)
+        personne.type_personne = 'non_adherent'
+        personne.save()
+        form.save_m2m()
+        # Inscription à la séance
+        if not InscriptionSeance.objects.filter(seance=seance, personne=personne).exists():
+            InscriptionSeance.objects.create(seance=seance, personne=personne)
+        # Envoi mail confirmation
+        if personne.email:
+            subject = f"Confirmation d'inscription à la séance du {seance.date.strftime('%d/%m/%Y')}"
+            url = request.build_absolute_uri(f"/inscription/{lien.uuid}/")
+            message = render_to_string('gestion/email_confirmation_inscription.txt', {'seance': seance, 'personne': personne, 'url': url})
+            send_mail(subject, message, None, [personne.email], fail_silently=True)
+        return JsonResponse({'success': True, 'message': 'Inscription réussie ! Un email de confirmation vous a été envoyé.'})
+    else:
+        return JsonResponse({'success': False, 'message': 'Erreur : ' + str(form.errors)})
+
+@login_required
+def supprimer_inscription_seance(request, inscription_id):
+    from .models import InscriptionSeance
+    inscription = get_object_or_404(InscriptionSeance, id=inscription_id)
+    seance_id = inscription.seance.id
+    if request.method == 'POST':
+        inscription.delete()
+        messages.success(request, "Inscription supprimée avec succès.")
+        return redirect('seance_detail', pk=seance_id)
+    return render(request, 'gestion/inscription_confirm_delete.html', {'inscription': inscription})
 

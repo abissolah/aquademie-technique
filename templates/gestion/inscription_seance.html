@@ -1,0 +1,290 @@
+{% extends 'base.html' %}
+{% block title %}Inscription à la séance - Club de Plongée{% endblock %}
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header text-center">
+                    <h2 class="mb-0">Inscription à la séance</h2>
+                    <p class="mb-0 text-muted small">{{ seance.date|date:'d/m/Y' }} à {{ seance.lieu.nom }} ({{ seance.heure_debut|default:'--'|time:'H:i' }})</p>
+                </div>
+                <div class="card-body text-center">
+                    <h5 class="mb-4">Êtes-vous membre du club APP ?</h5>
+                    <div class="d-grid gap-3 d-md-flex justify-content-md-center">
+                        <a href="#" id="btn-membre" class="btn btn-primary btn-lg px-4">Je suis membre APP</a>
+                        <a href="#" id="btn-non-membre" class="btn btn-outline-primary btn-lg px-4">Je ne suis pas membre APP</a>
+                    </div>
+                </div>
+            </div>
+            <div id="inscription-membre" style="display:none;">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Sélectionnez votre nom dans la liste des membres</h5>
+                    </div>
+                    <div class="card-body">
+                        <input type="text" id="recherche-membre" class="form-control mb-3" placeholder="Rechercher par nom ou prénom...">
+                        <div id="liste-membres" class="list-group mb-3" style="max-height:300px;overflow:auto;"></div>
+                        <div id="infos-membre" style="display:none;"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="inscription-non-membre" style="display:none;">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Formulaire d'inscription pour les non-membres</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="form-non-membre" enctype="multipart/form-data">
+                            <div class="row mb-2">
+                                <div class="col-md-6">
+                                    <label for="nm-nom" class="form-label">Nom</label>
+                                    <input type="text" name="nom" id="nm-nom" class="form-control" placeholder="Nom" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="nm-prenom" class="form-label">Prénom</label>
+                                    <input type="text" name="prenom" id="nm-prenom" class="form-control" placeholder="Prénom" required>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-md-6">
+                                    <label for="nm-email" class="form-label">Email</label>
+                                    <input type="email" name="email" id="nm-email" class="form-control" placeholder="Email" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="nm-telephone" class="form-label">Téléphone</label>
+                                    <input type="text" name="telephone" id="nm-telephone" class="form-control" placeholder="Téléphone" required>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-md-6">
+                                    <label for="nm-date-naissance" class="form-label">Date de naissance</label>
+                                    <input type="date" name="date_naissance" id="nm-date-naissance" class="form-control" placeholder="Date de naissance">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="nm-adresse" class="form-label">Adresse</label>
+                                    <input type="text" name="adresse" id="nm-adresse" class="form-control" placeholder="Adresse">
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-md-6">
+                                    <label for="nm-date-fin-caci" class="form-label">Date validité CACI</label>
+                                    <input type="date" name="date_fin_validite_caci" id="nm-date-fin-caci" class="form-control" placeholder="Date validité CACI" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="nm-caci-fichier" class="form-label">Fichier CACI</label>
+                                    <input type="file" name="caci_fichier" id="nm-caci-fichier" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-md-6">
+                                    <label for="nm-niveau" class="form-label">Niveau</label>
+                                    <select name="niveau" id="nm-niveau" class="form-control" required>
+                                        <option value="">Niveau</option>
+                                        <option value="debutant">Débutant</option>
+                                        <option value="niveau1">Niveau 1</option>
+                                        <option value="niveau2">Niveau 2</option>
+                                        <option value="niveau3">Niveau 3</option>
+                                        <option value="initiateur1">Initiateur 1</option>
+                                        <option value="initiateur2">Initiateur 2</option>
+                                        <option value="moniteur_federal1">Moniteur fédéral 1</option>
+                                        <option value="moniteur_federal2">Moniteur fédéral 2</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="nm-statut" class="form-label">Statut</label>
+                                    <select name="statut" id="nm-statut" class="form-control" required>
+                                        <option value="eleve">Élève</option>
+                                        <option value="encadrant">Encadrant</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label">Sections :</label>
+                                <div id="nm-sections-checkboxes" class="d-flex flex-wrap gap-2"></div>
+                            </div>
+                            <div id="alerte-caci-non-membre" class="mb-2"></div>
+                            <button type="submit" class="btn btn-success mt-2">S'inscrire</button>
+                        </form>
+                        <div id="result-non-membre" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+    document.getElementById('btn-membre').onclick = function(e) {
+        e.preventDefault();
+        document.getElementById('inscription-membre').style.display = '';
+        document.getElementById('inscription-non-membre').style.display = 'none';
+    };
+    document.getElementById('btn-non-membre').onclick = function(e) {
+        e.preventDefault();
+        document.getElementById('inscription-non-membre').style.display = '';
+        document.getElementById('inscription-membre').style.display = 'none';
+    };
+    // Recherche et affichage des membres
+    let membres = [];
+    let membreSelectionne = null;
+    function fetchMembres(q = '') {
+        fetch('/api/membres-app/?q=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(data => {
+                membres = data.membres;
+                renderListeMembres();
+            });
+    }
+    function renderListeMembres() {
+        const liste = document.getElementById('liste-membres');
+        liste.innerHTML = '';
+        membres.forEach(m => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'list-group-item list-group-item-action';
+            item.textContent = m.nom + ' ' + m.prenom;
+            item.onclick = () => selectMembre(m);
+            liste.appendChild(item);
+        });
+    }
+    function selectMembre(m) {
+        membreSelectionne = m;
+        document.getElementById('infos-membre').style.display = '';
+        document.getElementById('infos-membre').innerHTML = `
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-2">${m.nom} ${m.prenom}</h5>
+                    <p class="mb-1"><strong>Niveau :</strong> ${m.niveau}</p>
+                    <p class="mb-1"><strong>Section :</strong> ${m.sections.join(', ')}</p>
+                    <p class="mb-1"><strong>Statut :</strong> ${m.statut}</p>
+                    <p class="mb-1"><strong>Date validité CACI :</strong> <span id="alerte-caci">${m.date_fin_validite_caci}</span></p>
+                    <button class="btn btn-success mt-2" onclick="inscrireMembre(${m.id})">S'inscrire</button>
+                </div>
+            </div>
+        `;
+        // Alerte CACI si moins d'un mois
+        if (m.date_fin_validite_caci) {
+            const parts = m.date_fin_validite_caci.split('/');
+            const caciDate = new Date(parts[2], parts[1]-1, parts[0]);
+            const now = new Date();
+            const diff = (caciDate - now) / (1000*60*60*24);
+            if (diff < 31) {
+                document.getElementById('alerte-caci').innerHTML += ' <span class="badge bg-danger ms-2">Attention, votre CACI expire bientôt !</span>';
+            }
+        }
+    }
+    document.getElementById('recherche-membre').addEventListener('input', function() {
+        fetchMembres(this.value);
+    });
+    // Chargement initial
+    fetchMembres();
+    // Inscription AJAX (à compléter côté backend)
+    window.inscrireMembre = function(id) {
+        const uuid = "{{ lien.uuid }}";
+        fetch('/api/inscrire-membre-app/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uuid: uuid, membre_id: id })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('infos-membre').innerHTML += '<div class="alert alert-success mt-3">' + data.message + '</div>';
+                // Désactive le bouton S'inscrire
+                const btn = document.querySelector('#infos-membre button');
+                if (btn) btn.disabled = true;
+            } else {
+                document.getElementById('infos-membre').innerHTML += '<div class="alert alert-danger mt-3">' + data.message + '</div>';
+            }
+        })
+        .catch(() => {
+            document.getElementById('infos-membre').innerHTML += '<div class="alert alert-danger mt-3">Erreur lors de l\'inscription.</div>';
+        });
+    };
+
+    // Chargement des sections pour les checkboxes
+    fetch('/sections/').then(r => r.text()).then(html => {
+        // On parse le HTML pour extraire les sections (hack rapide)
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const options = doc.querySelectorAll('input[type=checkbox][name=sections]');
+        const container = document.getElementById('nm-sections-checkboxes');
+        options.forEach(opt => {
+            const label = doc.querySelector('label[for="' + opt.id + '"]');
+            const div = document.createElement('div');
+            div.className = 'form-check';
+            div.innerHTML = `<input class="form-check-input" type="checkbox" name="sections" value="${opt.value}" id="nm-section-${opt.value}">
+            <label class="form-check-label" for="nm-section-${opt.value}">${label ? label.textContent : opt.value}</label>`;
+            container.appendChild(div);
+        });
+    });
+    // Recherche AJAX pour pré-remplir
+    function preRemplirNonMembre() {
+        const nom = document.getElementById('nm-nom').value.trim();
+        const prenom = document.getElementById('nm-prenom').value.trim();
+        if (nom && prenom) {
+            fetch(`/api/recherche-non-membre/?nom=${encodeURIComponent(nom)}&prenom=${encodeURIComponent(prenom)}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.found) {
+                        const d = data.data;
+                        document.getElementById('nm-email').value = d.email;
+                        document.getElementById('nm-telephone').value = d.telephone;
+                        document.getElementById('nm-date-naissance').value = d.date_naissance;
+                        document.getElementById('nm-adresse').value = d.adresse;
+                        document.getElementById('nm-date-fin-caci').value = d.date_fin_validite_caci;
+                        document.getElementById('nm-niveau').value = d.niveau;
+                        document.getElementById('nm-statut').value = d.statut;
+                        // Sections
+                        document.querySelectorAll('#nm-sections-checkboxes input[type=checkbox]').forEach(cb => {
+                            cb.checked = d.sections.includes(parseInt(cb.value));
+                        });
+                    }
+                });
+        }
+    }
+    document.getElementById('nm-nom').addEventListener('blur', preRemplirNonMembre);
+    document.getElementById('nm-prenom').addEventListener('blur', preRemplirNonMembre);
+    // Alerte CACI si moins d'un mois
+    function checkAlerteCaciNonMembre() {
+        const val = document.getElementById('nm-date-fin-caci').value;
+        if (val) {
+            const caciDate = new Date(val);
+            const now = new Date();
+            const diff = (caciDate - now) / (1000*60*60*24);
+            const alertDiv = document.getElementById('alerte-caci-non-membre');
+            if (diff < 31) {
+                alertDiv.innerHTML = '<span class="badge bg-danger">Attention, votre CACI expire bientôt !</span>';
+            } else {
+                alertDiv.innerHTML = '';
+            }
+        }
+    }
+    document.getElementById('nm-date-fin-caci').addEventListener('change', checkAlerteCaciNonMembre);
+    // Soumission AJAX du formulaire
+    const formNonMembre = document.getElementById('form-non-membre');
+    formNonMembre.onsubmit = function(e) {
+        e.preventDefault();
+        const formData = new FormData(formNonMembre);
+        formData.append('uuid', "{{ lien.uuid }}");
+        fetch('/api/inscrire-non-membre/', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('result-non-membre').innerHTML = '<div class="alert alert-success">' + data.message + '</div>';
+                formNonMembre.style.display = 'none';
+            } else {
+                document.getElementById('result-non-membre').innerHTML = '<div class="alert alert-danger">' + data.message + '</div>';
+            }
+        })
+        .catch(() => {
+            document.getElementById('result-non-membre').innerHTML = '<div class="alert alert-danger">Erreur lors de l\'inscription.</div>';
+        });
+    };
+</script>
+{% endblock %}

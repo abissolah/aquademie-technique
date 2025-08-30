@@ -36,29 +36,28 @@
     </div>
 </div>
 
-<!-- Liste des adhérents -->
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                {% if adherents %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Photo</th>
-                                <th>Nom</th>
-                                <th>Email</th>
-                                <th>Téléphone</th>
-                                <th>Niveau</th>
-                                <th>Statut</th>
-                                <th>Validité CACI</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for adherent in adherents %}
-                            <tr>
+<h2 class="mt-4 mb-3"><i class="fas fa-users me-2"></i>Adhérents du club</h2>
+<div class="card mb-5">
+    <div class="card-body">
+        {% with adherents|dictsort:"nom" as adherents_club %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Photo</th>
+                        <th>Nom</th>
+                        <th>Email</th>
+                        <th>Téléphone</th>
+                        <th>Niveau</th>
+                        <th>Statut</th>
+                        <th>Validité CACI</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for adherent in adherents_club %}
+                        {% if adherent.type_personne == 'adherent' %}
+                        <tr>
                                 <td>
                                     {% if adherent.photo %}
                                     <img src="{{ adherent.photo.url }}" alt="Photo de {{ adherent.nom_complet }}" 
@@ -106,68 +105,99 @@
                                     </div>
                                 </td>
                             </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <!-- Pagination -->
-                {% if is_paginated %}
-                <nav aria-label="Pagination des adhérents">
-                    <ul class="pagination justify-content-center">
-                        {% if page_obj.has_previous %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
-                                <i class="fas fa-angle-double-left"></i>
-                            </a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
-                                <i class="fas fa-angle-left"></i>
-                            </a>
-                        </li>
                         {% endif %}
-                        
-                        <li class="page-item active">
-                            <span class="page-link">
-                                Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}
-                            </span>
-                        </li>
-                        
-                        {% if page_obj.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
-                                <i class="fas fa-angle-right"></i>
-                            </a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
-                                <i class="fas fa-angle-double-right"></i>
-                            </a>
-                        </li>
-                        {% endif %}
-                    </ul>
-                </nav>
-                {% endif %}
-                
-                {% else %}
-                <div class="text-center py-5">
-                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                    <h4 class="text-muted">Aucun adhérent trouvé</h4>
-                    <p class="text-muted">
-                        {% if request.GET.q %}
-                        Aucun adhérent ne correspond à votre recherche "{{ request.GET.q }}".
-                        {% else %}
-                        Commencez par ajouter votre premier adhérent.
-                        {% endif %}
-                    </p>
-                    <a href="{% url 'adherent_create' %}" class="btn btn-primary">
-                        <i class="fas fa-plus me-2"></i>Ajouter un adhérent
-                    </a>
-                </div>
-                {% endif %}
-            </div>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
+        {% endwith %}
     </div>
 </div>
+
+<h2 class="mt-4 mb-3"><i class="fas fa-user-friends me-2"></i>Non adhérents (invités, renforts...)</h2>
+<div class="card">
+    <div class="card-body">
+        {% with adherents|dictsort:"nom" as non_adherents %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Photo</th>
+                        <th>Nom</th>
+                        <th>Email</th>
+                        <th>Téléphone</th>
+                        <th>Niveau</th>
+                        <th>Statut</th>
+                        <th>Validité CACI</th>
+                        <th>Fichier CACI</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for adherent in non_adherents %}
+                        {% if adherent.type_personne == 'non_adherent' %}
+                        <tr>
+                            <td>
+                                {% if adherent.photo %}
+                                    <img src="{{ adherent.photo.url }}" alt="Photo de {{ adherent.nom_complet }}" 
+                                         class="rounded-circle" width="40" height="40" style="object-fit: cover;">
+                                {% else %}
+                                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" 
+                                         style="width: 40px; height: 40px;">
+                                        <i class="fas fa-user text-white"></i>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ adherent.nom_complet }}</strong>
+                            </td>
+                            <td>{{ adherent.email }}</td>
+                            <td>{{ adherent.telephone }}</td>
+                            <td>
+                                <span class="badge bg-info">{{ adherent.get_niveau_display }}</span>
+                            </td>
+                            <td>
+                                {% if adherent.statut == 'eleve' %}
+                                <span class="badge bg-success">Élève</span>
+                                {% else %}
+                                <span class="badge bg-warning">Encadrant</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if adherent.date_fin_validite_caci %}
+                                <span class="{% if adherent.date_fin_validite_caci < today %}text-danger{% endif %}">
+                                    {{ adherent.date_fin_validite_caci|date:"d/m/Y" }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if adherent.caci_fichier %}
+                                    <a href="{{ adherent.caci_fichier.url }}" target="_blank">Télécharger</a>
+                                {% else %}
+                                    <span class="text-muted">Aucun fichier</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'adherent_detail' adherent.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'adherent_update' adherent.pk %}" class="btn btn-sm btn-outline-warning" title="Modifier">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'adherent_delete' adherent.pk %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endwith %}
+    </div>
+</div>
+
 {% endblock %} 

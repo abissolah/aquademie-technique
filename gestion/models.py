@@ -42,6 +42,13 @@ class Adherent(models.Model):
         ('encadrant', 'Encadrant'),
     ]
     
+    TYPE_PERSONNE_CHOICES = [
+        ('adherent', 'Adhérent du club'),
+        ('non_adherent', 'Non adhérent (invité, renfort, autre club)'),
+    ]
+    type_personne = models.CharField(max_length=20, choices=TYPE_PERSONNE_CHOICES, default='adherent', verbose_name="Type de personne")
+    caci_fichier = models.FileField(upload_to='caci/', blank=True, null=True, verbose_name="Fichier CACI (non adhérent)")
+    
     nom = models.CharField(max_length=100)
     prenom = models.CharField(max_length=100)
     date_naissance = models.DateField()
@@ -97,9 +104,25 @@ class GroupeCompetence(models.Model):
     def __str__(self):
         return f"{self.section.get_nom_display()} - {self.intitule}"
 
+class Lieu(models.Model):
+    nom = models.CharField(max_length=200)
+    adresse = models.CharField(max_length=255)
+    code_postal = models.CharField(max_length=10)
+    ville = models.CharField(max_length=100)
+
+    class Meta:
+        verbose_name = "Lieu"
+        verbose_name_plural = "Lieux"
+        ordering = ['nom', 'ville']
+
+    def __str__(self):
+        return f"{self.nom} - {self.ville}"
+
 class Seance(models.Model):
     date = models.DateField()
-    lieu = models.CharField(max_length=200)
+    heure_debut = models.TimeField(verbose_name="Heure de début", null=True, blank=True)
+    heure_fin = models.TimeField(verbose_name="Heure de fin", null=True, blank=True)
+    lieu = models.ForeignKey(Lieu, on_delete=models.PROTECT, related_name='seances')
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)
     
@@ -167,3 +190,22 @@ class LienEvaluation(models.Model):
     @property
     def url_evaluation(self):
         return f"/evaluation/{self.token}/"
+
+class LienInscriptionSeance(models.Model):
+    seance = models.ForeignKey('Seance', on_delete=models.CASCADE, related_name='liens_inscription')
+    uuid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    date_expiration = models.DateTimeField()
+
+    def __str__(self):
+        return f"Lien pour {self.seance} (expire le {self.date_expiration})"
+
+class InscriptionSeance(models.Model):
+    seance = models.ForeignKey('Seance', on_delete=models.CASCADE, related_name='inscriptions')
+    personne = models.ForeignKey('Adherent', on_delete=models.CASCADE, related_name='inscriptions_seance')
+    date_inscription = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('seance', 'personne')
+
+    def __str__(self):
+        return f"{self.personne} inscrit à {self.seance} le {self.date_inscription}"

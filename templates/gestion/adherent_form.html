@@ -73,6 +73,11 @@
                         </div>
                     </div>
                     
+                    {{ form.type_personne|as_crispy_field }}
+                    <div id="caci-field" style="display: none;">
+                        {{ form.caci_fichier|as_crispy_field }}
+                    </div>
+                    
                     <div class="d-flex justify-content-between">
                         <a href="{% url 'adherent_list' %}" class="btn btn-outline-secondary">
                             <i class="fas fa-times me-2"></i>Annuler
@@ -140,4 +145,27 @@
         </div>
     </div>
 </div>
+{% endblock %} 
+
+{% block extra_js %}
+<script>
+    function toggleCaciField() {
+        var typeSelect = document.getElementById('id_type_personne');
+        var caciField = document.getElementById('caci-field');
+        if (typeSelect && caciField) {
+            if (typeSelect.value === 'non_adherent') {
+                caciField.style.display = '';
+            } else {
+                caciField.style.display = 'none';
+            }
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        var typeSelect = document.getElementById('id_type_personne');
+        if (typeSelect) {
+            typeSelect.addEventListener('change', toggleCaciField);
+            toggleCaciField();
+        }
+    });
+</script>
 {% endblock %} 

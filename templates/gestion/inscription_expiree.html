@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Inscriptions closes - Club de Plongée{% endblock %}
+{% block content %}
+<div class="container py-5 text-center">
+    <div class="alert alert-danger">
+        <h2><i class="fas fa-lock"></i> Inscriptions closes</h2>
+        <p>Les inscriptions à la séance du <strong>{{ seance.date|date:'d/m/Y' }}</strong> à <strong>{{ seance.lieu.nom }}</strong> sont désormais closes.</p>
+        <p>Merci de votre compréhension.</p>
+    </div>
+    <a href="/" class="btn btn-primary mt-3"><i class="fas fa-home me-2"></i>Retour à l'accueil</a>
+</div>
+{% endblock %}
