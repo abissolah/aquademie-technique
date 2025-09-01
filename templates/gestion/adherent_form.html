@@ -66,17 +66,22 @@
                     
                     <div class="row">
                         <div class="col-md-6">
-                            {{ form.date_fin_validite_caci|as_crispy_field }}
+                            {{ form.date_delivrance_caci|as_crispy_field }}
                         </div>
                         <div class="col-md-6">
                             {{ form.photo|as_crispy_field }}
                         </div>
                     </div>
+
+                    {{ form.caci_fichier|as_crispy_field }}
+                    {% if object and object.caci_fichier %}
+                        <div class="mb-3">
+                            <label class="form-label">Fichier CACI actuel :</label>
+                            <a href="{{ object.caci_fichier.url }}" target="_blank" class="btn btn-sm btn-outline-primary ms-2">Télécharger</a>
+                        </div>
+                    {% endif %}
                     
                     {{ form.type_personne|as_crispy_field }}
-                    <div id="caci-field" style="display: none;">
-                        {{ form.caci_fichier|as_crispy_field }}
-                    </div>
                     
                     <div class="d-flex justify-content-between">
                         <a href="{% url 'adherent_list' %}" class="btn btn-outline-secondary">
@@ -149,23 +154,6 @@
 
 {% block extra_js %}
 <script>
-    function toggleCaciField() {
-        var typeSelect = document.getElementById('id_type_personne');
-        var caciField = document.getElementById('caci-field');
-        if (typeSelect && caciField) {
-            if (typeSelect.value === 'non_adherent') {
-                caciField.style.display = '';
-            } else {
-                caciField.style.display = 'none';
-            }
-        }
-    }
-    document.addEventListener('DOMContentLoaded', function() {
-        var typeSelect = document.getElementById('id_type_personne');
-        if (typeSelect) {
-            typeSelect.addEventListener('change', toggleCaciField);
-            toggleCaciField();
-        }
-    });
+    // The toggleCaciField function and its associated JS block are removed as per the edit hint.
 </script>
 {% endblock %} 

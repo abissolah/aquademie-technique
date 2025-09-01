@@ -23,9 +23,14 @@ from django.views.decorators.http import require_POST
 from django.core.mail import send_mass_mail
 from django.template.loader import render_to_string
 from django.core.mail import send_mail
+import openpyxl
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Alignment
+from openpyxl.styles import PatternFill
+from django.views.decorators.csrf import csrf_protect
 
 from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation, Palanquee, Lieu, LienInscriptionSeance, InscriptionSeance
-from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm
+from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm
 from .utils import envoyer_lien_evaluation, envoyer_lien_evaluation_avec_cc
 
 # Vues d'accueil et de navigation
@@ -243,6 +248,9 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         inscrits = seance.inscriptions.select_related('personne').all()
         context['inscrits_adherents'] = [i for i in inscrits if i.personne.type_personne == 'adherent']
         context['inscrits_non_adherents'] = [i for i in inscrits if i.personne.type_personne == 'non_adherent']
+        context['nb_total_inscrits'] = len(inscrits)
+        context['nb_adherents'] = len(context['inscrits_adherents'])
+        context['nb_non_adherents'] = len(context['inscrits_non_adherents'])
         context['today'] = timezone.now().date()
         return context
 
@@ -845,4 +853,87 @@ def supprimer_inscription_seance(request, inscription_id):
         messages.success(request, "Inscription supprimée avec succès.")
         return redirect('seance_detail', pk=seance_id)
     return render(request, 'gestion/inscription_confirm_delete.html', {'inscription': inscription})
+
+@login_required
+def exporter_inscrits_seance(request, seance_id):
+    seance = get_object_or_404(Seance, pk=seance_id)
+    # Récupérer tous les inscrits
+    inscrits = seance.inscriptions.select_related('personne').all()
+    # Élèves
+    eleves = [i.personne for i in inscrits if i.personne.statut == 'eleve']
+    eleves = sorted(eleves, key=lambda e: (e.nom.lower(), e.prenom.lower()))
+    # Encadrants
+    encadrants = [i.personne for i in inscrits if i.personne.statut == 'encadrant']
+    # Mapping niveau encadrant
+    niveau_map = {
+        'initiateur1': 'E1',
+        'initiateur2': 'E2',
+        'moniteur_federal1': 'E3',
+        'moniteur_federal2': 'E4',
+    }
+    # Préparation Excel
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Inscrits séance'
+    # En-têtes
+    headers = ['Nom', 'Prénom', 'Niveau', 'Section', 'Profondeur max']
+    for enc in encadrants:
+        niveau_court = niveau_map.get(enc.niveau, '')
+        headers.append(f"{enc.prenom} {enc.nom} [{niveau_court}]")
+    # Infos séance au-dessus du tableau
+    info_rows = [
+        [f"Date : {seance.date.strftime('%d/%m/%Y')}"] ,
+        [f"Heure : {seance.heure_debut.strftime('%H:%M') if seance.heure_debut else '--'} - {seance.heure_fin.strftime('%H:%M') if seance.heure_fin else '--'}"],
+        [f"Lieu : {seance.lieu.nom}"],
+        [f"Adresse : {seance.lieu.adresse}, {seance.lieu.code_postal} {seance.lieu.ville}"],
+        [f"Directeur de plongée : {seance.directeur_plongee.nom_complet if seance.directeur_plongee else 'Non défini'}"]
+    ]
+    for row in info_rows:
+        ws.append(row)
+    ws.append([])  # Ligne vide
+    ws.append(headers)
+    start_row = ws.max_row  # La ligne d'en-tête est maintenant la dernière
+    # Appliquer la couleur sur les colonnes encadrants (ligne d'en-tête)
+    fill = PatternFill(start_color="CCFFCC", end_color="CCFFCC", fill_type="solid")
+    for col_idx in range(6, 6 + len(encadrants)):
+        cell = ws.cell(row=start_row, column=col_idx)
+        cell.fill = fill
+        cell.alignment = Alignment(text_rotation=90, vertical='bottom', horizontal='center')
+    ws.row_dimensions[start_row].height = 80
+    # Lignes élèves
+    for eleve in eleves:
+        niveau = eleve.get_niveau_display()
+        sections = ', '.join([s.get_nom_display() for s in eleve.sections.all()])
+        if not eleve.niveau or 'bapteme' in [s.nom for s in eleve.sections.all()] or eleve.niveau == 'debutant':
+            profondeur = 6
+        else:
+            profondeur = 20
+        row = [eleve.nom, eleve.prenom, niveau, sections, profondeur]
+        row += ['' for _ in encadrants]
+        ws.append(row)
+    # Ajuste la largeur des colonnes
+    for i, col in enumerate(ws.columns, 1):
+        max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col)
+        ws.column_dimensions[get_column_letter(i)].width = max(12, max_length + 2)
+        for cell in col:
+            cell.alignment = Alignment(vertical='center', horizontal='center')
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="inscrits_seance_{seance.id}.xlsx"'
+    wb.save(response)
+    return response
+
+@method_decorator(csrf_protect, name='dispatch')
+class AdherentPublicCreateView(CreateView):
+    model = Adherent
+    form_class = AdherentPublicForm
+    template_name = 'gestion/adherent_public_form.html'
+    success_url = '/adherents/inscription/success/'
+
+    def form_valid(self, form):
+        messages.success(self.request, "Votre inscription a bien été prise en compte.")
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        messages.error(self.request, "Merci de corriger les erreurs dans le formulaire.")
+        return super().form_invalid(form)
 

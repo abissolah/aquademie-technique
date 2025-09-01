@@ -24,6 +24,8 @@ urlpatterns = [
     path('adherents/<int:pk>/supprimer/', views.AdherentDeleteView.as_view(), name='adherent_delete'),
     path('adherents/import-excel/', views.import_adherents_excel, name='import_adherents_excel'),
     path('adherents/telecharger-modele/', views.download_excel_template, name='download_excel_template'),
+    path('adherents/inscription/', views.AdherentPublicCreateView.as_view(), name='adherent_public_create'),
+    path('adherents/inscription/success/', views.dashboard, name='adherent_public_success'),
     
     # Élèves
     path('eleves/', views.EleveListView.as_view(), name='eleve_list'),
@@ -58,6 +60,7 @@ urlpatterns = [
     path('seances/<int:pk>/supprimer/', views.SeanceDeleteView.as_view(), name='seance_delete'),
     path('seances/<int:seance_id>/generer-lien-inscription/', views.generer_lien_inscription_seance, name='generer_lien_inscription_seance'),
     path('seances/<int:seance_id>/envoyer-invitation/', views.envoyer_mail_invitation_seance, name='envoyer_mail_invitation_seance'),
+    path('seances/<int:seance_id>/exporter-inscrits/', views.exporter_inscrits_seance, name='exporter_inscrits_seance'),
     
     # Palanquées
     path('palanquees/', PalanqueeListView.as_view(), name='palanquee_list'),

@@ -6,7 +6,7 @@ class AdherentForm(forms.ModelForm):
         model = Adherent
         fields = [
             'nom', 'prenom', 'date_naissance', 'adresse', 'email', 
-            'telephone', 'photo', 'date_fin_validite_caci', 'niveau', 'statut', 'sections',
+            'telephone', 'photo', 'date_delivrance_caci', 'niveau', 'statut', 'sections',
             'type_personne', 'caci_fichier'
         ]
         widgets = {
@@ -14,7 +14,7 @@ class AdherentForm(forms.ModelForm):
                 attrs={'type': 'date'},
                 format='%Y-%m-%d'
             ),
-            'date_fin_validite_caci': forms.DateInput(
+            'date_delivrance_caci': forms.DateInput(
                 attrs={'type': 'date'},
                 format='%Y-%m-%d'
             ),
@@ -28,8 +28,8 @@ class AdherentForm(forms.ModelForm):
         if self.instance and self.instance.pk:
             if self.instance.date_naissance:
                 self.fields['date_naissance'].initial = self.instance.date_naissance.strftime('%Y-%m-%d')
-            if self.instance.date_fin_validite_caci:
-                self.fields['date_fin_validite_caci'].initial = self.instance.date_fin_validite_caci.strftime('%Y-%m-%d')
+            if self.instance.date_delivrance_caci:
+                self.fields['date_delivrance_caci'].initial = self.instance.date_delivrance_caci.strftime('%Y-%m-%d')
 
 class SectionForm(forms.ModelForm):
     class Meta:
@@ -60,7 +60,7 @@ class GroupeCompetenceForm(forms.ModelForm):
 class SeanceForm(forms.ModelForm):
     class Meta:
         model = Seance
-        fields = ['date', 'heure_debut', 'heure_fin', 'lieu']
+        fields = ['date', 'heure_debut', 'heure_fin', 'lieu', 'directeur_plongee']
         widgets = {
             'date': forms.DateInput(
                 attrs={'type': 'date'},
@@ -85,11 +85,14 @@ class SeanceForm(forms.ModelForm):
         # Utiliser une liste déroulante pour le lieu
         self.fields['lieu'].queryset = Lieu.objects.all()
         self.fields['lieu'].label_from_instance = lambda obj: f"{obj.nom} - {obj.ville}"
+        # Filtrer les encadrants adhérents pour directeur de plongée
+        self.fields['directeur_plongee'].queryset = Adherent.objects.filter(statut='encadrant', type_personne='adherent')
+        self.fields['directeur_plongee'].label_from_instance = lambda obj: f"{obj.nom_complet} ({obj.get_niveau_display()})"
 
 class PalanqueeForm(forms.ModelForm):
     class Meta:
         model = Palanquee
-        fields = ['nom', 'seance', 'section', 'encadrant', 'eleves', 'competences', 'precision_exercices']
+        fields = ['nom', 'seance', 'section', 'encadrant', 'eleves', 'competences', 'precision_exercices', 'duree', 'profondeur_max']
         widgets = {
             'nom': forms.TextInput(attrs={'placeholder': 'Nom de la palanquée'}),
             'precision_exercices': forms.Textarea(attrs={'rows': 5}),
@@ -139,6 +142,23 @@ class PalanqueeForm(forms.ModelForm):
                 except Section.DoesNotExist:
                     self.fields['competences'].queryset = Competence.objects.none()
 
+        # Pré-remplir le nom pour une création
+        if not self.instance.pk:
+            seance = None
+            if seance_id:
+                try:
+                    seance = Seance.objects.get(pk=seance_id)
+                except Seance.DoesNotExist:
+                    pass
+            elif 'seance' in self.data:
+                try:
+                    seance = Seance.objects.get(pk=self.data['seance'])
+                except Seance.DoesNotExist:
+                    pass
+            if seance:
+                count = seance.palanquees.count()
+                self.fields['nom'].initial = f"P{count+1}"
+
 class EvaluationForm(forms.ModelForm):
     class Meta:
         model = Evaluation
@@ -177,14 +197,14 @@ class NonAdherentInscriptionForm(forms.ModelForm):
         model = Adherent
         fields = [
             'nom', 'prenom', 'date_naissance', 'adresse', 'email',
-            'telephone', 'date_fin_validite_caci', 'niveau', 'statut', 'sections', 'caci_fichier'
+            'telephone', 'date_delivrance_caci', 'niveau', 'statut', 'sections', 'caci_fichier'
         ]
         widgets = {
             'date_naissance': forms.DateInput(
                 attrs={'type': 'date'},
                 format='%Y-%m-%d'
             ),
-            'date_fin_validite_caci': forms.DateInput(
+            'date_delivrance_caci': forms.DateInput(
                 attrs={'type': 'date'},
                 format='%Y-%m-%d'
             ),
@@ -194,5 +214,38 @@ class NonAdherentInscriptionForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['caci_fichier'].required = True
+
+class AdherentPublicForm(forms.ModelForm):
+    class Meta:
+        model = Adherent
+        fields = [
+            'nom', 'prenom', 'date_naissance', 'adresse', 'email',
+            'telephone', 'caci_fichier', 'date_delivrance_caci', 'niveau', 'statut'
+        ]
+        widgets = {
+            'date_naissance': forms.DateInput(
+                attrs={'type': 'date'},
+                format='%Y-%m-%d'
+            ),
+            'date_delivrance_caci': forms.DateInput(
+                attrs={'type': 'date'},
+                format='%Y-%m-%d'
+            ),
+        }
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['caci_fichier'].required = True
+        if self.instance and self.instance.pk:
+            if self.instance.date_naissance:
+                self.fields['date_naissance'].initial = self.instance.date_naissance.strftime('%Y-%m-%d')
+            if self.instance.date_delivrance_caci:
+                self.fields['date_delivrance_caci'].initial = self.instance.date_delivrance_caci.strftime('%Y-%m-%d')
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.type_personne = 'adherent'
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
 
  

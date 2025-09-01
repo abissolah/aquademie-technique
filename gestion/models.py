@@ -47,7 +47,7 @@ class Adherent(models.Model):
         ('non_adherent', 'Non adhérent (invité, renfort, autre club)'),
     ]
     type_personne = models.CharField(max_length=20, choices=TYPE_PERSONNE_CHOICES, default='adherent', verbose_name="Type de personne")
-    caci_fichier = models.FileField(upload_to='caci/', blank=True, null=True, verbose_name="Fichier CACI (non adhérent)")
+    caci_fichier = models.FileField(upload_to='caci/', blank=True, null=True, verbose_name="Fichier CACI")
     
     nom = models.CharField(max_length=100)
     prenom = models.CharField(max_length=100)
@@ -56,7 +56,7 @@ class Adherent(models.Model):
     email = models.EmailField()
     telephone = models.CharField(max_length=20)
     photo = models.ImageField(upload_to='photos_adherents/', blank=True, null=True)
-    date_fin_validite_caci = models.DateField()
+    date_delivrance_caci = models.DateField(verbose_name="Date de délivrance du CACI")
     niveau = models.CharField(max_length=20, choices=NIVEAUX_CHOICES)
     statut = models.CharField(max_length=10, choices=STATUT_CHOICES, default='eleve')
     sections = models.ManyToManyField(Section, related_name='adherents', blank=True, verbose_name="Sections")
@@ -123,6 +123,15 @@ class Seance(models.Model):
     heure_debut = models.TimeField(verbose_name="Heure de début", null=True, blank=True)
     heure_fin = models.TimeField(verbose_name="Heure de fin", null=True, blank=True)
     lieu = models.ForeignKey(Lieu, on_delete=models.PROTECT, related_name='seances')
+    directeur_plongee = models.ForeignKey(
+        Adherent,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='seances_dirigees',
+        limit_choices_to={'statut': 'encadrant', 'type_personne': 'adherent'},
+        verbose_name="Directeur de plongée"
+    )
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)
     
@@ -135,17 +144,19 @@ class Seance(models.Model):
         return f"{self.date} - {self.lieu}"
     
     @property
-    def palanquees_count(self):
-        return self.palanquees.count()
+    def palanques_count(self):
+        return self.palanques.count()
 
 class Palanquee(models.Model):
     nom = models.CharField(max_length=200)
-    seance = models.ForeignKey(Seance, on_delete=models.CASCADE, related_name='palanquees')
-    section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name='palanquees')
-    encadrant = models.ForeignKey(Adherent, on_delete=models.CASCADE, related_name='palanquees_encadrees', limit_choices_to={'statut': 'encadrant'})
-    eleves = models.ManyToManyField(Adherent, related_name='palanquees_suivies', limit_choices_to={'statut': 'eleve'})
-    competences = models.ManyToManyField(Competence, related_name='palanquees')
+    seance = models.ForeignKey(Seance, on_delete=models.CASCADE, related_name='palanques')
+    section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name='palanques')
+    encadrant = models.ForeignKey(Adherent, on_delete=models.CASCADE, related_name='palanques_encadrees', limit_choices_to={'statut': 'encadrant'})
+    eleves = models.ManyToManyField(Adherent, related_name='palanques_suivies', limit_choices_to={'statut': 'eleve'})
+    competences = models.ManyToManyField(Competence, related_name='palanques')
     precision_exercices = models.TextField()
+    duree = models.IntegerField("Durée (minutes)", null=True, blank=True)
+    profondeur_max = models.IntegerField("Profondeur max (mètres)", null=True, blank=True)
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)
     

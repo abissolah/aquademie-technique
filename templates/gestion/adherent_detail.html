@@ -71,12 +71,19 @@
                         </p>
                     </div>
                     <div class="col-md-6">
-                        <p><strong>Validité CACI :</strong> 
-                            <span class="{% if adherent.date_fin_validite_caci < today %}text-danger{% endif %}">
-                                {{ adherent.date_fin_validite_caci|date:"d/m/Y" }}
+                        <p><strong>Date de délivrance du CACI :</strong> 
+                            <span class="{% if adherent.date_delivrance_caci and adherent.date_delivrance_caci > today|date:'Y-m-d'|add:'-11 months' %}text-danger{% endif %}">
+                                {{ adherent.date_delivrance_caci|date:"d/m/Y" }}
                             </span>
-                            {% if adherent.date_fin_validite_caci < today %}
-                            <i class="fas fa-exclamation-triangle text-danger ms-2" title="CACI expiré"></i>
+                            {% if adherent.date_delivrance_caci and adherent.date_delivrance_caci > today|date:'Y-m-d'|add:'-11 months' %}
+                            <span class="badge bg-danger ms-2">CACI bientôt expiré</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Fichier CACI :</strong>
+                            {% if adherent.caci_fichier %}
+                                <a href="{{ adherent.caci_fichier.url }}" target="_blank" class="btn btn-sm btn-outline-primary ms-2">Télécharger</a>
+                            {% else %}
+                                <span class="text-muted">Aucun fichier déposé</span>
                             {% endif %}
                         </p>
                     </div>
