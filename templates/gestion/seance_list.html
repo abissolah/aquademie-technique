@@ -80,14 +80,14 @@
                                 <td>{{ seance.lieu.nom }} - {{ seance.lieu.ville }}</td>
                                 <td>
                                     <div class="small">
-                                        {% if seance.palanquees.exists %}
-                                            <span class="badge bg-success">{{ seance.palanquees.count }} palanquée{{ seance.palanquees.count|pluralize:"s" }}</span>
+                                        {% if seance.palanques.exists %}
+                                            <span class="badge bg-success">{{ seance.palanques.count }} palanquée{{ seance.palanques.count|pluralize:"s" }}</span>
                                             <div class="mt-1">
-                                                {% for palanquee in seance.palanquees.all|slice:":3" %}
+                                                {% for palanquee in seance.palanques.all|slice:":3" %}
                                                     <span class="badge bg-secondary me-1">{{ palanquee.nom }}</span>
                                                 {% endfor %}
-                                                {% if seance.palanquees.count > 3 %}
-                                                    <span class="badge bg-light text-dark">+{{ seance.palanquees.count|add:"-3" }} autres</span>
+                                                {% if seance.palanques.count > 3 %}
+                                                    <span class="badge bg-light text-dark">+{{ seance.palanques.count|add:"-3" }} autres</span>
                                                 {% endif %}
                                             </div>
                                         {% else %}

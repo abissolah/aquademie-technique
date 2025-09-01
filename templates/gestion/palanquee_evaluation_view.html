@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Évaluations de la palanquée{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Évaluations de la palanquée : {{ palanquee }}</h1>
+    <div class="card mb-4">
+        <div class="card-header">
+            <strong>Section :</strong> {{ palanquee.section.get_nom_display }}<br>
+            <strong>Encadrant :</strong> {{ palanquee.encadrant.nom_complet }}<br>
+            <strong>Date :</strong> {{ palanquee.seance.date|date:'d/m/Y' }}
+        </div>
+        <div class="card-body">
+            {% if evaluations_par_eleve %}
+                <div class="row">
+                    {% for eleve, evaluations in evaluations_par_eleve.items %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0"><i class="fas fa-user me-2"></i>{{ eleve.nom_complet }}</h5>
+                                <small class="text-muted">{{ eleve.get_niveau_display }}</small>
+                            </div>
+                            <div class="card-body">
+                                {% for competence in palanquee.competences.all %}
+                                    <div class="mb-3 p-2 border rounded competence-item">
+                                        <strong>{{ competence.nom }}</strong><br>
+                                        {% for evaluation in evaluations %}
+                                            {% if evaluation.competence == competence %}
+                                                <span class="badge bg-primary">{{ evaluation.note }}/5</span>
+                                                {% if evaluation.commentaire %}<br><small>{{ evaluation.commentaire }}</small>{% endif %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info">Aucune évaluation enregistrée pour cette palanquée.</div>
+            {% endif %}
+        </div>
+    </div>
+    <a href="{% url 'palanquee_detail' palanquee.pk %}" class="btn btn-secondary"><i class="fas fa-arrow-left me-2"></i>Retour à la palanquée</a>
+</div>
+{% endblock %}

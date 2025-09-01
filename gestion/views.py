@@ -217,7 +217,7 @@ class SeanceListView(LoginRequiredMixin, ListView):
     paginate_by = 10
     
     def get_queryset(self):
-        queryset = Seance.objects.prefetch_related('palanquees')
+        queryset = Seance.objects.prefetch_related('palanques')
         date_debut = self.request.GET.get('date_debut')
         date_fin = self.request.GET.get('date_fin')
         
@@ -242,7 +242,7 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         seance = self.get_object()
         
         # Récupérer les palanquées associées
-        context['palanquees'] = seance.palanquees.all()
+        context['palanquees'] = seance.palanques.all()
         
         # Liste des inscrits (adhérents et non-adhérents)
         inscrits = seance.inscriptions.select_related('personne').all()
@@ -419,7 +419,7 @@ def api_membres_app(request):
             'niveau': m.get_niveau_display(),
             'sections': [s.get_nom_display() for s in m.sections.all()],
             'statut': m.get_statut_display(),
-            'date_fin_validite_caci': m.date_fin_validite_caci.strftime('%d/%m/%Y') if m.date_fin_validite_caci else '',
+            'date_delivrance_caci': m.date_delivrance_caci.strftime('%d/%m/%Y') if m.date_delivrance_caci else '',
         }
         for m in membres
     ]
@@ -442,7 +442,7 @@ def api_recherche_non_membre(request):
             'sections': [s.id for s in non_membre.sections.all()],
             'date_naissance': non_membre.date_naissance.strftime('%Y-%m-%d') if non_membre.date_naissance else '',
             'adresse': non_membre.adresse,
-            'date_fin_validite_caci': non_membre.date_fin_validite_caci.strftime('%Y-%m-%d') if non_membre.date_fin_validite_caci else '',
+            'date_delivrance_caci': non_membre.date_delivrance_caci.strftime('%Y-%m-%d') if non_membre.date_delivrance_caci else '',
         }
         return JsonResponse({'found': True, 'data': data})
     return JsonResponse({'found': False})
@@ -473,7 +473,7 @@ def import_adherents_excel(request):
                 
                 # Vérifier les colonnes requises
                 required_columns = ['nom', 'prenom', 'date_naissance', 'adresse', 'email', 
-                                  'telephone', 'date_fin_validite_caci', 'niveau', 'statut']
+                                  'telephone', 'date_delivrance_caci', 'niveau', 'statut']
                 missing_columns = [col for col in required_columns if col not in df.columns]
                 
                 if missing_columns:
@@ -516,7 +516,7 @@ def import_adherents_excel(request):
                         
                         # Validation du format des dates (DD/MM/YYYY uniquement)
                         date_naissance = None
-                        date_fin_validite_caci = None
+                        date_delivrance_caci = None
                         
                         # Validation date de naissance
                         if pd.notna(row['date_naissance']):
@@ -536,11 +536,11 @@ def import_adherents_excel(request):
                             date_naissance = datetime.now().date()
                         
                         # Validation date fin validité CACI
-                        if pd.notna(row['date_fin_validite_caci']):
-                            date_str = str(row['date_fin_validite_caci']).strip()
+                        if pd.notna(row['date_delivrance_caci']):
+                            date_str = str(row['date_delivrance_caci']).strip()
                             if re.match(r'^\d{2}/\d{2}/\d{4}$', date_str):
                                 try:
-                                    date_fin_validite_caci = datetime.strptime(date_str, '%d/%m/%Y').date()
+                                    date_delivrance_caci = datetime.strptime(date_str, '%d/%m/%Y').date()
                                 except ValueError:
                                     errors.append(f"Ligne {index + 2}: date fin validité CACI '{date_str}' invalide (format DD/MM/YYYY attendu)")
                                     error_count += 1
@@ -550,7 +550,7 @@ def import_adherents_excel(request):
                                 error_count += 1
                                 continue
                         else:
-                            date_fin_validite_caci = datetime.now().date()
+                            date_delivrance_caci = datetime.now().date()
                         
                         # Validation du niveau
                         niveau = str(row['niveau']).strip() if pd.notna(row['niveau']) else 'debutant'
@@ -589,7 +589,7 @@ def import_adherents_excel(request):
                             adresse=str(row['adresse']).strip() if pd.notna(row['adresse']) else '',
                             email=email,
                             telephone=str(row['telephone']).strip() if pd.notna(row['telephone']) else '',
-                            date_fin_validite_caci=date_fin_validite_caci,
+                            date_delivrance_caci=date_delivrance_caci,
                             niveau=niveau,
                             statut=statut,
                         )
@@ -654,7 +654,7 @@ def download_excel_template(request):
         'adresse': ['123 Rue de la Paix, Paris', '456 Avenue des Champs, Lyon', '789 Boulevard de la Mer, Nice'],
         'email': ['jean.dupont@email.com', 'marie.martin@email.com', 'pierre.bernard@email.com'],
         'telephone': ['0123456789', '0987654321', '0567891234'],
-        'date_fin_validite_caci': ['31/12/2025', '30/06/2026', '15/09/2025'],
+        'date_delivrance_caci': ['31/12/2025', '30/06/2026', '15/09/2025'],
         'niveau': ['niveau1', 'niveau2', 'debutant'],
         'statut': ['eleve', 'eleve', 'eleve'],
         'sections': ['bapteme,prepa_niveau1', 'prepa_niveau2', 'bapteme']
@@ -673,7 +673,7 @@ def download_excel_template(request):
         
         # Ajouter une feuille avec les instructions
         instructions = pd.DataFrame({
-            'Colonne': ['nom', 'prenom', 'date_naissance', 'adresse', 'email', 'telephone', 'date_fin_validite_caci', 'niveau', 'statut', 'sections'],
+            'Colonne': ['nom', 'prenom', 'date_naissance', 'adresse', 'email', 'telephone', 'date_delivrance_caci', 'niveau', 'statut', 'sections'],
             'Description': [
                 'Nom de famille (obligatoire)',
                 'Prénom (obligatoire)',

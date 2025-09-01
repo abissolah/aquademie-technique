@@ -3,8 +3,8 @@ from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Pal
 
 @admin.register(Adherent)
 class AdherentAdmin(admin.ModelAdmin):
-    list_display = ['nom', 'prenom', 'email', 'niveau', 'statut', 'date_fin_validite_caci']
-    list_filter = ['niveau', 'statut', 'date_fin_validite_caci']
+    list_display = ['nom', 'prenom', 'email', 'niveau', 'statut', 'date_delivrance_caci']
+    list_filter = ['niveau', 'statut', 'date_delivrance_caci']
     search_fields = ['nom', 'prenom', 'email']
     date_hierarchy = 'date_creation'
     readonly_fields = ['date_creation', 'date_modification']
@@ -14,7 +14,7 @@ class AdherentAdmin(admin.ModelAdmin):
             'fields': ('nom', 'prenom', 'date_naissance', 'adresse', 'email', 'telephone', 'photo')
         }),
         ('Informations de plongée', {
-            'fields': ('date_fin_validite_caci', 'niveau', 'statut')
+            'fields': ('date_delivrance_caci', 'niveau', 'statut')
         }),
         ('Métadonnées', {
             'fields': ('date_creation', 'date_modification'),

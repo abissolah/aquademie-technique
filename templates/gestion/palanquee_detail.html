@@ -30,6 +30,8 @@
                             <p><strong>Date :</strong> {{ palanquee.seance.date|date:"d/m/Y" }}</p>
                             <p><strong>Lieu :</strong> {{ palanquee.seance.lieu }}</p>
                             <p><strong>Section :</strong> {{ palanquee.section.get_nom_display }}</p>
+                            <p><strong>Durée :</strong> {% if palanquee.duree %}{{ palanquee.duree }} min{% else %}<span class="text-muted">Non renseignée</span>{% endif %}</p>
+                            <p><strong>Profondeur max :</strong> {% if palanquee.profondeur_max %}{{ palanquee.profondeur_max }} m{% else %}<span class="text-muted">Non renseignée</span>{% endif %}</p>
                         </div>
                         <div class="col-md-6">
                             <p><strong>Encadrant :</strong> {{ palanquee.encadrant.nom_complet }}</p>

@@ -156,7 +156,7 @@ class PalanqueeForm(forms.ModelForm):
                 except Seance.DoesNotExist:
                     pass
             if seance:
-                count = seance.palanquees.count()
+                count = seance.palanques.count()
                 self.fields['nom'].initial = f"P{count+1}"
 
 class EvaluationForm(forms.ModelForm):

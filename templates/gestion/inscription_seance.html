@@ -10,32 +10,32 @@
                     <p class="mb-0 text-muted small">{{ seance.date|date:'d/m/Y' }} à {{ seance.lieu.nom }} ({{ seance.heure_debut|default:'--'|time:'H:i' }})</p>
                 </div>
                 <div class="card-body text-center">
-                    <h5 class="mb-4">Êtes-vous membre du club APP ?</h5>
+                    <h5 class="mb-4">Êtes-vous adhérent du club APP ?</h5>
                     <div class="d-grid gap-3 d-md-flex justify-content-md-center">
-                        <a href="#" id="btn-membre" class="btn btn-primary btn-lg px-4">Je suis membre APP</a>
-                        <a href="#" id="btn-non-membre" class="btn btn-outline-primary btn-lg px-4">Je ne suis pas membre APP</a>
+                        <a href="#" id="btn-adherent" class="btn btn-primary btn-lg px-4">Je suis adhérent APP</a>
+                        <a href="#" id="btn-non-adherent" class="btn btn-outline-primary btn-lg px-4">Je ne suis pas adhérent APP</a>
                     </div>
                 </div>
             </div>
-            <div id="inscription-membre" style="display:none;">
+            <div id="inscription-adherent" style="display:none;">
                 <div class="card mb-4">
                     <div class="card-header">
-                        <h5 class="mb-0">Sélectionnez votre nom dans la liste des membres</h5>
+                        <h5 class="mb-0">Sélectionnez votre nom dans la liste des adhérents</h5>
                     </div>
                     <div class="card-body">
-                        <input type="text" id="recherche-membre" class="form-control mb-3" placeholder="Rechercher par nom ou prénom...">
-                        <div id="liste-membres" class="list-group mb-3" style="max-height:300px;overflow:auto;"></div>
-                        <div id="infos-membre" style="display:none;"></div>
+                        <input type="text" id="recherche-adherent" class="form-control mb-3" placeholder="Rechercher par nom ou prénom...">
+                        <div id="liste-adherents" class="list-group mb-3" style="max-height:300px;overflow:auto;"></div>
+                        <div id="infos-adherent" style="display:none;"></div>
                     </div>
                 </div>
             </div>
-            <div id="inscription-non-membre" style="display:none;">
+            <div id="inscription-non-adherent" style="display:none;">
                 <div class="card mb-4">
                     <div class="card-header">
-                        <h5 class="mb-0">Formulaire d'inscription pour les non-membres</h5>
+                        <h5 class="mb-0">Formulaire d'inscription pour les non-adhérents</h5>
                     </div>
                     <div class="card-body">
-                        <form id="form-non-membre" enctype="multipart/form-data">
+                        <form id="form-non-adherent" enctype="multipart/form-data">
                             <div class="row mb-2">
                                 <div class="col-md-6">
                                     <label for="nm-nom" class="form-label">Nom</label>
@@ -68,8 +68,8 @@
                             </div>
                             <div class="row mb-2">
                                 <div class="col-md-6">
-                                    <label for="nm-date-fin-caci" class="form-label">Date validité CACI</label>
-                                    <input type="date" name="date_fin_validite_caci" id="nm-date-fin-caci" class="form-control" placeholder="Date validité CACI" required>
+                                    <label for="nm-date-delivrance-caci" class="form-label">Date de délivrance du CACI</label>
+                                    <input type="date" name="date_delivrance_caci" id="nm-date-delivrance-caci" class="form-control" placeholder="Date de délivrance du CACI" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="nm-caci-fichier" class="form-label">Fichier CACI</label>
@@ -103,10 +103,10 @@
                                 <label class="form-label">Sections :</label>
                                 <div id="nm-sections-checkboxes" class="d-flex flex-wrap gap-2"></div>
                             </div>
-                            <div id="alerte-caci-non-membre" class="mb-2"></div>
+                            <div id="alerte-caci-non-adherent" class="mb-2"></div>
                             <button type="submit" class="btn btn-success mt-2">S'inscrire</button>
                         </form>
-                        <div id="result-non-membre" class="mt-3"></div>
+                        <div id="result-non-adherent" class="mt-3"></div>
                     </div>
                 </div>
             </div>
@@ -116,17 +116,17 @@
 {% endblock %}
 {% block extra_js %}
 <script>
-    document.getElementById('btn-membre').onclick = function(e) {
+    document.getElementById('btn-adherent').onclick = function(e) {
         e.preventDefault();
-        document.getElementById('inscription-membre').style.display = '';
-        document.getElementById('inscription-non-membre').style.display = 'none';
+        document.getElementById('inscription-adherent').style.display = '';
+        document.getElementById('inscription-non-adherent').style.display = 'none';
     };
-    document.getElementById('btn-non-membre').onclick = function(e) {
+    document.getElementById('btn-non-adherent').onclick = function(e) {
         e.preventDefault();
-        document.getElementById('inscription-non-membre').style.display = '';
-        document.getElementById('inscription-membre').style.display = 'none';
+        document.getElementById('inscription-non-adherent').style.display = '';
+        document.getElementById('inscription-adherent').style.display = 'none';
     };
-    // Recherche et affichage des membres
+    // Recherche et affichage des adhérents
     let membres = [];
     let membreSelectionne = null;
     function fetchMembres(q = '') {
@@ -138,7 +138,7 @@
             });
     }
     function renderListeMembres() {
-        const liste = document.getElementById('liste-membres');
+        const liste = document.getElementById('liste-adherents');
         liste.innerHTML = '';
         membres.forEach(m => {
             const item = document.createElement('button');
@@ -151,8 +151,8 @@
     }
     function selectMembre(m) {
         membreSelectionne = m;
-        document.getElementById('infos-membre').style.display = '';
-        document.getElementById('infos-membre').innerHTML = `
+        document.getElementById('infos-adherent').style.display = '';
+        document.getElementById('infos-adherent').innerHTML = `
             <div class="card">
                 <div class="card-body">
                     <h5 class="card-title mb-2">${m.nom} ${m.prenom}</h5>
@@ -175,7 +175,7 @@
             }
         }
     }
-    document.getElementById('recherche-membre').addEventListener('input', function() {
+    document.getElementById('recherche-adherent').addEventListener('input', function() {
         fetchMembres(this.value);
     });
     // Chargement initial
@@ -191,16 +191,16 @@
         .then(r => r.json())
         .then(data => {
             if (data.success) {
-                document.getElementById('infos-membre').innerHTML += '<div class="alert alert-success mt-3">' + data.message + '</div>';
+                document.getElementById('infos-adherent').innerHTML += '<div class="alert alert-success mt-3">' + data.message + '</div>';
                 // Désactive le bouton S'inscrire
-                const btn = document.querySelector('#infos-membre button');
+                const btn = document.querySelector('#infos-adherent button');
                 if (btn) btn.disabled = true;
             } else {
-                document.getElementById('infos-membre').innerHTML += '<div class="alert alert-danger mt-3">' + data.message + '</div>';
+                document.getElementById('infos-adherent').innerHTML += '<div class="alert alert-danger mt-3">' + data.message + '</div>';
             }
         })
         .catch(() => {
-            document.getElementById('infos-membre').innerHTML += '<div class="alert alert-danger mt-3">Erreur lors de l\'inscription.</div>';
+            document.getElementById('infos-adherent').innerHTML += '<div class="alert alert-danger mt-3">Erreur lors de l\'inscription.</div>';
         });
     };
 
@@ -221,7 +221,7 @@
         });
     });
     // Recherche AJAX pour pré-remplir
-    function preRemplirNonMembre() {
+    function preRemplirNonAdhérent() {
         const nom = document.getElementById('nm-nom').value.trim();
         const prenom = document.getElementById('nm-prenom').value.trim();
         if (nom && prenom) {
@@ -234,7 +234,7 @@
                         document.getElementById('nm-telephone').value = d.telephone;
                         document.getElementById('nm-date-naissance').value = d.date_naissance;
                         document.getElementById('nm-adresse').value = d.adresse;
-                        document.getElementById('nm-date-fin-caci').value = d.date_fin_validite_caci;
+                        document.getElementById('nm-date-delivrance-caci').value = d.date_fin_validite_caci;
                         document.getElementById('nm-niveau').value = d.niveau;
                         document.getElementById('nm-statut').value = d.statut;
                         // Sections
@@ -245,16 +245,16 @@
                 });
         }
     }
-    document.getElementById('nm-nom').addEventListener('blur', preRemplirNonMembre);
-    document.getElementById('nm-prenom').addEventListener('blur', preRemplirNonMembre);
+    document.getElementById('nm-nom').addEventListener('blur', preRemplirNonAdhérent);
+    document.getElementById('nm-prenom').addEventListener('blur', preRemplirNonAdhérent);
     // Alerte CACI si moins d'un mois
-    function checkAlerteCaciNonMembre() {
-        const val = document.getElementById('nm-date-fin-caci').value;
+    function checkAlerteCaciNonAdhérent() {
+        const val = document.getElementById('nm-date-delivrance-caci').value;
         if (val) {
             const caciDate = new Date(val);
             const now = new Date();
             const diff = (caciDate - now) / (1000*60*60*24);
-            const alertDiv = document.getElementById('alerte-caci-non-membre');
+            const alertDiv = document.getElementById('alerte-caci-non-adherent');
             if (diff < 31) {
                 alertDiv.innerHTML = '<span class="badge bg-danger">Attention, votre CACI expire bientôt !</span>';
             } else {
@@ -262,12 +262,12 @@
             }
         }
     }
-    document.getElementById('nm-date-fin-caci').addEventListener('change', checkAlerteCaciNonMembre);
+    document.getElementById('nm-date-delivrance-caci').addEventListener('change', checkAlerteCaciNonAdhérent);
     // Soumission AJAX du formulaire
-    const formNonMembre = document.getElementById('form-non-membre');
-    formNonMembre.onsubmit = function(e) {
+    const formNonAdhérent = document.getElementById('form-non-adherent');
+    formNonAdhérent.onsubmit = function(e) {
         e.preventDefault();
-        const formData = new FormData(formNonMembre);
+        const formData = new FormData(formNonAdhérent);
         formData.append('uuid', "{{ lien.uuid }}");
         fetch('/api/inscrire-non-membre/', {
             method: 'POST',
@@ -276,14 +276,14 @@
         .then(r => r.json())
         .then(data => {
             if (data.success) {
-                document.getElementById('result-non-membre').innerHTML = '<div class="alert alert-success">' + data.message + '</div>';
-                formNonMembre.style.display = 'none';
+                document.getElementById('result-non-adherent').innerHTML = '<div class="alert alert-success">' + data.message + '</div>';
+                formNonAdhérent.style.display = 'none';
             } else {
-                document.getElementById('result-non-membre').innerHTML = '<div class="alert alert-danger">' + data.message + '</div>';
+                document.getElementById('result-non-adherent').innerHTML = '<div class="alert alert-danger">' + data.message + '</div>';
             }
         })
         .catch(() => {
-            document.getElementById('result-non-membre').innerHTML = '<div class="alert alert-danger">Erreur lors de l\'inscription.</div>';
+            document.getElementById('result-non-adherent').innerHTML = '<div class="alert alert-danger">Erreur lors de l\'inscription.</div>';
         });
     };
 </script>

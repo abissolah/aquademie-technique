@@ -43,6 +43,7 @@
                         <p><strong>Lieu :</strong> {{ seance.lieu.nom }}<br>
                             <span class="text-muted small">{{ seance.lieu.adresse }}, {{ seance.lieu.code_postal }} {{ seance.lieu.ville }}</span>
                         </p>
+                        <p><strong>Directeur de plongée :</strong> {% if seance.directeur_plongee %}{{ seance.directeur_plongee.nom_complet }} ({{ seance.directeur_plongee.get_niveau_display }}){% else %}<span class="text-muted">Non défini</span>{% endif %}</p>
                         <p><strong>Nombre de palanquées :</strong> {{ palanquees.count }}</p>
                     </div>
                     <div class="col-md-6">
@@ -76,8 +77,18 @@
                                 <p class="card-text">
                                     <strong>Section :</strong> {{ palanquee.section.get_nom_display }}<br>
                                     <strong>Encadrant :</strong> {{ palanquee.encadrant.nom_complet }}<br>
-                                    <strong>Élèves :</strong> {{ palanquee.eleves.count }}<br>
-                                    <strong>Compétences :</strong> {{ palanquee.competences.count }}
+                                    <strong>Élèves :</strong> 
+                                    {% if palanquee.eleves.all %}
+                                        {% for eleve in palanquee.eleves.all %}
+                                            {{ eleve.nom }} {{ eleve.prenom }}{% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
+                                    {% else %}-{% endif %}<br>
+                                    <strong>Compétences :</strong> 
+                                    {% if palanquee.competences.all %}
+                                        {% for comp in palanquee.competences.all %}
+                                            {{ comp.nom }}{% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
+                                    {% else %}-{% endif %}
                                 </p>
                                 {% if palanquee.precision_exercices %}
                                     <hr>
@@ -145,6 +156,9 @@
                     <a href="{% url 'envoyer_mail_invitation_seance' seance.pk %}" class="btn btn-outline-success">
                         <i class="fas fa-envelope"></i> Envoyer l'invitation par mail
                     </a>
+                    <a href="{% url 'exporter_inscrits_seance' seance.pk %}" class="btn btn-outline-success">
+                        <i class="fas fa-file-excel"></i> Exporter les inscrits
+                    </a>
                 </div>
             </div>
         </div>
@@ -206,7 +220,7 @@
 
 <div class="card mb-4">
     <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-user-check me-2"></i>Inscrits à cette séance</h5>
+        <h5 class="mb-0"><i class="fas fa-user-check me-2"></i>Inscrits à cette séance <span class="badge bg-primary ms-2">{{ nb_total_inscrits }}</span></h5>
     </div>
     <div class="card-body">
         {% if inscrits_adherents or inscrits_non_adherents %}
@@ -226,7 +240,9 @@
                 </thead>
                 <tbody>
                     {% if inscrits_adherents %}
-                    <tr class="table-secondary"><td colspan="8"><strong>Adhérents du club</strong></td></tr>
+                    <tr class="table-secondary">
+                        <td colspan="8"><strong>Adhérents du club</strong> <span class="badge bg-info ms-2">{{ nb_adherents }}</span></td>
+                    </tr>
                     {% for ins in inscrits_adherents %}
                     <tr>
                         <td>Adhérent</td>
@@ -255,7 +271,9 @@
                     {% endfor %}
                     {% endif %}
                     {% if inscrits_non_adherents %}
-                    <tr class="table-secondary"><td colspan="8"><strong>Non adhérents (invités, renforts...)</strong></td></tr>
+                    <tr class="table-secondary">
+                        <td colspan="8"><strong>Non adhérents (invités, renforts...)</strong> <span class="badge bg-warning ms-2">{{ nb_non_adherents }}</span></td>
+                    </tr>
                     {% for ins in inscrits_non_adherents %}
                     <tr>
                         <td>Non adhérent</td>

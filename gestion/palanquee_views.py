@@ -86,7 +86,9 @@ class PalanqueeCreateView(LoginRequiredMixin, CreateView):
         section = form.cleaned_data.get('section')
         if section:
             form.fields['competences'].queryset = form.fields['competences'].queryset.filter(section=section)
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        messages.success(self.request, 'Palanquée créée avec succès.')
+        return response
     
     def get_success_url(self):
         # Rediriger vers la séance si elle était spécifiée

@@ -84,13 +84,7 @@
                                     <span class="badge bg-warning">Encadrant</span>
                                     {% endif %}
                                 </td>
-                                <td>
-                                    {% if adherent.date_fin_validite_caci %}
-                                    <span class="{% if adherent.date_fin_validite_caci < today %}text-danger{% endif %}">
-                                        {{ adherent.date_fin_validite_caci|date:"d/m/Y" }}
-                                    </span>
-                                    {% endif %}
-                                </td>
+                                <td>{{ adherent.date_delivrance_caci|date:"d/m/Y" }}</td>
                                 <td>
                                     <div class="btn-group" role="group">
                                         <a href="{% url 'adherent_detail' adherent.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">

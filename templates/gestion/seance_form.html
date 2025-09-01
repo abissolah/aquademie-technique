@@ -48,6 +48,11 @@
                             {{ form.lieu|as_crispy_field }}
                         </div>
                     </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            {{ form.directeur_plongee|as_crispy_field }}
+                        </div>
+                    </div>
                     
                     <div class="d-flex justify-content-between">
                         <a href="{% url 'seance_list' %}" class="btn btn-outline-secondary">
@@ -73,7 +78,7 @@
                     </a>
                 </div>
                 
-                {% if object.palanquees.all %}
+                {% if object.palanques.all %}
                 <div class="table-responsive">
                     <table class="table table-sm table-hover">
                         <thead>
@@ -85,7 +90,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for palanquee in object.palanquees.all %}
+                            {% for palanquee in object.palanques.all %}
                             <tr>
                                 <td>
                                     <span class="badge bg-info">{{ palanquee.section.nom }}</span>

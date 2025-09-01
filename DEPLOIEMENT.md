@@ -58,7 +58,7 @@ sudo -u postgres psql
 
 # Création de la base de données et de l'utilisateur
 CREATE DATABASE aquademie_db;
-CREATE USER aquademie_user WITH PASSWORD 'votre_mot_de_passe_securise';
+CREATE USER aquademie_user WITH PASSWORD 'madjer5915';
 GRANT ALL PRIVILEGES ON DATABASE aquademie_db TO aquademie_user;
 ALTER USER aquademie_user CREATEDB;
 \q
@@ -116,7 +116,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'aquademie_db',
         'USER': 'aquademie_user',
-        'PASSWORD': 'votre_mot_de_passe_securise',
+        'PASSWORD': 'madjer5915',
         'HOST': 'localhost',
         'PORT': '5432',
     }

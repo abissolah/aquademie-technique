@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Évaluation - {{ seance.palanquee }}</title>
+    <title>Évaluation - {{ palanquee }}</title>
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -83,20 +83,20 @@
                 <div class="card">
                     <div class="card-header bg-primary text-white">
                         <h5 class="mb-0">
-                            <i class="fas fa-calendar-alt me-2"></i>{{ seance.palanquee }}
+                            <i class="fas fa-calendar-alt me-2"></i>{{ palanquee }}
                         </h5>
                     </div>
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-6">
-                                <p><strong>Date :</strong> {{ seance.date|date:"d/m/Y" }}</p>
+                                <p><strong>Date :</strong> {{ palanquee.seance.date|date:"d/m/Y" }}</p>
                                 <p><strong>Section :</strong> 
-                                    <span class="badge bg-secondary">{{ seance.section.get_nom_display }}</span>
+                                    <span class="badge bg-secondary">{{ palanquee.section.get_nom_display }}</span>
                                 </p>
                             </div>
                             <div class="col-md-6">
-                                <p><strong>Encadrant :</strong> {{ seance.encadrant.nom_complet }}</p>
-                                <p><strong>Élèves :</strong> {{ seance.eleves.count }} participant{{ seance.eleves.count|pluralize }}</p>
+                                <p><strong>Encadrant :</strong> {{ palanquee.encadrant.nom_complet }}</p>
+                                <p><strong>Élèves :</strong> {{ palanquee.eleves.count }} participant{{ palanquee.eleves.count|pluralize }}</p>
                             </div>
                         </div>
                     </div>
@@ -108,7 +108,7 @@
         <form method="post">
             {% csrf_token %}
             
-            {% for eleve in seance.eleves.all %}
+            {% for eleve in palanquee.eleves.all %}
             <div class="evaluation-card">
                 <div class="evaluation-header">
                     <h5 class="mb-0">
@@ -117,7 +117,7 @@
                     <small class="text-muted">{{ eleve.get_niveau_display }}</small>
                 </div>
                 <div class="evaluation-body">
-                    {% for competence in seance.competences.all %}
+                    {% for competence in palanquee.competences.all %}
                     <div class="competence-item">
                         <div class="row align-items-center">
                             <div class="col-md-6">

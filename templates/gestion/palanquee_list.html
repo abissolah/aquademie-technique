@@ -64,6 +64,8 @@
                             <th>Section</th>
                             <th>Encadrant</th>
                             <th>Élèves</th>
+                            <th>Durée (min)</th>
+                            <th>Profondeur max (m)</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -79,6 +81,8 @@
                                     <span class="badge bg-info me-1">{{ eleve.nom_complet }}</span>
                                 {% endfor %}
                             </td>
+                            <td>{% if palanquee.duree %}{{ palanquee.duree }}{% else %}-{% endif %}</td>
+                            <td>{% if palanquee.profondeur_max %}{{ palanquee.profondeur_max }}{% else %}-{% endif %}</td>
                             <td>
                                 <div class="btn-group" role="group">
                                     <a href="{% url 'palanquee_detail' palanquee.pk %}" 
