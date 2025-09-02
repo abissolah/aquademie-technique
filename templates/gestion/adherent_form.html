@@ -66,12 +66,16 @@
                     
                     <div class="row">
                         <div class="col-md-6">
-                            {{ form.date_delivrance_caci|as_crispy_field }}
-                        </div>
-                        <div class="col-md-6">
                             {{ form.photo|as_crispy_field }}
                         </div>
+                        <div class="col-md-6">
+                            {{ form.numero_licence|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.assurance|as_crispy_field }}
+                        </div>
                     </div>
+                    {{ form.date_delivrance_caci|as_crispy_field }}
 
                     {{ form.caci_fichier|as_crispy_field }}
                     {% if object and object.caci_fichier %}

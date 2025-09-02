@@ -56,6 +56,18 @@ class Adherent(models.Model):
     email = models.EmailField()
     telephone = models.CharField(max_length=20)
     photo = models.ImageField(upload_to='photos_adherents/', blank=True, null=True)
+    numero_licence = models.CharField(max_length=50, blank=True, null=True, verbose_name="Numéro de licence")
+    ASSURANCE_CHOICES = [
+        ('', 'Aucune assurance'),
+        ('Piscine', 'Piscine'),
+        ('Loisir 1', 'Loisir 1'),
+        ('Loisir 2', 'Loisir 2'),
+        ('Loisir 3', 'Loisir 3'),
+        ('Loisir Top 1', 'Loisir Top 1'),
+        ('Loisir Top 2', 'Loisir Top 2'),
+        ('Loisir Top 3', 'Loisir Top 3'),
+    ]
+    assurance = models.CharField(max_length=20, choices=ASSURANCE_CHOICES, blank=True, default='', verbose_name="Assurance")
     date_delivrance_caci = models.DateField(verbose_name="Date de délivrance du CACI")
     niveau = models.CharField(max_length=20, choices=NIVEAUX_CHOICES)
     statut = models.CharField(max_length=10, choices=STATUT_CHOICES, default='eleve')
