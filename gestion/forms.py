@@ -50,11 +50,13 @@ class CompetenceForm(forms.ModelForm):
 class GroupeCompetenceForm(forms.ModelForm):
     class Meta:
         model = GroupeCompetence
-        fields = ['section', 'intitule', 'competences', 'competences_attendues', 'technique', 'modalites_evaluation']
+        fields = ['section', 'intitule', 'competences', 'competences_attendues', 'technique', 'modalites_evaluation', 'comportements', 'theorie']
         widgets = {
             'competences_attendues': forms.Textarea(attrs={'rows': 3}),
             'technique': forms.Textarea(attrs={'rows': 3}),
             'modalites_evaluation': forms.Textarea(attrs={'rows': 3}),
+            'comportements': forms.Textarea(attrs={'rows': 3}),
+            'theorie': forms.Textarea(attrs={'rows': 3}),
         }
 
 class SeanceForm(forms.ModelForm):

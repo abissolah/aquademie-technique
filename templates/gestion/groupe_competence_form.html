@@ -64,6 +64,16 @@
                             {{ form.modalites_evaluation|as_crispy_field }}
                         </div>
                     </div>
+                    <div class="row">
+                        <div class="col-12">
+                            {{ form.comportements|as_crispy_field }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            {{ form.theorie|as_crispy_field }}
+                        </div>
+                    </div>
                     
                     <div class="d-flex justify-content-between">
                         <a href="{% url 'groupe_competence_list' %}" class="btn btn-outline-secondary">

@@ -107,6 +107,8 @@ class GroupeCompetence(models.Model):
     competences_attendues = models.TextField()
     technique = models.TextField()
     modalites_evaluation = models.TextField()
+    comportements = models.TextField(blank=True)
+    theorie = models.TextField(blank=True)
     
     class Meta:
         verbose_name = "Groupe de compétences"
