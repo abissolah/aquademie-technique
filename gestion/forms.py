@@ -1,5 +1,5 @@
 from django import forms
-from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, Lieu
+from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, Lieu, Exercice
 
 class AdherentForm(forms.ModelForm):
     class Meta:
@@ -42,9 +42,10 @@ class SectionForm(forms.ModelForm):
 class CompetenceForm(forms.ModelForm):
     class Meta:
         model = Competence
-        fields = ['nom', 'description', 'section']
+        fields = ['nom', 'description', 'exercices', 'section']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3}),
+            'exercices': forms.SelectMultiple(),
         }
 
 class GroupeCompetenceForm(forms.ModelForm):
@@ -253,5 +254,13 @@ class AdherentPublicForm(forms.ModelForm):
             instance.save()
             self.save_m2m()
         return instance
+
+class ExerciceForm(forms.ModelForm):
+    class Meta:
+        model = Exercice
+        fields = ['nom', 'description']
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 3}),
+        }
 
  

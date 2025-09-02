@@ -29,8 +29,8 @@ from openpyxl.styles import Alignment
 from openpyxl.styles import PatternFill
 from django.views.decorators.csrf import csrf_protect
 
-from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation, Palanquee, Lieu, LienInscriptionSeance, InscriptionSeance
-from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm
+from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation, Palanquee, Lieu, LienInscriptionSeance, InscriptionSeance, Exercice
+from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm, ExerciceForm
 from .utils import envoyer_lien_evaluation, envoyer_lien_evaluation_avec_cc
 
 # Vues d'accueil et de navigation
@@ -185,6 +185,11 @@ class CompetenceDeleteView(LoginRequiredMixin, DeleteView):
     model = Competence
     template_name = 'gestion/competence_confirm_delete.html'
     success_url = reverse_lazy('competence_list')
+
+class CompetenceDetailView(LoginRequiredMixin, DetailView):
+    model = Competence
+    template_name = 'gestion/competence_detail.html'
+    context_object_name = 'competence'
 
 # Vues pour les groupes de compétences
 class GroupeCompetenceListView(LoginRequiredMixin, ListView):
@@ -476,9 +481,9 @@ def import_adherents_excel(request):
                 else:
                     df = pd.read_excel(excel_file, engine='xlrd')
                 
-                # Vérifier les colonnes requises
+                # --- Ajout des nouveaux champs dans l'import ---
                 required_columns = ['nom', 'prenom', 'date_naissance', 'adresse', 'email', 
-                                  'telephone', 'date_delivrance_caci', 'niveau', 'statut']
+                                  'telephone', 'numero_licence', 'assurance', 'date_delivrance_caci', 'niveau', 'statut']
                 missing_columns = [col for col in required_columns if col not in df.columns]
                 
                 if missing_columns:
@@ -486,8 +491,9 @@ def import_adherents_excel(request):
                     return render(request, 'gestion/import_adherents_excel.html')
                 
                 # Valeurs autorisées pour la validation
-                niveaux_valides = ['debutant', 'niveau1', 'niveau2', 'niveau3', 'initiateur1', 'initiateur2', 'moniteur_federal1', 'moniteur_federal2']
-                statuts_valides = ['eleve', 'encadrant']
+                niveaux_valides = [c[0] for c in Adherent.NIVEAUX_CHOICES]
+                statuts_valides = [c[0] for c in Adherent.STATUT_CHOICES]
+                assurances_valides = [c[0] for c in Adherent.ASSURANCE_CHOICES]
                 
                 # Traitement des données
                 success_count = 0
@@ -501,6 +507,8 @@ def import_adherents_excel(request):
                         nom = str(row['nom']).strip() if pd.notna(row['nom']) else ''
                         prenom = str(row['prenom']).strip() if pd.notna(row['prenom']) else ''
                         email = str(row['email']).strip() if pd.notna(row['email']) else ''
+                        numero_licence = str(row['numero_licence']).strip() if pd.notna(row['numero_licence']) else ''
+                        assurance = str(row['assurance']).strip() if pd.notna(row['assurance']) else ''
                         
                         # Vérifier les champs obligatoires
                         if not nom or not prenom or not email:
@@ -571,6 +579,12 @@ def import_adherents_excel(request):
                             error_count += 1
                             continue
                         
+                        # Validation de l'assurance
+                        if assurance not in assurances_valides:
+                            errors.append(f"Ligne {index + 2}: assurance '{assurance}' invalide (valeurs: {', '.join(assurances_valides)})")
+                            error_count += 1
+                            continue
+                        
                         # Validation des sections
                         sections_invalides = []
                         if 'sections' in df.columns and pd.notna(row['sections']):
@@ -594,6 +608,8 @@ def import_adherents_excel(request):
                             adresse=str(row['adresse']).strip() if pd.notna(row['adresse']) else '',
                             email=email,
                             telephone=str(row['telephone']).strip() if pd.notna(row['telephone']) else '',
+                            numero_licence=numero_licence,
+                            assurance=assurance,
                             date_delivrance_caci=date_delivrance_caci,
                             niveau=niveau,
                             statut=statut,
@@ -651,7 +667,7 @@ def download_excel_template(request):
     import pandas as pd
     from datetime import date, timedelta
     
-    # Créer un DataFrame d'exemple
+    # --- Ajout des champs dans le fichier exemple ---
     data = {
         'nom': ['Dupont', 'Martin', 'Bernard'],
         'prenom': ['Jean', 'Marie', 'Pierre'],
@@ -659,6 +675,8 @@ def download_excel_template(request):
         'adresse': ['123 Rue de la Paix, Paris', '456 Avenue des Champs, Lyon', '789 Boulevard de la Mer, Nice'],
         'email': ['jean.dupont@email.com', 'marie.martin@email.com', 'pierre.bernard@email.com'],
         'telephone': ['0123456789', '0987654321', '0567891234'],
+        'numero_licence': ['123456', '', '789101'],
+        'assurance': ['Piscine', 'Loisir 1', ''],
         'date_delivrance_caci': ['31/12/2025', '30/06/2026', '15/09/2025'],
         'niveau': ['niveau1', 'niveau2', 'debutant'],
         'statut': ['eleve', 'eleve', 'eleve'],
@@ -678,7 +696,7 @@ def download_excel_template(request):
         
         # Ajouter une feuille avec les instructions
         instructions = pd.DataFrame({
-            'Colonne': ['nom', 'prenom', 'date_naissance', 'adresse', 'email', 'telephone', 'date_delivrance_caci', 'niveau', 'statut', 'sections'],
+            'Colonne': ['nom', 'prenom', 'date_naissance', 'adresse', 'email', 'telephone', 'numero_licence', 'assurance', 'date_delivrance_caci', 'niveau', 'statut', 'sections'],
             'Description': [
                 'Nom de famille (obligatoire)',
                 'Prénom (obligatoire)',
@@ -686,13 +704,15 @@ def download_excel_template(request):
                 'Adresse complète',
                 'Email (obligatoire, unique)',
                 'Numéro de téléphone',
-                'Date de fin de validité CACI (format: DD/MM/YYYY)',
-                'Niveau de plongée (debutant, niveau1, niveau2, niveau3, initiateur1, initiateur2, moniteur_federal1, moniteur_federal2)',
-                'Statut (eleve ou encadrant)',
-                'Sections (séparées par des virgules: bapteme,prepa_niveau1,prepa_niveau2)'
+                'Numéro de licence (facultatif)',
+                "Assurance (valeurs possibles : " + ', '.join([c[0] for c in Adherent.ASSURANCE_CHOICES]) + ")",
+                'Date de délivrance du CACI (format: DD/MM/YYYY)',
+                "Niveau de plongée (valeurs possibles : " + ', '.join([c[0] for c in Adherent.NIVEAUX_CHOICES]) + ")",
+                "Statut (valeurs possibles : " + ', '.join([c[0] for c in Adherent.STATUT_CHOICES]) + ")",
+                "Sections (séparées par des virgules : " + ', '.join([c[0] for c in Section.SECTIONS_CHOICES]) + ")"
             ],
-            'Obligatoire': ['Oui', 'Oui', 'Non', 'Non', 'Oui', 'Non', 'Non', 'Non', 'Non', 'Non'],
-            'Exemple': ['Dupont', 'Jean', '15/05/1990', '123 Rue de la Paix, Paris', 'jean.dupont@email.com', '0123456789', '31/12/2025', 'niveau1', 'eleve', 'bapteme,prepa_niveau1']
+            'Obligatoire': ['Oui', 'Oui', 'Non', 'Non', 'Oui', 'Non', 'Non', 'Non', 'Non', 'Non', 'Non', 'Non'],
+            'Exemple': ['Dupont', 'Jean', '15/05/1990', '123 Rue de la Paix, Paris', 'jean.dupont@email.com', '0123456789', '123456', 'Piscine', '31/12/2025', 'niveau1', 'eleve', 'bapteme,prepa_niveau1']
         })
         
         instructions.to_excel(writer, sheet_name='Instructions', index=False)
@@ -941,4 +961,26 @@ class AdherentPublicCreateView(CreateView):
     def form_invalid(self, form):
         messages.error(self.request, "Merci de corriger les erreurs dans le formulaire.")
         return super().form_invalid(form)
+
+class ExerciceListView(LoginRequiredMixin, ListView):
+    model = Exercice
+    template_name = 'gestion/exercice_list.html'
+    context_object_name = 'exercices'
+
+class ExerciceCreateView(LoginRequiredMixin, CreateView):
+    model = Exercice
+    form_class = ExerciceForm
+    template_name = 'gestion/exercice_form.html'
+    success_url = reverse_lazy('exercice_list')
+
+class ExerciceUpdateView(LoginRequiredMixin, UpdateView):
+    model = Exercice
+    form_class = ExerciceForm
+    template_name = 'gestion/exercice_form.html'
+    success_url = reverse_lazy('exercice_list')
+
+class ExerciceDeleteView(LoginRequiredMixin, DeleteView):
+    model = Exercice
+    template_name = 'gestion/exercice_confirm_delete.html'
+    success_url = reverse_lazy('exercice_list')
 

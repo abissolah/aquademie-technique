@@ -45,6 +45,7 @@ urlpatterns = [
     path('competences/nouvelle/', views.CompetenceCreateView.as_view(), name='competence_create'),
     path('competences/<int:pk>/modifier/', views.CompetenceUpdateView.as_view(), name='competence_update'),
     path('competences/<int:pk>/supprimer/', views.CompetenceDeleteView.as_view(), name='competence_delete'),
+    path('competences/<int:pk>/', views.CompetenceDetailView.as_view(), name='competence_detail'),
     
     # Groupes de compétences
     path('groupes-competences/', views.GroupeCompetenceListView.as_view(), name='groupe_competence_list'),
@@ -92,6 +93,12 @@ urlpatterns = [
     path('lieux/nouveau/', views.LieuCreateView.as_view(), name='lieu_create'),
     path('lieux/<int:pk>/modifier/', views.LieuUpdateView.as_view(), name='lieu_update'),
     path('lieux/<int:pk>/supprimer/', views.LieuDeleteView.as_view(), name='lieu_delete'),
+    
+    # Exercices
+    path('exercices/', views.ExerciceListView.as_view(), name='exercice_list'),
+    path('exercices/nouveau/', views.ExerciceCreateView.as_view(), name='exercice_create'),
+    path('exercices/<int:pk>/modifier/', views.ExerciceUpdateView.as_view(), name='exercice_update'),
+    path('exercices/<int:pk>/supprimer/', views.ExerciceDeleteView.as_view(), name='exercice_delete'),
     
     # APIs
     path('api/competences-section/', views.get_competences_section, name='get_competences_section'),

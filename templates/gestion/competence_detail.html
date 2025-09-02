@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Détail de la compétence{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Compétence : {{ competence.nom }}</h1>
+    <div class="card mb-4">
+        <div class="card-header">
+            <strong>Section :</strong> {{ competence.section.get_nom_display }}
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <strong>Description :</strong>
+                <p class="text-muted">{{ competence.description|linebreaksbr }}</p>
+            </div>
+            <div class="mb-3">
+                <strong>Exercices associés :</strong>
+                {% if competence.exercices.all %}
+                    <ul>
+                    {% for exercice in competence.exercices.all %}
+                        <li><strong>{{ exercice.nom }}</strong>{% if exercice.description %} : <span class="text-muted">{{ exercice.description }}</span>{% endif %}</li>
+                    {% endfor %}
+                    </ul>
+                {% else %}
+                    <span class="text-muted">Aucun exercice associé</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-footer text-end">
+            <a href="{% url 'competence_list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Retour à la liste
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

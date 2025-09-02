@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Supprimer l'exercice{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Supprimer l'exercice</h1>
+    <div class="alert alert-danger">
+        <p>Es-tu sûr de vouloir supprimer l'exercice <strong>{{ object.nom }}</strong> ?</p>
+    </div>
+    <form method="post">
+        {% csrf_token %}
+        <a href="{% url 'exercice_list' %}" class="btn btn-secondary">Annuler</a>
+        <button type="submit" class="btn btn-danger">Supprimer</button>
+    </form>
+</div>
+{% endblock %}

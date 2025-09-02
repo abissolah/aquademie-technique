@@ -87,10 +87,23 @@ class Adherent(models.Model):
     def nom_complet(self):
         return f"{self.prenom} {self.nom}"
 
+class Exercice(models.Model):
+    nom = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Exercice"
+        verbose_name_plural = "Exercices"
+        ordering = ['nom']
+
+    def __str__(self):
+        return self.nom
+
 class Competence(models.Model):
     nom = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name='competences')
+    exercices = models.ManyToManyField('Exercice', related_name='competences', blank=True, verbose_name="Exercices")
     
     class Meta:
         verbose_name = "Compétence"
