@@ -28,39 +28,16 @@
                 </div>
             </div>
             <div class="card-body">
-                {% if groupe.competences.all %}
-                <div class="mb-3">
-                    <h6>Compétences :</h6>
-                    <div class="d-flex flex-wrap gap-1">
-                        {% for competence in groupe.competences.all %}
-                        <span class="badge bg-info">{{ competence.nom }}</span>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-                
                 {% if groupe.competences_attendues %}
                 <div class="mb-3">
                     <h6>Compétences attendues :</h6>
                     <p class="text-muted small">{{ groupe.competences_attendues|truncatewords:20 }}</p>
                 </div>
                 {% endif %}
-                
-                {% if groupe.technique %}
-                <div class="mb-3">
-                    <h6>Technique :</h6>
-                    <p class="text-muted small">{{ groupe.technique|truncatewords:15 }}</p>
-                </div>
-                {% endif %}
-                
-                {% if groupe.modalites_evaluation %}
-                <div class="mb-3">
-                    <h6>Modalités d'évaluation :</h6>
-                    <p class="text-muted small">{{ groupe.modalites_evaluation|truncatewords:15 }}</p>
-                </div>
-                {% endif %}
-                
                 <div class="mt-3">
+                    <a href="{% url 'groupe_competence_detail' groupe.pk %}" class="btn btn-outline-info btn-sm me-2">
+                        <i class="fas fa-eye me-1"></i>Voir détail
+                    </a>
                     <a href="{% url 'groupe_competence_update' groupe.pk %}" class="btn btn-outline-warning btn-sm me-2">
                         <i class="fas fa-edit me-1"></i>Modifier
                     </a>

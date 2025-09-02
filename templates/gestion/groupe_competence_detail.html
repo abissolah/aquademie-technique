@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Détail du groupe de compétences{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Groupe de compétences : {{ groupe.intitule }}</h1>
+    <div class="card mb-4">
+        <div class="card-header">
+            <strong>Section :</strong> {{ groupe.section.nom }}
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <strong>Compétences attendues :</strong>
+                <p class="text-muted">{{ groupe.competences_attendues|linebreaksbr }}</p>
+            </div>
+            <div class="mb-3">
+                <strong>Compétences associées :</strong>
+                {% if groupe.competences.all %}
+                    <ul>
+                    {% for competence in groupe.competences.all %}
+                        <li>{{ competence.nom }}</li>
+                    {% endfor %}
+                    </ul>
+                {% else %}
+                    <span class="text-muted">Aucune</span>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                <strong>Technique :</strong>
+                <p class="text-muted">{{ groupe.technique|linebreaksbr }}</p>
+            </div>
+            <div class="mb-3">
+                <strong>Comportements :</strong>
+                <p class="text-muted">{{ groupe.comportements|linebreaksbr }}</p>
+            </div>
+            <div class="mb-3">
+                <strong>Théorie :</strong>
+                <p class="text-muted">{{ groupe.theorie|linebreaksbr }}</p>
+            </div>
+            <div class="mb-3">
+                <strong>Modalités d'évaluation :</strong>
+                <p class="text-muted">{{ groupe.modalites_evaluation|linebreaksbr }}</p>
+            </div>
+        </div>
+        <div class="card-footer text-end">
+            <a href="{% url 'groupe_competence_list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Retour à la liste
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

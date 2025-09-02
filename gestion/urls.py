@@ -51,6 +51,7 @@ urlpatterns = [
     path('groupes-competences/nouveau/', views.GroupeCompetenceCreateView.as_view(), name='groupe_competence_create'),
     path('groupes-competences/<int:pk>/modifier/', views.GroupeCompetenceUpdateView.as_view(), name='groupe_competence_update'),
     path('groupes-competences/<int:pk>/supprimer/', views.GroupeCompetenceDeleteView.as_view(), name='groupe_competence_delete'),
+    path('groupes-competences/<int:pk>/', views.GroupeCompetenceDetailView.as_view(), name='groupe_competence_detail'),
     
     # Séances
     path('seances/', views.SeanceListView.as_view(), name='seance_list'),
