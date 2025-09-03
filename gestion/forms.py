@@ -227,7 +227,7 @@ class AdherentPublicForm(forms.ModelForm):
         model = Adherent
         fields = [
             'nom', 'prenom', 'date_naissance', 'adresse', 'email',
-            'telephone', 'photo', 'numero_licence', 'assurance', 'caci_fichier', 'date_delivrance_caci', 'niveau', 'statut'
+            'telephone', 'numero_licence', 'assurance', 'caci_fichier', 'date_delivrance_caci', 'niveau', 'statut'
         ]
         widgets = {
             'date_naissance': forms.DateInput(
@@ -242,6 +242,7 @@ class AdherentPublicForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['caci_fichier'].required = True
+        self.fields['assurance'].label = "Assurance personnelle"
         if self.instance and self.instance.pk:
             if self.instance.date_naissance:
                 self.fields['date_naissance'].initial = self.instance.date_naissance.strftime('%Y-%m-%d')

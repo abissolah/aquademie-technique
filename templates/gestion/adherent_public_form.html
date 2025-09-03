@@ -18,10 +18,6 @@
                 {% endif %}
                 <form method="post" enctype="multipart/form-data" novalidate>
                     {% csrf_token %}
-                    {{ form.photo|as_crispy_field }}
-                    {{ form.numero_licence|as_crispy_field }}
-                    {{ form.assurance|as_crispy_field }}
-                    {{ form.date_delivrance_caci|as_crispy_field }}
                     {{ form|crispy }}
                     <div class="d-flex justify-content-end mt-3">
                         <button type="submit" class="btn btn-primary">
