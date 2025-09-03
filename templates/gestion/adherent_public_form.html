@@ -17,24 +17,18 @@
                     {% endfor %}
                 {% endif %}
                 {% if inscription_success %}
-                    <div class="alert alert-success text-center">
-                        Votre CACI a bien été envoyé,<br>
-                        vous allez être redirigés vers HelloAsso pour finaliser votre inscription.<br>
-                        <span id="countdown">Redirection dans 3 secondes...</span>
+                    <div class="alert alert-success text-center fw-bold fs-4 text-success">
+                        L'étape 1 est complète, passez à l'étape 2.<br><br>
+                        <strong class="fs-5 text-success">Etape 2 :</strong><br>
+                        <span class="fs-5 text-success">Revenez sur le formulaire HelloAsso - Choisissez votre tarif, n'oubliez pas votre option à l'étape 2.<br>
+                        L'option <strong>Loisir1</strong> est recommandée par APP.<br>
+                        Remplissez le formulaire et réglez !</span>
                     </div>
-                    <script>
-                        let seconds = 3;
-                        const countdown = document.getElementById('countdown');
-                        const interval = setInterval(function() {
-                            seconds--;
-                            if (seconds > 0) {
-                                countdown.textContent = 'Redirection dans ' + seconds + ' seconde' + (seconds > 1 ? 's' : '') + '...';
-                            } else {
-                                clearInterval(interval);
-                                window.location.href = 'https://www.helloasso.com/associations/aquademie-paris-plongee/adhesions/adhesion-aquademie-2025-2026/1';
-                            }
-                        }, 1000);
-                    </script>
+                    <div class="text-center mt-4">
+                        <a href="https://www.helloasso.com/associations/aquademie-paris-plongee/adhesions/adhesion-aquademie-2025-2026/1" target="_blank" class="btn btn-primary btn-lg">
+                            <i class="fas fa-arrow-right me-2"></i>Continuer mon inscription
+                        </a>
+                    </div>
                 {% else %}
                 <form method="post" enctype="multipart/form-data" novalidate>
                     {% csrf_token %}
