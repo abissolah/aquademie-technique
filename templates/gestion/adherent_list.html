@@ -16,6 +16,9 @@
                 <a href="{% url 'import_adherents_excel' %}" class="btn btn-info">
                     <i class="fas fa-file-excel me-2"></i>Import Excel
                 </a>
+                <a href="{% url 'export_adherents_excel' %}" class="btn btn-success">
+                    <i class="fas fa-file-excel me-2"></i>Exporter Excel
+                </a>
                 <a href="{% url 'adherent_create' %}" class="btn btn-primary">
                     <i class="fas fa-plus me-2"></i>Nouvel adhérent
                 </a>
@@ -70,7 +73,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <strong>{{ adherent.nom_complet }}</strong>
+                                    <strong>{{ adherent.nom|upper }} {{ adherent.prenom|capfirst }}</strong>
                                 </td>
                                 <td>{{ adherent.email }}</td>
                                 <td>{{ adherent.telephone }}</td>
@@ -143,7 +146,7 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <strong>{{ adherent.nom_complet }}</strong>
+                                <strong>{{ adherent.nom|upper }} {{ adherent.prenom|capfirst }}</strong>
                             </td>
                             <td>{{ adherent.email }}</td>
                             <td>{{ adherent.telephone }}</td>

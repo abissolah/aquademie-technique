@@ -24,6 +24,8 @@
                 {% else %}
                 <form method="post" enctype="multipart/form-data" novalidate>
                     {% csrf_token %}
+                    {{ form.nom|as_crispy_field }}
+                    {{ form.prenom|as_crispy_field }}
                     {{ form|crispy }}
                     <div class="d-flex justify-content-end mt-3">
                         <button type="submit" class="btn btn-primary">

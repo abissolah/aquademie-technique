@@ -991,3 +991,30 @@ class ExerciceDeleteView(LoginRequiredMixin, DeleteView):
     template_name = 'gestion/exercice_confirm_delete.html'
     success_url = reverse_lazy('exercice_list')
 
+@login_required
+def export_adherents_excel(request):
+    import pandas as pd
+    adherents = Adherent.objects.all().order_by('nom', 'prenom')
+    data = []
+    for a in adherents:
+        data.append({
+            'Nom': a.nom.upper(),
+            'Prénom': a.prenom.capitalize(),
+            'Email': a.email,
+            'Téléphone': a.telephone,
+            'Adresse': a.adresse,
+            'Code postal': a.code_postal,
+            'Ville': a.ville,
+            'Numéro de licence': a.numero_licence,
+            'Assurance': a.assurance,
+            'Date délivrance CACI': a.date_delivrance_caci,
+            'Niveau': a.get_niveau_display(),
+            'Statut': a.get_statut_display(),
+        })
+    df = pd.DataFrame(data)
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="adherents.xlsx"'
+    with pd.ExcelWriter(response, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False)
+    return response
+

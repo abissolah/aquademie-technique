@@ -30,6 +30,10 @@ class AdherentForm(forms.ModelForm):
                 self.fields['date_naissance'].initial = self.instance.date_naissance.strftime('%Y-%m-%d')
             if self.instance.date_delivrance_caci:
                 self.fields['date_delivrance_caci'].initial = self.instance.date_delivrance_caci.strftime('%Y-%m-%d')
+        if 'nom' in self.fields and self.instance and self.instance.nom:
+            self.fields['nom'].initial = self.instance.nom.upper()
+        if 'prenom' in self.fields and self.instance and self.instance.prenom:
+            self.fields['prenom'].initial = self.instance.prenom.capitalize()
 
 class SectionForm(forms.ModelForm):
     class Meta:
@@ -248,6 +252,10 @@ class AdherentPublicForm(forms.ModelForm):
                 self.fields['date_naissance'].initial = self.instance.date_naissance.strftime('%Y-%m-%d')
             if self.instance.date_delivrance_caci:
                 self.fields['date_delivrance_caci'].initial = self.instance.date_delivrance_caci.strftime('%Y-%m-%d')
+        if 'nom' in self.fields and self.instance and self.instance.nom:
+            self.fields['nom'].initial = self.instance.nom.upper()
+        if 'prenom' in self.fields and self.instance and self.instance.prenom:
+            self.fields['prenom'].initial = self.instance.prenom.capitalize()
     def save(self, commit=True):
         instance = super().save(commit=False)
         instance.type_personne = 'adherent'

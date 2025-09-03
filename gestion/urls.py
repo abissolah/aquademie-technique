@@ -24,6 +24,7 @@ urlpatterns = [
     path('adherents/<int:pk>/supprimer/', views.AdherentDeleteView.as_view(), name='adherent_delete'),
     path('adherents/import-excel/', views.import_adherents_excel, name='import_adherents_excel'),
     path('adherents/telecharger-modele/', views.download_excel_template, name='download_excel_template'),
+    path('adherents/export-excel/', views.export_adherents_excel, name='export_adherents_excel'),
     path('adherents/inscription/', views.AdherentPublicCreateView.as_view(), name='adherent_public_create'),
     path('adherents/inscription/success/', views.dashboard, name='adherent_public_success'),
     

@@ -89,6 +89,13 @@ class Adherent(models.Model):
     def nom_complet(self):
         return f"{self.prenom} {self.nom}"
 
+    def save(self, *args, **kwargs):
+        if self.nom:
+            self.nom = self.nom.upper()
+        if self.prenom:
+            self.prenom = self.prenom.capitalize()
+        super().save(*args, **kwargs)
+
 class Exercice(models.Model):
     nom = models.CharField(max_length=200)
     description = models.TextField(blank=True)
