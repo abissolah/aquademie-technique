@@ -53,6 +53,8 @@ class Adherent(models.Model):
     prenom = models.CharField(max_length=100)
     date_naissance = models.DateField()
     adresse = models.TextField()
+    code_postal = models.CharField(max_length=10, blank=True, verbose_name="Code postal")
+    ville = models.CharField(max_length=100, blank=True, verbose_name="Ville")
     email = models.EmailField()
     telephone = models.CharField(max_length=20)
     photo = models.ImageField(upload_to='photos_adherents/', blank=True, null=True)

@@ -67,6 +67,14 @@
                                 </div>
                             </div>
                             <div class="row mb-2">
+                                <div class="col-md-3">
+                                    <label for="nm-code-postal" class="form-label">Code postal</label>
+                                    <input type="text" name="code_postal" id="nm-code-postal" class="form-control" placeholder="Code postal">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="nm-ville" class="form-label">Ville</label>
+                                    <input type="text" name="ville" id="nm-ville" class="form-control" placeholder="Ville">
+                                </div>
                                 <div class="col-md-6">
                                     <label for="nm-numero-licence" class="form-label">Numéro de licence</label>
                                     <input type="text" name="numero_licence" id="nm-numero-licence" class="form-control" placeholder="Numéro de licence">
@@ -253,6 +261,8 @@
                         document.getElementById('nm-telephone').value = d.telephone;
                         document.getElementById('nm-date-naissance').value = d.date_naissance;
                         document.getElementById('nm-adresse').value = d.adresse;
+                        document.getElementById('nm-code-postal').value = d.code_postal;
+                        document.getElementById('nm-ville').value = d.ville;
                         document.getElementById('nm-date-delivrance-caci').value = d.date_fin_validite_caci;
                         document.getElementById('nm-niveau').value = d.niveau;
                         document.getElementById('nm-statut').value = d.statut;

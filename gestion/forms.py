@@ -5,7 +5,7 @@ class AdherentForm(forms.ModelForm):
     class Meta:
         model = Adherent
         fields = [
-            'nom', 'prenom', 'date_naissance', 'adresse', 'email', 
+            'nom', 'prenom', 'date_naissance', 'adresse', 'code_postal', 'ville', 'email', 
             'telephone', 'photo', 'numero_licence', 'assurance', 'date_delivrance_caci', 'niveau', 'statut', 'sections',
             'type_personne', 'caci_fichier'
         ]
@@ -203,7 +203,7 @@ class NonAdherentInscriptionForm(forms.ModelForm):
     class Meta:
         model = Adherent
         fields = [
-            'nom', 'prenom', 'date_naissance', 'adresse', 'email',
+            'nom', 'prenom', 'date_naissance', 'adresse', 'code_postal', 'ville', 'email',
             'telephone', 'photo', 'numero_licence', 'assurance', 'date_delivrance_caci', 'niveau', 'statut', 'sections', 'caci_fichier'
         ]
         widgets = {
@@ -226,7 +226,7 @@ class AdherentPublicForm(forms.ModelForm):
     class Meta:
         model = Adherent
         fields = [
-            'nom', 'prenom', 'date_naissance', 'adresse', 'email',
+            'nom', 'prenom', 'date_naissance', 'adresse', 'code_postal', 'ville', 'email',
             'telephone', 'numero_licence', 'assurance', 'caci_fichier', 'date_delivrance_caci', 'niveau', 'statut'
         ]
         widgets = {
