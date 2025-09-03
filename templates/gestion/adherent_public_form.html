@@ -16,6 +16,12 @@
                         <div class="alert alert-{{ message.tags }}">{{ message }}</div>
                     {% endfor %}
                 {% endif %}
+                {% if inscription_success %}
+                    <div class="alert alert-success text-center">
+                        Votre inscription est prise en compte,<br>
+                        veuillez fermer cet onglet et reprendre votre inscription sur HelloAsso.
+                    </div>
+                {% else %}
                 <form method="post" enctype="multipart/form-data" novalidate>
                     {% csrf_token %}
                     {{ form|crispy }}
@@ -25,6 +31,7 @@
                         </button>
                     </div>
                 </form>
+                {% endif %}
             </div>
         </div>
     </div>

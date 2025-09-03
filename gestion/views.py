@@ -952,15 +952,14 @@ class AdherentPublicCreateView(CreateView):
     model = Adherent
     form_class = AdherentPublicForm
     template_name = 'gestion/adherent_public_form.html'
-    success_url = '/adherents/inscription/success/'
+    success_url = None  # Pas de redirection
 
     def form_valid(self, form):
-        messages.success(self.request, "Votre inscription a bien été prise en compte.")
-        return super().form_valid(form)
+        form.save()
+        return self.render_to_response(self.get_context_data(form=self.form_class(), inscription_success=True))
 
     def form_invalid(self, form):
-        messages.error(self.request, "Merci de corriger les erreurs dans le formulaire.")
-        return super().form_invalid(form)
+        return self.render_to_response(self.get_context_data(form=form, inscription_success=False))
 
 class ExerciceListView(LoginRequiredMixin, ListView):
     model = Exercice
