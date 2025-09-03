@@ -482,7 +482,7 @@ def import_adherents_excel(request):
                     df = pd.read_excel(excel_file, engine='xlrd')
                 
                 # --- Ajout des nouveaux champs dans l'import ---
-                required_columns = ['nom', 'prenom', 'date_naissance', 'adresse', 'email', 
+                required_columns = ['nom', 'prenom', 'date_naissance', 'adresse', 'code_postal', 'ville', 'email', 
                                   'telephone', 'numero_licence', 'assurance', 'date_delivrance_caci', 'niveau', 'statut']
                 missing_columns = [col for col in required_columns if col not in df.columns]
                 
@@ -509,6 +509,8 @@ def import_adherents_excel(request):
                         email = str(row['email']).strip() if pd.notna(row['email']) else ''
                         numero_licence = str(row['numero_licence']).strip() if pd.notna(row['numero_licence']) else ''
                         assurance = str(row['assurance']).strip() if pd.notna(row['assurance']) else ''
+                        code_postal = str(row['code_postal']).strip() if pd.notna(row['code_postal']) else ''
+                        ville = str(row['ville']).strip() if pd.notna(row['ville']) else ''
                         
                         # Vérifier les champs obligatoires
                         if not nom or not prenom or not email:
@@ -606,6 +608,8 @@ def import_adherents_excel(request):
                             prenom=prenom,
                             date_naissance=date_naissance,
                             adresse=str(row['adresse']).strip() if pd.notna(row['adresse']) else '',
+                            code_postal=code_postal,
+                            ville=ville,
                             email=email,
                             telephone=str(row['telephone']).strip() if pd.notna(row['telephone']) else '',
                             numero_licence=numero_licence,
@@ -673,6 +677,8 @@ def download_excel_template(request):
         'prenom': ['Jean', 'Marie', 'Pierre'],
         'date_naissance': ['15/05/1990', '03/12/1985', '22/08/1992'],
         'adresse': ['123 Rue de la Paix, Paris', '456 Avenue des Champs, Lyon', '789 Boulevard de la Mer, Nice'],
+        'code_postal': ['75001', '69002', '06000'],
+        'ville': ['Paris', 'Lyon', 'Nice'],
         'email': ['jean.dupont@email.com', 'marie.martin@email.com', 'pierre.bernard@email.com'],
         'telephone': ['0123456789', '0987654321', '0567891234'],
         'numero_licence': ['123456', '', '789101'],
@@ -696,12 +702,14 @@ def download_excel_template(request):
         
         # Ajouter une feuille avec les instructions
         instructions = pd.DataFrame({
-            'Colonne': ['nom', 'prenom', 'date_naissance', 'adresse', 'email', 'telephone', 'numero_licence', 'assurance', 'date_delivrance_caci', 'niveau', 'statut', 'sections'],
+            'Colonne': ['nom', 'prenom', 'date_naissance', 'adresse', 'code_postal', 'ville', 'email', 'telephone', 'numero_licence', 'assurance', 'date_delivrance_caci', 'niveau', 'statut', 'sections'],
             'Description': [
                 'Nom de famille (obligatoire)',
                 'Prénom (obligatoire)',
                 'Date de naissance (format: DD/MM/YYYY)',
                 'Adresse complète',
+                'Code postal',
+                'Ville',
                 'Email (obligatoire, unique)',
                 'Numéro de téléphone',
                 'Numéro de licence (facultatif)',
@@ -711,8 +719,8 @@ def download_excel_template(request):
                 "Statut (valeurs possibles : " + ', '.join([c[0] for c in Adherent.STATUT_CHOICES]) + ")",
                 "Sections (séparées par des virgules : " + ', '.join([c[0] for c in Section.SECTIONS_CHOICES]) + ")"
             ],
-            'Obligatoire': ['Oui', 'Oui', 'Non', 'Non', 'Oui', 'Non', 'Non', 'Non', 'Non', 'Non', 'Non', 'Non'],
-            'Exemple': ['Dupont', 'Jean', '15/05/1990', '123 Rue de la Paix, Paris', 'jean.dupont@email.com', '0123456789', '123456', 'Piscine', '31/12/2025', 'niveau1', 'eleve', 'bapteme,prepa_niveau1']
+            'Obligatoire': ['Oui', 'Oui', 'Non', 'Non', 'Non', 'Non', 'Oui', 'Non', 'Non', 'Non', 'Non', 'Non', 'Non', 'Non'],
+            'Exemple': ['Dupont', 'Jean', '15/05/1990', '123 Rue de la Paix, Paris', '75001', 'Paris', 'jean.dupont@email.com', '0123456789', '123456', 'Piscine', '31/12/2025', 'niveau1', 'eleve', 'bapteme,prepa_niveau1']
         })
         
         instructions.to_excel(writer, sheet_name='Instructions', index=False)
