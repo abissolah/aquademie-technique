@@ -18,14 +18,26 @@
                 {% endif %}
                 {% if inscription_success %}
                     <div class="alert alert-success text-center">
-                        Votre inscription est prise en compte,<br>
-                        veuillez fermer cet onglet et reprendre votre inscription sur HelloAsso.
+                        Votre CACI a bien été envoyé,<br>
+                        vous allez être redirigés vers HelloAsso pour finaliser votre inscription.<br>
+                        <span id="countdown">Redirection dans 3 secondes...</span>
                     </div>
+                    <script>
+                        let seconds = 3;
+                        const countdown = document.getElementById('countdown');
+                        const interval = setInterval(function() {
+                            seconds--;
+                            if (seconds > 0) {
+                                countdown.textContent = 'Redirection dans ' + seconds + ' seconde' + (seconds > 1 ? 's' : '') + '...';
+                            } else {
+                                clearInterval(interval);
+                                window.location.href = 'https://www.helloasso.com/associations/aquademie-paris-plongee/adhesions/adhesion-aquademie-2025-2026/2';
+                            }
+                        }, 1000);
+                    </script>
                 {% else %}
                 <form method="post" enctype="multipart/form-data" novalidate>
                     {% csrf_token %}
-                    {{ form.nom|as_crispy_field }}
-                    {{ form.prenom|as_crispy_field }}
                     {{ form|crispy }}
                     <div class="d-flex justify-content-end mt-3">
                         <button type="submit" class="btn btn-primary">
