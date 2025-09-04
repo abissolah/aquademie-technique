@@ -954,67 +954,46 @@ def supprimer_inscription_seance(request, inscription_id):
 
 @login_required
 def exporter_inscrits_seance(request, seance_id):
+    import openpyxl
+    from openpyxl.utils import get_column_letter
+    from openpyxl.styles import Alignment
     seance = get_object_or_404(Seance, pk=seance_id)
-    # Récupérer tous les inscrits
     inscrits = seance.inscriptions.select_related('personne').all()
-    # Élèves
-    eleves = [i.personne for i in inscrits if i.personne.statut == 'eleve']
-    eleves = sorted(eleves, key=lambda e: (e.nom.lower(), e.prenom.lower()))
-    # Encadrants
+    # Sépare encadrants et autres
     encadrants = [i.personne for i in inscrits if i.personne.statut == 'encadrant']
-    # Mapping niveau encadrant
-    niveau_map = {
-        'initiateur1': 'E1',
-        'initiateur2': 'E2',
-        'moniteur_federal1': 'E3',
-        'moniteur_federal2': 'E4',
-    }
-    # Préparation Excel
+    eleves = [i.personne for i in inscrits if i.personne.statut != 'encadrant']
+    # Création du workbook
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = 'Inscrits séance'
-    # En-têtes
-    headers = ['Nom', 'Prénom', 'Niveau', 'Section', 'Profondeur max']
+    # Ligne 1 : Date
+    ws.append([f"Date : {seance.date.strftime('%d/%m/%Y')}"])
+    # Ligne 2 : Encadrants
+    row2 = [None, None, None, 'Encadrant']
     for enc in encadrants:
-        niveau_court = niveau_map.get(enc.niveau, '')
-        headers.append(f"{enc.prenom} {enc.nom} [{niveau_court}]")
-    # Infos séance au-dessus du tableau
-    info_rows = [
-        [f"Date : {seance.date.strftime('%d/%m/%Y')}"] ,
-        [f"Heure : {seance.heure_debut.strftime('%H:%M') if seance.heure_debut else '--'} - {seance.heure_fin.strftime('%H:%M') if seance.heure_fin else '--'}"],
-        [f"Lieu : {seance.lieu.nom}"],
-        [f"Adresse : {seance.lieu.adresse}, {seance.lieu.code_postal} {seance.lieu.ville}"],
-        [f"Directeur de plongée : {seance.directeur_plongee.nom_complet if seance.directeur_plongee else 'Non défini'}"]
-    ]
-    for row in info_rows:
-        ws.append(row)
-    ws.append([])  # Ligne vide
+        row2.append(f"{enc.nom} {enc.prenom}")
+    ws.append(row2)
+    # Ligne 3 : En-têtes
+    headers = ['Nom Prénom', 'Niveau', 'Section', 'Profondeur max']
+    headers += ['' for _ in encadrants]
     ws.append(headers)
-    start_row = ws.max_row  # La ligne d'en-tête est maintenant la dernière
-    # Appliquer la couleur sur les colonnes encadrants (ligne d'en-tête)
-    fill = PatternFill(start_color="CCFFCC", end_color="CCFFCC", fill_type="solid")
-    for col_idx in range(6, 6 + len(encadrants)):
-        cell = ws.cell(row=start_row, column=col_idx)
-        cell.fill = fill
-        cell.alignment = Alignment(text_rotation=90, vertical='bottom', horizontal='center')
-    ws.row_dimensions[start_row].height = 80
-    # Lignes élèves
+    # Lignes suivantes : inscrits
     for eleve in eleves:
-        niveau = eleve.get_niveau_display()
+        nom_prenom = f"{eleve.nom} {eleve.prenom}"
+        niveau = eleve.get_niveau_display() if hasattr(eleve, 'get_niveau_display') else ''
         sections = ', '.join([s.get_nom_display() for s in eleve.sections.all()])
-        if not eleve.niveau or 'bapteme' in [s.nom for s in eleve.sections.all()] or eleve.niveau == 'debutant':
-            profondeur = 6
-        else:
-            profondeur = 20
-        row = [eleve.nom, eleve.prenom, niveau, sections, profondeur]
+        row = [nom_prenom, niveau, sections, '']
         row += ['' for _ in encadrants]
         ws.append(row)
-    # Ajuste la largeur des colonnes
+    # Mise en forme : texte vertical pour les encadrants
+    for idx, enc in enumerate(encadrants, start=5):
+        cell = ws.cell(row=2, column=idx)
+        cell.alignment = Alignment(text_rotation=90, vertical='bottom', horizontal='center')
+    # Largeur des colonnes
     for i, col in enumerate(ws.columns, 1):
-        max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col)
-        ws.column_dimensions[get_column_letter(i)].width = max(12, max_length + 2)
-        for cell in col:
-            cell.alignment = Alignment(vertical='center', horizontal='center')
+        ws.column_dimensions[get_column_letter(i)].width = 18
+    # Export
+    from django.http import HttpResponse
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename="inscrits_seance_{seance.id}.xlsx"'
     wb.save(response)
@@ -1104,4 +1083,79 @@ def export_adherents_excel(request):
     with pd.ExcelWriter(response, engine='openpyxl') as writer:
         df.to_excel(writer, index=False)
     return response
+
+@login_required
+def importer_palanquees_seance(request, seance_id):
+    import openpyxl
+    seance = get_object_or_404(Seance, pk=seance_id)
+    if request.method == 'POST' and request.FILES.get('fichier_palanquees'):
+        fichier = request.FILES['fichier_palanquees']
+        try:
+            wb = openpyxl.load_workbook(fichier)
+            ws = wb.active
+            # Suppression des palanquées existantes
+            seance.palanques.all().delete()
+            # Lecture des encadrants (ligne 2, colonnes >= 5)
+            encadrants = []
+            for col in range(5, ws.max_column+1):
+                val = ws.cell(row=2, column=col).value
+                if val:
+                    nom, *prenom = val.split()
+                    prenom = ' '.join(prenom)
+                    from gestion.models import Adherent
+                    enc = Adherent.objects.filter(nom__iexact=nom.strip(), prenom__iexact=prenom.strip(), statut='encadrant').first()
+                    encadrants.append(enc)
+                else:
+                    encadrants.append(None)
+            # Lecture des élèves (lignes >= 4)
+            for col_idx, enc in enumerate(encadrants, start=5):
+                if not enc:
+                    continue
+                eleves = []
+                profondeurs = []
+                for row in range(4, ws.max_row+1):
+                    x = ws.cell(row=row, column=col_idx).value
+                    if x and str(x).strip().lower() == 'x':
+                        nom_prenom = ws.cell(row=row, column=1).value or ''
+                        nom, *prenom = nom_prenom.split()
+                        prenom = ' '.join(prenom)
+                        eleve = Adherent.objects.filter(nom__iexact=nom.strip(), prenom__iexact=prenom.strip()).first()
+                        if eleve:
+                            eleves.append(eleve)
+                            # Profondeur max (colonne 4)
+                            prof = ws.cell(row=row, column=4).value
+                            try:
+                                profondeurs.append(int(prof))
+                            except:
+                                pass
+                if eleves:
+                    from gestion.models import Section, Palanquee
+                    # Trouver l'élève avec le niveau le plus faible
+                    eleve_min = None
+                    niveau_min = None
+                    for e in eleves:
+                        if hasattr(e, 'niveau') and e.niveau:
+                            if niveau_min is None or e.niveau < niveau_min:
+                                niveau_min = e.niveau
+                                eleve_min = e
+                    section = eleve_min.sections.first() if eleve_min else None
+                    if not section:
+                        messages.error(request, f"Aucune section trouvée pour l'élève de niveau le plus faible dans la palanquée de {enc.nom} {enc.prenom}. Palanquée non créée.")
+                        continue
+                    profondeur_max = min(profondeurs) if profondeurs else None
+                    palanquee = Palanquee.objects.create(
+                        nom=f"Palanquée {enc.nom} {enc.prenom}",
+                        seance=seance,
+                        section=section,
+                        encadrant=enc,
+                        precision_exercices='',
+                        profondeur_max=profondeur_max
+                    )
+                    palanquee.eleves.set(eleves)
+            messages.success(request, "Import des palanquées effectué avec succès.")
+        except Exception as e:
+            messages.error(request, f"Erreur lors de l'import : {str(e)}")
+    else:
+        messages.error(request, "Aucun fichier fourni.")
+    return redirect('seance_detail', seance_id)
 

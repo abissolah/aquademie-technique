@@ -162,6 +162,13 @@
                     <a href="{% url 'exporter_covoiturage_seance' seance.pk %}" class="btn btn-outline-success">
                         <i class="fas fa-car"></i> Exporter covoiturage
                     </a>
+                    <form action="{% url 'importer_palanquees_seance' seance.pk %}" method="post" enctype="multipart/form-data" class="mt-2">
+                        {% csrf_token %}
+                        <div class="input-group">
+                            <input type="file" name="fichier_palanquees" accept=".xlsx" class="form-control" required>
+                            <button type="submit" class="btn btn-outline-primary"><i class="fas fa-upload"></i> Importer les palanquées</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>

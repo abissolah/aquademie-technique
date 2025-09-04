@@ -65,6 +65,7 @@ urlpatterns = [
     path('seances/<int:seance_id>/envoyer-invitation/', views.envoyer_mail_invitation_seance, name='envoyer_mail_invitation_seance'),
     path('seances/<int:seance_id>/exporter-inscrits/', views.exporter_inscrits_seance, name='exporter_inscrits_seance'),
     path('seances/<int:seance_id>/exporter-covoiturage/', views.exporter_covoiturage_seance, name='exporter_covoiturage_seance'),
+    path('seances/<int:seance_id>/importer-palanquees/', views.importer_palanquees_seance, name='importer_palanquees_seance'),
     
     # Palanquées
     path('palanquees/', PalanqueeListView.as_view(), name='palanquee_list'),
