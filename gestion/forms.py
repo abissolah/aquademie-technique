@@ -250,8 +250,10 @@ class AdherentPublicForm(forms.ModelForm):
         self.fields['caci_fichier'].required = True
         self.fields['code_postal'].required = True
         self.fields['ville'].required = True
-        self.fields['assurance'].required = True
-        self.fields['assurance'].label = 'Assurance personnelle'
+        self.fields['assurance'].required = False
+        self.fields['assurance'].label = 'Assurance personnelle * '
+        self.fields['numero_licence'].required = True
+        self.fields['numero_licence'].label = 'Numéro de licence (Pour les débutants mettre 0)'
         if 'sections' in self.fields:
             self.fields.pop('sections')
 
@@ -263,6 +265,13 @@ class AdherentPublicForm(forms.ModelForm):
             if expiration < date.today():
                 raise forms.ValidationError("Votre CACI doit être valide.")
         return date_delivrance
+
+    def clean_assurance(self):
+        # Permettre la valeur vide ('') qui correspond à 'Aucune assurance' même si le champ est requis
+        value = self.cleaned_data.get('assurance')
+        if value is None:
+            return ''
+        return value
 
 class ExerciceForm(forms.ModelForm):
     class Meta:
