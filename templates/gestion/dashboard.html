@@ -144,6 +144,56 @@
         </div>
     </div>
 </div>
+<!-- Bloc Alertes CACI déplacé ici -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Alertes CACI</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6 class="fw-bold">Adhérents sans fichier CACI</h6>
+                        {% if adherents_sans_caci %}
+                            <ul class="mb-3">
+                                {% for a in adherents_sans_caci %}
+                                    <li><a href="{% url 'adherent_detail' a.pk %}">{{ a.nom|upper }} {{ a.prenom|capfirst }}</a></li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <span class="text-success">Aucun</span>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="fw-bold">CACI expiré</h6>
+                        {% if adherents_caci_expire %}
+                            <ul class="mb-3">
+                                {% for a in adherents_caci_expire %}
+                                    <li><a href="{% url 'adherent_detail' a.pk %}">{{ a.nom|upper }} {{ a.prenom|capfirst }}</a></li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <span class="text-success">Aucun</span>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="fw-bold">CACI expire bientôt (&lt; 30 jours)</h6>
+                        {% if adherents_caci_bientot %}
+                            <ul class="mb-3">
+                                {% for a in adherents_caci_bientot %}
+                                    <li><a href="{% url 'adherent_detail' a.pk %}">{{ a.nom|upper }} {{ a.prenom|capfirst }}</a></li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <span class="text-success">Aucun</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Séances récentes -->
 <div class="row mb-4">

@@ -46,6 +46,13 @@ def dashboard(request):
         'adherents_eleves': Adherent.objects.filter(statut='eleve').count(),
         'adherents_encadrants': Adherent.objects.filter(statut='encadrant').count(),
     }
+    # Ajout des alertes CACI
+    from datetime import timedelta
+    today = timezone.now().date()
+    adherents = Adherent.objects.filter(type_personne='adherent')
+    context['adherents_sans_caci'] = adherents.filter(caci_fichier__isnull=True) | adherents.filter(caci_fichier='')
+    context['adherents_caci_expire'] = adherents.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__lt=today - timedelta(days=365))
+    context['adherents_caci_bientot'] = adherents.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__gte=today - timedelta(days=365), date_delivrance_caci__lte=today - timedelta(days=335))
     return render(request, 'gestion/dashboard.html', context)
 
 # Vues pour les adhérents
@@ -62,7 +69,31 @@ class AdherentListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(
                 Q(nom__icontains=q) | Q(prenom__icontains=q) | Q(email__icontains=q)
             )
-        return queryset
+        sort = self.request.GET.get('sort', 'nom')
+        order = self.request.GET.get('order', 'asc')
+        valid_sorts = ['nom', 'prenom', 'email', 'niveau', 'statut', 'date_delivrance_caci', 'telephone']
+        if sort not in valid_sorts:
+            sort = 'nom'
+        if order == 'desc':
+            sort = '-' + sort
+        queryset = queryset.order_by(sort, 'prenom' if sort.lstrip('-') == 'nom' else 'nom')
+        # Ajout du statut CACI pour affichage
+        from datetime import timedelta
+        from django.utils import timezone
+        today = timezone.now().date()
+        adherents = list(queryset)
+        for a in adherents:
+            if a.date_delivrance_caci:
+                expiration = a.date_delivrance_caci + timedelta(days=365)
+                if expiration < today:
+                    a.caci_status = 'expired'
+                elif (expiration - today).days < 30:
+                    a.caci_status = 'soon'
+                else:
+                    a.caci_status = ''
+            else:
+                a.caci_status = ''
+        return adherents
 
 class AdherentDetailView(LoginRequiredMixin, DetailView):
     model = Adherent
