@@ -231,7 +231,7 @@ class AdherentPublicForm(forms.ModelForm):
         model = Adherent
         fields = [
             'nom', 'prenom', 'date_naissance', 'adresse', 'code_postal', 'ville', 'email',
-            'telephone', 'photo', 'numero_licence', 'assurance', 'date_delivrance_caci', 'niveau', 'statut', 'sections', 'caci_fichier'
+            'telephone', 'photo', 'numero_licence', 'assurance', 'caci_fichier', 'date_delivrance_caci', 'niveau', 'statut'
         ]
         widgets = {
             'date_naissance': forms.DateInput(
@@ -243,21 +243,17 @@ class AdherentPublicForm(forms.ModelForm):
                 format='%Y-%m-%d'
             ),
             'adresse': forms.Textarea(attrs={'rows': 3}),
-            'sections': forms.CheckboxSelectMultiple(),
         }
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['photo'].required = True
-        self.fields['assurance'].label = "Assurance personnelle"
-        if self.instance and self.instance.pk:
-            if self.instance.date_naissance:
-                self.fields['date_naissance'].initial = self.instance.date_naissance.strftime('%Y-%m-%d')
-            if self.instance.date_delivrance_caci:
-                self.fields['date_delivrance_caci'].initial = self.instance.date_delivrance_caci.strftime('%Y-%m-%d')
-        if 'nom' in self.fields and self.instance and self.instance.nom:
-            self.fields['nom'].initial = self.instance.nom.upper()
-        if 'prenom' in self.fields and self.instance and self.instance.prenom:
-            self.fields['prenom'].initial = self.instance.prenom.capitalize()
+        self.fields['caci_fichier'].required = True
+        self.fields['code_postal'].required = True
+        self.fields['ville'].required = True
+        self.fields['assurance'].required = True
+        self.fields['assurance'].label = 'Assurance personnelle'
+        if 'sections' in self.fields:
+            self.fields.pop('sections')
 
     def clean_date_delivrance_caci(self):
         from datetime import timedelta, date
