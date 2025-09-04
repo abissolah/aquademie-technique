@@ -37,10 +37,11 @@
                 {% else %}
                 <form method="post" enctype="multipart/form-data" novalidate id="adherent-public-form">
                     {% csrf_token %}
-                    {{ form|crispy }}
-                    <div class="alert alert-info text-center mt-2 mb-0">
+                    <div class="text-center mt-2 mb-0" style="color:#0c5460;background:#d1ecf1;padding:8px;border-radius:4px;">
                         Tous les champs doivent être remplis pour valider l'inscription.
                     </div>
+                    {{ form|crispy }}
+                    
                     <div class="d-flex justify-content-end mt-3 flex-column align-items-end">
                         <div id="caci-message" class="mb-2 w-100"></div>
                         <button type="submit" class="btn btn-primary" id="submit-btn">
