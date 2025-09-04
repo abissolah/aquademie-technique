@@ -231,7 +231,7 @@ class AdherentPublicForm(forms.ModelForm):
         model = Adherent
         fields = [
             'nom', 'prenom', 'date_naissance', 'adresse', 'code_postal', 'ville', 'email',
-            'telephone', 'numero_licence', 'assurance', 'caci_fichier', 'date_delivrance_caci', 'niveau', 'statut'
+            'telephone', 'photo', 'numero_licence', 'assurance', 'date_delivrance_caci', 'niveau', 'statut', 'sections', 'caci_fichier'
         ]
         widgets = {
             'date_naissance': forms.DateInput(
@@ -242,10 +242,12 @@ class AdherentPublicForm(forms.ModelForm):
                 attrs={'type': 'date'},
                 format='%Y-%m-%d'
             ),
+            'adresse': forms.Textarea(attrs={'rows': 3}),
+            'sections': forms.CheckboxSelectMultiple(),
         }
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['caci_fichier'].required = True
+        self.fields['photo'].required = True
         self.fields['assurance'].label = "Assurance personnelle"
         if self.instance and self.instance.pk:
             if self.instance.date_naissance:
