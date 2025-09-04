@@ -131,6 +131,22 @@
                                 <div id="nm-sections-checkboxes" class="d-flex flex-wrap gap-2"></div>
                             </div>
                             <div id="alerte-caci-non-adherent" class="mb-2"></div>
+                            <!-- Champs covoiturage juste avant le bouton -->
+                            <div class="row mb-2">
+                                <div class="col-md-6">
+                                    <label for="nm-covoiturage" class="form-label">Covoiturage</label>
+                                    <select name="covoiturage" id="nm-covoiturage" class="form-control">
+                                        <option value="">--</option>
+                                        <option value="none">Je ne souhaite pas de covoiturage</option>
+                                        <option value="propose">Je peux proposer du covoiturage</option>
+                                        <option value="besoin">J'aurai besoin de covoiturage</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="nm-lieu-covoiturage" class="form-label">Lieu de prise en charge du covoiturage</label>
+                                    <input type="text" name="lieu_covoiturage" id="nm-lieu-covoiturage" class="form-control" placeholder="Lieu de prise en charge">
+                                </div>
+                            </div>
                             <button type="submit" class="btn btn-success mt-2">S'inscrire</button>
                         </form>
                         <div id="result-non-adherent" class="mt-3"></div>
@@ -187,6 +203,21 @@
                     <p class="mb-1"><strong>Section :</strong> ${m.sections.join(', ')}</p>
                     <p class="mb-1"><strong>Statut :</strong> ${m.statut}</p>
                     <p class="mb-1"><strong>Date validité CACI :</strong> <span id="alerte-caci">${m.date_fin_validite_caci}</span></p>
+                    <div class="row mb-2 mt-3">
+                        <div class="col-md-6">
+                            <label for="ad-covoiturage" class="form-label">Covoiturage</label>
+                            <select id="ad-covoiturage" class="form-control">
+                                <option value="">--</option>
+                                <option value="none">Je ne souhaite pas de covoiturage</option>
+                                <option value="propose">Je peux proposer du covoiturage</option>
+                                <option value="besoin">J'aurai besoin de covoiturage</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="ad-lieu-covoiturage" class="form-label">Lieu de prise en charge du covoiturage</label>
+                            <input type="text" id="ad-lieu-covoiturage" class="form-control" placeholder="Lieu de prise en charge">
+                        </div>
+                    </div>
                     <button class="btn btn-success mt-2" onclick="inscrireMembre(${m.id})">S'inscrire</button>
                 </div>
             </div>
@@ -210,10 +241,12 @@
     // Inscription AJAX (à compléter côté backend)
     window.inscrireMembre = function(id) {
         const uuid = "{{ lien.uuid }}";
+        const covoiturage = document.getElementById('ad-covoiturage') ? document.getElementById('ad-covoiturage').value : '';
+        const lieu_covoiturage = document.getElementById('ad-lieu-covoiturage') ? document.getElementById('ad-lieu-covoiturage').value : '';
         fetch('/api/inscrire-membre-app/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ uuid: uuid, membre_id: id })
+            body: JSON.stringify({ uuid: uuid, membre_id: id, covoiturage: covoiturage, lieu_covoiturage: lieu_covoiturage })
         })
         .then(r => r.json())
         .then(data => {

@@ -28,6 +28,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
 from openpyxl.styles import PatternFill
 from django.views.decorators.csrf import csrf_protect
+from django.conf import settings
 
 from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation, Palanquee, Lieu, LienInscriptionSeance, InscriptionSeance, Exercice
 from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm, ExerciceForm
@@ -293,6 +294,9 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         context['nb_adherents'] = len(context['inscrits_adherents'])
         context['nb_non_adherents'] = len(context['inscrits_non_adherents'])
         context['today'] = timezone.now().date()
+        # Covoiturage
+        context['covoiturage_propose'] = [i for i in inscrits if getattr(i, 'covoiturage', '') == 'propose']
+        context['covoiturage_besoin'] = [i for i in inscrits if getattr(i, 'covoiturage', '') == 'besoin']
         return context
 
 class SeanceCreateView(LoginRequiredMixin, CreateView):
@@ -835,8 +839,13 @@ def envoyer_mail_invitation_seance(request, seance_id):
     url = request.build_absolute_uri(f"/inscription/{lien.uuid}/")
     message_txt = render_to_string('gestion/email_invitation_seance.txt', {'seance': seance, 'lien': lien, 'url': url})
     message_html = render_to_string('gestion/email_invitation_seance.html', {'seance': seance, 'lien': lien, 'url': url})
-    datatuple = [(subject, message_txt, None, [email]) for email in emails]
-    send_mass_mail(datatuple, fail_silently=False)
+    cc_emails = getattr(settings, 'EMAIL_CC_DEFAULT', [])
+    datatuple = [(subject, message_txt, None, [email], cc_emails) for email in emails]
+    from django.core.mail import EmailMultiAlternatives
+    for subject, message, from_email, recipient_list, cc_list in datatuple:
+        email = EmailMultiAlternatives(subject, message, None, recipient_list, cc=cc_list)
+        email.attach_alternative(message_html, "text/html")
+        email.send()
     messages.success(request, f"Invitation envoyée à {len(emails)} adhérents.")
     return redirect('seance_detail', pk=seance_id)
 
@@ -860,15 +869,27 @@ def api_inscrire_membre_app(request):
         seance = lien.seance
         membre = Adherent.objects.get(id=membre_id, type_personne='adherent')
         from .models import InscriptionSeance
-        if InscriptionSeance.objects.filter(seance=seance, personne=membre).exists():
-            return JsonResponse({'success': False, 'message': 'Vous êtes déjà inscrit à cette séance.'})
-        InscriptionSeance.objects.create(seance=seance, personne=membre)
+        inscription = InscriptionSeance.objects.filter(seance=seance, personne=membre).first()
+        if not inscription:
+            InscriptionSeance.objects.create(
+                seance=seance,
+                personne=membre,
+                covoiturage=data.get('covoiturage', ''),
+                lieu_covoiturage=data.get('lieu_covoiturage', '')
+            )
+        else:
+            inscription.covoiturage = data.get('covoiturage', '')
+            inscription.lieu_covoiturage = data.get('lieu_covoiturage', '')
+            inscription.save()
         # Envoi mail confirmation
         if membre.email:
             subject = f"Confirmation d'inscription à la séance du {seance.date.strftime('%d/%m/%Y')}"
             url = request.build_absolute_uri(f"/inscription/{lien.uuid}/")
             message = render_to_string('gestion/email_confirmation_inscription.txt', {'seance': seance, 'personne': membre, 'url': url})
-            send_mail(subject, message, None, [membre.email], fail_silently=True)
+            cc_emails = getattr(settings, 'EMAIL_CC_DEFAULT', [])
+            from django.core.mail import EmailMessage
+            email = EmailMessage(subject, message, None, [membre.email], cc=cc_emails)
+            email.send(fail_silently=True)
         return JsonResponse({'success': True, 'message': 'Inscription réussie ! Un email de confirmation vous a été envoyé.'})
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)})
@@ -895,14 +916,27 @@ def api_inscrire_non_membre(request):
         personne.save()
         form.save_m2m()
         # Inscription à la séance
+        covoiturage = request.POST.get('covoiturage', '')
+        lieu_covoiturage = request.POST.get('lieu_covoiturage', '')
         if not InscriptionSeance.objects.filter(seance=seance, personne=personne).exists():
-            InscriptionSeance.objects.create(seance=seance, personne=personne)
+            InscriptionSeance.objects.create(
+                seance=seance,
+                personne=personne,
+                covoiturage=covoiturage,
+                lieu_covoiturage=lieu_covoiturage
+            )
+        else:
+            inscription = InscriptionSeance.objects.filter(seance=seance, personne=personne).first()
+            inscription.covoiturage = covoiturage
+            inscription.lieu_covoiturage = lieu_covoiturage
+            inscription.save()
         # Envoi mail confirmation
         if personne.email:
             subject = f"Confirmation d'inscription à la séance du {seance.date.strftime('%d/%m/%Y')}"
             url = request.build_absolute_uri(f"/inscription/{lien.uuid}/")
             message = render_to_string('gestion/email_confirmation_inscription.txt', {'seance': seance, 'personne': personne, 'url': url})
-            send_mail(subject, message, None, [personne.email], fail_silently=True)
+            cc_emails = getattr(settings, 'EMAIL_CC_DEFAULT', [])
+            send_mail(subject, message, None, [personne.email], cc=cc_emails, fail_silently=True)
         return JsonResponse({'success': True, 'message': 'Inscription réussie ! Un email de confirmation vous a été envoyé.'})
     else:
         return JsonResponse({'success': False, 'message': 'Erreur : ' + str(form.errors)})
@@ -984,6 +1018,28 @@ def exporter_inscrits_seance(request, seance_id):
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename="inscrits_seance_{seance.id}.xlsx"'
     wb.save(response)
+    return response
+
+@login_required
+def exporter_covoiturage_seance(request, seance_id):
+    import pandas as pd
+    seance = get_object_or_404(Seance, pk=seance_id)
+    inscrits = seance.inscriptions.select_related('personne').all()
+    data = []
+    for ins in inscrits:
+        data.append({
+            'Nom': ins.personne.nom,
+            'Prénom': ins.personne.prenom,
+            'Type': 'Adhérent' if ins.personne.type_personne == 'adherent' else 'Non adhérent',
+            'Covoiturage': dict(ins.COVOITURAGE_CHOICES).get(ins.covoiturage, ''),
+            'Lieu de prise en charge': ins.lieu_covoiturage or '',
+        })
+    df = pd.DataFrame(data)
+    from django.http import HttpResponse
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="covoiturage_seance_{seance.id}.xlsx"'
+    with pd.ExcelWriter(response, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False)
     return response
 
 @method_decorator(csrf_protect, name='dispatch')

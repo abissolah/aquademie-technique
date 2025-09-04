@@ -247,12 +247,17 @@ class LienInscriptionSeance(models.Model):
         return f"Lien pour {self.seance} (expire le {self.date_expiration})"
 
 class InscriptionSeance(models.Model):
+    COVOITURAGE_CHOICES = [
+        ("none", "Je ne souhaite pas de covoiturage"),
+        ("propose", "Je peux proposer du covoiturage"),
+        ("besoin", "J'aurai besoin de covoiturage"),
+    ]
     seance = models.ForeignKey('Seance', on_delete=models.CASCADE, related_name='inscriptions')
     personne = models.ForeignKey('Adherent', on_delete=models.CASCADE, related_name='inscriptions_seance')
     date_inscription = models.DateTimeField(auto_now_add=True)
-
+    covoiturage = models.CharField(max_length=10, choices=COVOITURAGE_CHOICES, blank=True, null=True, verbose_name="Covoiturage")
+    lieu_covoiturage = models.CharField(max_length=200, blank=True, null=True, verbose_name="Lieu de prise en charge du covoiturage")
     class Meta:
         unique_together = ('seance', 'personne')
-
     def __str__(self):
         return f"{self.personne} inscrit à {self.seance} le {self.date_inscription}"
