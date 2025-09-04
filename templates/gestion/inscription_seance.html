@@ -36,118 +36,129 @@
                     </div>
                     <div class="card-body">
                         <form id="form-non-adherent" enctype="multipart/form-data">
-                            <div class="row mb-2">
-                                <div class="col-md-6">
-                                    <label for="nm-nom" class="form-label">Nom</label>
-                                    <input type="text" name="nom" id="nm-nom" class="form-control" placeholder="Nom" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="nm-prenom" class="form-label">Prénom</label>
-                                    <input type="text" name="prenom" id="nm-prenom" class="form-control" placeholder="Prénom" required>
-                                </div>
-                            </div>
-                            <div class="row mb-2">
-                                <div class="col-md-6">
-                                    <label for="nm-email" class="form-label">Email</label>
-                                    <input type="email" name="email" id="nm-email" class="form-control" placeholder="Email" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="nm-telephone" class="form-label">Téléphone</label>
-                                    <input type="text" name="telephone" id="nm-telephone" class="form-control" placeholder="Téléphone" required>
+                            <div class="mb-3">
+                                <label class="form-label">Type d'inscription :</label>
+                                <div>
+                                    <input type="radio" name="type_non_adherent" id="type-bapteme" value="bapteme">
+                                    <label for="type-bapteme" class="me-3">Je suis débutant (baptême)</label>
+                                    <input type="radio" name="type_non_adherent" id="type-plongeur" value="plongeur">
+                                    <label for="type-plongeur">Je suis plongeur / encadrant</label>
                                 </div>
                             </div>
-                            <div class="row mb-2">
-                                <div class="col-md-6">
-                                    <label for="nm-date-naissance" class="form-label">Date de naissance</label>
-                                    <input type="date" name="date_naissance" id="nm-date-naissance" class="form-control" placeholder="Date de naissance">
+                            <div id="bloc-form-non-adherent" style="display:none;">
+                                <div class="row mb-2">
+                                    <div class="col-md-6">
+                                        <label for="nm-nom" class="form-label">Nom</label>
+                                        <input type="text" name="nom" id="nm-nom" class="form-control" placeholder="Nom" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="nm-prenom" class="form-label">Prénom</label>
+                                        <input type="text" name="prenom" id="nm-prenom" class="form-control" placeholder="Prénom" required>
+                                    </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <label for="nm-adresse" class="form-label">Adresse</label>
-                                    <input type="text" name="adresse" id="nm-adresse" class="form-control" placeholder="Adresse">
+                                <div class="row mb-2">
+                                    <div class="col-md-6">
+                                        <label for="nm-email" class="form-label">Email</label>
+                                        <input type="email" name="email" id="nm-email" class="form-control" placeholder="Email" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="nm-telephone" class="form-label">Téléphone</label>
+                                        <input type="text" name="telephone" id="nm-telephone" class="form-control" placeholder="Téléphone" required>
+                                    </div>
                                 </div>
+                                <div class="row mb-2">
+                                    <div class="col-md-6">
+                                        <label for="nm-date-naissance" class="form-label">Date de naissance</label>
+                                        <input type="date" name="date_naissance" id="nm-date-naissance" class="form-control" placeholder="Date de naissance">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="nm-adresse" class="form-label">Adresse</label>
+                                        <input type="text" name="adresse" id="nm-adresse" class="form-control" placeholder="Adresse">
+                                    </div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-md-3">
+                                        <label for="nm-code-postal" class="form-label">Code postal</label>
+                                        <input type="text" name="code_postal" id="nm-code-postal" class="form-control" placeholder="Code postal">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="nm-ville" class="form-label">Ville</label>
+                                        <input type="text" name="ville" id="nm-ville" class="form-control" placeholder="Ville">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="nm-numero-licence" class="form-label">Numéro de licence</label>
+                                        <input type="text" name="numero_licence" id="nm-numero-licence" class="form-control" placeholder="Numéro de licence">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="nm-assurance" class="form-label">Assurance</label>
+                                        <select name="assurance" id="nm-assurance" class="form-control">
+                                            <option value="">Aucune assurance</option>
+                                            <option value="Piscine">Piscine</option>
+                                            <option value="Loisir 1">Loisir 1</option>
+                                            <option value="Loisir 2">Loisir 2</option>
+                                            <option value="Loisir 3">Loisir 3</option>
+                                            <option value="Loisir Top 1">Loisir Top 1</option>
+                                            <option value="Loisir Top 2">Loisir Top 2</option>
+                                            <option value="Loisir Top 3">Loisir Top 3</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row mb-2" id="bloc-caci-fields">
+                                    <div class="col-md-6">
+                                        <label for="nm-date-delivrance-caci" class="form-label">Date de délivrance du CACI</label>
+                                        <input type="date" name="date_delivrance_caci" id="nm-date-delivrance-caci" class="form-control" placeholder="Date de délivrance du CACI">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="nm-caci-fichier" class="form-label">Fichier CACI</label>
+                                        <input type="file" name="caci_fichier" id="nm-caci-fichier" class="form-control">
+                                    </div>
+                                </div>
+                                <div class="row mb-2">
+                                    <div class="col-md-6">
+                                        <label for="nm-niveau" class="form-label">Niveau</label>
+                                        <select name="niveau" id="nm-niveau" class="form-control" required>
+                                            <option value="">Niveau</option>
+                                            <option value="debutant">Débutant</option>
+                                            <option value="niveau1">Niveau 1</option>
+                                            <option value="niveau2">Niveau 2</option>
+                                            <option value="niveau3">Niveau 3</option>
+                                            <option value="initiateur1">Initiateur 1</option>
+                                            <option value="initiateur2">Initiateur 2</option>
+                                            <option value="moniteur_federal1">Moniteur fédéral 1</option>
+                                            <option value="moniteur_federal2">Moniteur fédéral 2</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="nm-statut" class="form-label">Statut</label>
+                                        <select name="statut" id="nm-statut" class="form-control" required>
+                                            <option value="eleve">Élève</option>
+                                            <option value="encadrant">Encadrant</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">Sections :</label>
+                                    <div id="nm-sections-checkboxes" class="d-flex flex-wrap gap-2"></div>
+                                </div>
+                                <div id="alerte-caci-non-adherent" class="mb-2"></div>
+                                <!-- Champs covoiturage juste avant le bouton -->
+                                <div class="row mb-2">
+                                    <div class="col-md-6">
+                                        <label for="nm-covoiturage" class="form-label">Covoiturage</label>
+                                        <select name="covoiturage" id="nm-covoiturage" class="form-control">
+                                            <option value="">--</option>
+                                            <option value="none">Je ne souhaite pas de covoiturage</option>
+                                            <option value="propose">Je peux proposer du covoiturage</option>
+                                            <option value="besoin">J'aurai besoin de covoiturage</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="nm-lieu-covoiturage" class="form-label">Lieu de prise en charge du covoiturage</label>
+                                        <input type="text" name="lieu_covoiturage" id="nm-lieu-covoiturage" class="form-control" placeholder="Lieu de prise en charge">
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-success mt-2">S'inscrire</button>
                             </div>
-                            <div class="row mb-2">
-                                <div class="col-md-3">
-                                    <label for="nm-code-postal" class="form-label">Code postal</label>
-                                    <input type="text" name="code_postal" id="nm-code-postal" class="form-control" placeholder="Code postal">
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="nm-ville" class="form-label">Ville</label>
-                                    <input type="text" name="ville" id="nm-ville" class="form-control" placeholder="Ville">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="nm-numero-licence" class="form-label">Numéro de licence</label>
-                                    <input type="text" name="numero_licence" id="nm-numero-licence" class="form-control" placeholder="Numéro de licence">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="nm-assurance" class="form-label">Assurance</label>
-                                    <select name="assurance" id="nm-assurance" class="form-control">
-                                        <option value="">Aucune assurance</option>
-                                        <option value="Piscine">Piscine</option>
-                                        <option value="Loisir 1">Loisir 1</option>
-                                        <option value="Loisir 2">Loisir 2</option>
-                                        <option value="Loisir 3">Loisir 3</option>
-                                        <option value="Loisir Top 1">Loisir Top 1</option>
-                                        <option value="Loisir Top 2">Loisir Top 2</option>
-                                        <option value="Loisir Top 3">Loisir Top 3</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="row mb-2">
-                                <div class="col-md-6">
-                                    <label for="nm-date-delivrance-caci" class="form-label">Date de délivrance du CACI</label>
-                                    <input type="date" name="date_delivrance_caci" id="nm-date-delivrance-caci" class="form-control" placeholder="Date de délivrance du CACI" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="nm-caci-fichier" class="form-label">Fichier CACI</label>
-                                    <input type="file" name="caci_fichier" id="nm-caci-fichier" class="form-control" required>
-                                </div>
-                            </div>
-                            <div class="row mb-2">
-                                <div class="col-md-6">
-                                    <label for="nm-niveau" class="form-label">Niveau</label>
-                                    <select name="niveau" id="nm-niveau" class="form-control" required>
-                                        <option value="">Niveau</option>
-                                        <option value="debutant">Débutant</option>
-                                        <option value="niveau1">Niveau 1</option>
-                                        <option value="niveau2">Niveau 2</option>
-                                        <option value="niveau3">Niveau 3</option>
-                                        <option value="initiateur1">Initiateur 1</option>
-                                        <option value="initiateur2">Initiateur 2</option>
-                                        <option value="moniteur_federal1">Moniteur fédéral 1</option>
-                                        <option value="moniteur_federal2">Moniteur fédéral 2</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="nm-statut" class="form-label">Statut</label>
-                                    <select name="statut" id="nm-statut" class="form-control" required>
-                                        <option value="eleve">Élève</option>
-                                        <option value="encadrant">Encadrant</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="mb-2">
-                                <label class="form-label">Sections :</label>
-                                <div id="nm-sections-checkboxes" class="d-flex flex-wrap gap-2"></div>
-                            </div>
-                            <div id="alerte-caci-non-adherent" class="mb-2"></div>
-                            <!-- Champs covoiturage juste avant le bouton -->
-                            <div class="row mb-2">
-                                <div class="col-md-6">
-                                    <label for="nm-covoiturage" class="form-label">Covoiturage</label>
-                                    <select name="covoiturage" id="nm-covoiturage" class="form-control">
-                                        <option value="">--</option>
-                                        <option value="none">Je ne souhaite pas de covoiturage</option>
-                                        <option value="propose">Je peux proposer du covoiturage</option>
-                                        <option value="besoin">J'aurai besoin de covoiturage</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="nm-lieu-covoiturage" class="form-label">Lieu de prise en charge du covoiturage</label>
-                                    <input type="text" name="lieu_covoiturage" id="nm-lieu-covoiturage" class="form-control" placeholder="Lieu de prise en charge">
-                                </div>
-                            </div>
-                            <button type="submit" class="btn btn-success mt-2">S'inscrire</button>
                         </form>
                         <div id="result-non-adherent" class="mt-3"></div>
                     </div>
@@ -325,28 +336,40 @@
         }
     }
     document.getElementById('nm-date-delivrance-caci').addEventListener('change', checkAlerteCaciNonAdhérent);
-    // Soumission AJAX du formulaire
+    // Affichage dynamique du formulaire non adhérent selon le choix radio
+    const radios = document.getElementsByName('type_non_adherent');
+    const blocForm = document.getElementById('bloc-form-non-adherent');
+    const blocCaci = document.getElementById('bloc-caci-fields');
+    radios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            blocForm.style.display = '';
+            if (this.value === 'bapteme') {
+                blocCaci.style.display = 'none';
+                document.getElementById('nm-date-delivrance-caci').required = false;
+                document.getElementById('nm-caci-fichier').required = false;
+            } else {
+                blocCaci.style.display = '';
+                document.getElementById('nm-date-delivrance-caci').required = true;
+                document.getElementById('nm-caci-fichier').required = true;
+            }
+        });
+    });
+    // Validation JS à la soumission
     const formNonAdhérent = document.getElementById('form-non-adherent');
     formNonAdhérent.onsubmit = function(e) {
-        e.preventDefault();
-        const formData = new FormData(formNonAdhérent);
-        formData.append('uuid', "{{ lien.uuid }}");
-        fetch('/api/inscrire-non-membre/', {
-            method: 'POST',
-            body: formData
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('result-non-adherent').innerHTML = '<div class="alert alert-success">' + data.message + '</div>';
-                formNonAdhérent.style.display = 'none';
-            } else {
-                document.getElementById('result-non-adherent').innerHTML = '<div class="alert alert-danger">' + data.message + '</div>';
+        const type = document.querySelector('input[name="type_non_adherent"]:checked');
+        if (!type) {
+            alert('Merci de sélectionner votre type d\'inscription.');
+            e.preventDefault();
+            return false;
+        }
+        if (type.value === 'plongeur') {
+            if (!document.getElementById('nm-date-delivrance-caci').value || !document.getElementById('nm-caci-fichier').value) {
+                alert('Merci de renseigner la date de délivrance et le fichier CACI.');
+                e.preventDefault();
+                return false;
             }
-        })
-        .catch(() => {
-            document.getElementById('result-non-adherent').innerHTML = '<div class="alert alert-danger">Erreur lors de l\'inscription.</div>';
-        });
+        }
     };
 </script>
 {% endblock %}
