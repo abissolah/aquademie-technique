@@ -35,15 +35,45 @@
                         </a>
                     </div>
                 {% else %}
-                <form method="post" enctype="multipart/form-data" novalidate>
+                <form method="post" enctype="multipart/form-data" novalidate id="adherent-public-form">
                     {% csrf_token %}
                     {{ form|crispy }}
-                    <div class="d-flex justify-content-end mt-3">
-                        <button type="submit" class="btn btn-primary">
+                    <div class="d-flex justify-content-end mt-3 flex-column align-items-end">
+                        <div id="caci-message" class="mb-2 w-100"></div>
+                        <button type="submit" class="btn btn-primary" id="submit-btn">
                             <i class="fas fa-save me-2"></i>S'inscrire
                         </button>
                     </div>
                 </form>
+                <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const dateInput = document.getElementById('id_date_delivrance_caci');
+                    const messageDiv = document.getElementById('caci-message');
+                    const submitBtn = document.getElementById('submit-btn');
+                    function checkCaciValidity() {
+                        messageDiv.innerHTML = '';
+                        submitBtn.disabled = false;
+                        if (!dateInput.value) return;
+                        const delivrance = new Date(dateInput.value);
+                        if (isNaN(delivrance.getTime())) return;
+                        const now = new Date();
+                        const expiration = new Date(delivrance);
+                        expiration.setFullYear(expiration.getFullYear() + 1);
+                        const diffMs = expiration - now;
+                        const diffDays = diffMs / (1000 * 60 * 60 * 24);
+                        if (diffDays < 0) {
+                            messageDiv.innerHTML = '<div class="alert alert-danger fw-bold">Votre CACI doit être valide.</div>';
+                            submitBtn.disabled = true;
+                        } else if (diffDays < 30) {
+                            messageDiv.innerHTML = '<div class="alert alert-danger fw-bold">Attention, votre CACI expire bientôt.</div>';
+                        }
+                    }
+                    dateInput.addEventListener('blur', checkCaciValidity);
+                    dateInput.addEventListener('change', checkCaciValidity);
+                    // Vérification initiale si valeur pré-remplie
+                    checkCaciValidity();
+                });
+                </script>
                 {% endif %}
             </div>
         </div>

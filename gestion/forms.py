@@ -256,13 +256,15 @@ class AdherentPublicForm(forms.ModelForm):
             self.fields['nom'].initial = self.instance.nom.upper()
         if 'prenom' in self.fields and self.instance and self.instance.prenom:
             self.fields['prenom'].initial = self.instance.prenom.capitalize()
-    def save(self, commit=True):
-        instance = super().save(commit=False)
-        instance.type_personne = 'adherent'
-        if commit:
-            instance.save()
-            self.save_m2m()
-        return instance
+
+    def clean_date_delivrance_caci(self):
+        from datetime import timedelta, date
+        date_delivrance = self.cleaned_data.get('date_delivrance_caci')
+        if date_delivrance:
+            expiration = date_delivrance + timedelta(days=365)
+            if expiration < date.today():
+                raise forms.ValidationError("Votre CACI doit être valide.")
+        return date_delivrance
 
 class ExerciceForm(forms.ModelForm):
     class Meta:
