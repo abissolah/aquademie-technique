@@ -33,6 +33,7 @@ from django.conf import settings
 from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation, Palanquee, Lieu, LienInscriptionSeance, InscriptionSeance, Exercice
 from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm, ExerciceForm
 from .utils import envoyer_lien_evaluation, envoyer_lien_evaluation_avec_cc
+from .models import PalanqueeEleve
 
 # Vues d'accueil et de navigation
 @login_required
@@ -61,7 +62,7 @@ class AdherentListView(LoginRequiredMixin, ListView):
     model = Adherent
     template_name = 'gestion/adherent_list.html'
     context_object_name = 'adherents'
-    paginate_by = 20
+    # paginate_by = 20  # Pagination supprimée pour afficher tous les adhérents
     
     def get_queryset(self):
         queryset = Adherent.objects.all()
@@ -282,8 +283,6 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         seance = self.get_object()
-        
-        # Récupérer les palanquées associées
         context['palanquees'] = seance.palanques.all()
         
         # Liste des inscrits (adhérents et non-adhérents)
@@ -1158,4 +1157,245 @@ def importer_palanquees_seance(request, seance_id):
     else:
         messages.error(request, "Aucun fichier fourni.")
     return redirect('seance_detail', seance_id)
+
+@login_required
+def creer_palanquees(request, seance_id):
+    seance = get_object_or_404(Seance, pk=seance_id)
+    inscrits = seance.inscriptions.select_related('personne').all()
+    eleves = [i.personne for i in inscrits if i.personne.statut == 'eleve']
+    encadrants = [i.personne for i in inscrits if i.personne.statut == 'encadrant']
+
+    if request.method == 'POST':
+        from django.db import transaction
+        affectations = {str(e.id): None for e in eleves}
+        palanquees_data = {}
+        # Récupérer affectations et champs aptitude
+        for eleve in eleves:
+            for moniteur in encadrants:
+                if request.POST.get(f'affectation_{eleve.id}_{moniteur.id}'):
+                    affectations[str(eleve.id)] = moniteur.id
+            # aptitude
+            palanquees_data[str(eleve.id)] = {
+                'aptitude': request.POST.get(f'aptitude_{eleve.id}', '').strip()
+            }
+        # Récupérer profondeur/durée max par moniteur
+        profs = {}
+        durees = {}
+        for moniteur in encadrants:
+            prof = request.POST.get(f'profondeur_max_{moniteur.id}')
+            duree = request.POST.get(f'duree_max_{moniteur.id}')
+            profs[moniteur.id] = int(prof) if prof else None
+            durees[moniteur.id] = int(duree) if duree else None
+        # Vérification : tous les moniteurs doivent avoir au moins un élève
+        moniteurs_utilises = set([mid for mid in affectations.values() if mid])
+        moniteurs_sans = [m for m in encadrants if m.id not in moniteurs_utilises]
+        if moniteurs_sans:
+            from django.contrib import messages
+            messages.error(request, "Tous les moniteurs doivent avoir au moins une palanquée (un élève affecté).")
+            return render(request, 'gestion/creer_palanquees.html', {
+                'seance': seance, 'eleves': eleves, 'encadrants': encadrants
+            })
+        # Vérification : élèves non affectés
+        eleves_non_aff = [e for e, m in affectations.items() if not m]
+        if eleves_non_aff and not request.POST.get('confirm_non_affectes'):
+            from django.contrib import messages
+            messages.warning(request, "Certains élèves ne sont pas affectés à une palanquée. Confirmez pour continuer.")
+            return render(request, 'gestion/creer_palanquees.html', {
+                'seance': seance, 'eleves': eleves, 'encadrants': encadrants,
+                'eleves_non_aff': eleves_non_aff, 'demande_confirmation': True
+            })
+        # Création des palanquées (on ajoute, on ne supprime pas les existantes)
+        try:
+            with transaction.atomic():
+                # Regrouper les élèves par moniteur
+                groupes = {}
+                for eid, mid in affectations.items():
+                    if mid:
+                        groupes.setdefault(mid, []).append(eid)
+                for moniteur in encadrants:
+                    if moniteur.id not in groupes:
+                        continue
+                    eleves_ids = groupes[moniteur.id]
+                    eleves_objs = [e for e in eleves if str(e.id) in eleves_ids]
+                    # Section la plus faible des élèves
+                    section = None
+                    niveau_min = None
+                    for e in eleves_objs:
+                        s = e.sections.first()
+                        if s:
+                            if not section or (hasattr(e, 'niveau') and (niveau_min is None or e.niveau < niveau_min)):
+                                section = s
+                                niveau_min = e.niveau
+                    palanquee = Palanquee.objects.create(
+                        nom=f"Palanquée {moniteur.nom} {moniteur.prenom}",
+                        seance=seance,
+                        section=section,
+                        encadrant=moniteur,
+                        precision_exercices='',
+                        profondeur_max=profs[moniteur.id],
+                        duree=durees[moniteur.id]
+                    )
+                    for eid in eleves_ids:
+                        aptitude = palanquees_data[eid]['aptitude']
+                        PalanqueeEleve.objects.create(palanquee=palanquee, eleve_id=eid, aptitude=aptitude)
+            from django.contrib import messages
+            messages.success(request, "Palanquées créées avec succès.")
+            return redirect('seance_detail', seance_id)
+        except Exception as e:
+            from django.contrib import messages
+            messages.error(request, f"Erreur lors de la création des palanquées : {e}")
+            return render(request, 'gestion/creer_palanquees.html', {
+                'seance': seance, 'eleves': eleves, 'encadrants': encadrants
+            })
+    return render(request, 'gestion/creer_palanquees.html', {
+        'seance': seance,
+        'eleves': eleves,
+        'encadrants': encadrants,
+    })
+
+class PalanqueeDeleteView(LoginRequiredMixin, DeleteView):
+    model = Palanquee
+    template_name = 'gestion/palanquee_confirm_delete.html'
+    def get_success_url(self):
+        return reverse_lazy('seance_detail', kwargs={'pk': self.object.seance.pk})
+
+@login_required
+def generer_fiche_securite(request, seance_id):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.units import cm
+    from io import BytesIO
+    seance = get_object_or_404(Seance, pk=seance_id)
+    palanquees = seance.palanques.select_related('encadrant').prefetch_related('eleves')
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+    y = height - 2*cm
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(2*cm, y, f"FICHE DE SÉCURITÉ CLUB")
+    y -= 1*cm
+    p.setFont("Helvetica", 12)
+    p.drawString(2*cm, y, f"Date : {seance.date.strftime('%d/%m/%Y')}  Heure début : {seance.heure_debut.strftime('%Hh%M') if seance.heure_debut else '-'}  Heure fin : {seance.heure_fin.strftime('%Hh%M') if seance.heure_fin else '-'}")
+    y -= 1*cm
+    p.drawString(2*cm, y, f"Lieu : {seance.lieu}")
+    y -= 1*cm
+    if seance.directeur_plongee:
+        p.drawString(2*cm, y, f"Directeur de plongée : {seance.directeur_plongee.nom_complet}")
+        y -= 1*cm
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(2*cm, y, "Palanquées :")
+    y -= 0.7*cm
+    p.setFont("Helvetica", 12)
+    for palanquee in palanquees:
+        if y < 5*cm:
+            p.showPage()
+            y = height - 2*cm
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(2*cm, y, f"Palanquée : {palanquee.nom}")
+        y -= 0.5*cm
+        p.setFont("Helvetica", 12)
+        p.drawString(2.5*cm, y, f"Encadrant : {palanquee.encadrant.nom_complet} (Niveau : {palanquee.encadrant.get_niveau_display() if hasattr(palanquee.encadrant, 'get_niveau_display') else ''})")
+        y -= 0.5*cm
+        eleves = ", ".join([f"{e.nom} {e.prenom} ({e.get_niveau_display() if hasattr(e, 'get_niveau_display') else ''})" for e in palanquee.eleves.all()])
+        p.drawString(2.5*cm, y, f"Élèves : {eleves if eleves else '-'}")
+        y -= 0.5*cm
+        profondeur = palanquee.profondeur_max if palanquee.profondeur_max else '-'
+        duree = palanquee.duree if palanquee.duree else '-'
+        p.drawString(2.5*cm, y, f"Profondeur max : {profondeur} m   Durée : {duree} min")
+        y -= 0.7*cm
+        p.line(2*cm, y, width-2*cm, y)
+        y -= 0.5*cm
+    p.showPage()
+    p.save()
+    buffer.seek(0)
+    return HttpResponse(buffer, content_type='application/pdf')
+
+@login_required
+def generer_fiche_securite_excel(request, seance_id):
+    import openpyxl
+    from openpyxl.styles import PatternFill
+    from io import BytesIO
+    seance = get_object_or_404(Seance, pk=seance_id)
+    palanquees = list(seance.palanques.select_related('encadrant').prefetch_related('eleves'))
+    wb = openpyxl.load_workbook('fiche_securite_modele.xlsx')
+    ws = wb.active
+
+    # --- Champs fixes ---
+    ws['D2'] = seance.date.strftime('%d/%m/%Y')
+    ws['P2'] = seance.heure_debut.strftime('%Hh%M') if seance.heure_debut else "-"
+    ws['AA2'] = seance.heure_fin.strftime('%Hh%M') if seance.heure_fin else "-"
+    directeur = seance.directeur_plongee.nom_complet if seance.directeur_plongee else "-"
+    ws['H5'] = directeur
+    ws['H56'] = directeur
+
+    # --- Mapping blocs palanquée ---
+    bloc_map = [
+        (18, 'A'), (18, 'M'), (18, 'Y'),
+        (31, 'A'), (31, 'M'), (31, 'Y'),
+        (44, 'A'), (44, 'M'), (44, 'Y'),
+    ]
+    niveau_col = {'A': 'J', 'M': 'V', 'Y': 'AH'}
+    prof_col = {'A': 'F', 'M': 'R', 'Y': 'AD'}
+    duree_col = {'A': 'J', 'M': 'V', 'Y': 'AH'}
+
+    # Mapping niveau encadrant
+    def niveau_encadrant_display(niveau):
+        mapping = {
+            'encadrant1': 'E1',
+            'encadrant2': 'E2',
+            'initiateur1': 'E1',
+            'initiateur2': 'E2',
+            'moniteur_federal1': 'E3',
+            'moniteur_federal2': 'E4',
+        }
+        return mapping.get(niveau, niveau)
+
+    for idx, palanquee in enumerate(palanquees[:9]):
+        base_row, base_col = bloc_map[idx]
+        # Encadrant
+        ws[f'{base_col}{base_row}'] = palanquee.encadrant.nom_complet if palanquee.encadrant else "-"
+        niveau = palanquee.encadrant.niveau if palanquee.encadrant and hasattr(palanquee.encadrant, 'niveau') else "-"
+        ws[f'{niveau_col[base_col]}{base_row}'] = niveau_encadrant_display(niveau)
+        # Élèves (max 4 par bloc)
+        eleves = list(palanquee.eleves.all())
+        for i in range(4):
+            nom_cell = f'{base_col}{base_row+2+i}'
+            niv_cell = f'{niveau_col[base_col]}{base_row+2+i}'
+            if i < len(eleves):
+                ws[nom_cell] = f"{eleves[i].nom} {eleves[i].prenom}"
+                ws[niv_cell] = eleves[i].get_niveau_display() if hasattr(eleves[i], 'get_niveau_display') else "-"
+            else:
+                ws[nom_cell] = ""
+                ws[niv_cell] = ""
+        # Profondeur et durée
+        ws[f'{prof_col[base_col]}{base_row+7}'] = palanquee.profondeur_max if palanquee.profondeur_max else "-"
+        ws[f'{duree_col[base_col]}{base_row+7}'] = palanquee.duree if palanquee.duree else "-"
+
+    # Comptage adultes/enfants/total
+    adultes = 0
+    enfants = 0
+    for palanquee in palanquees:
+        for eleve in palanquee.eleves.all():
+            # Critère enfant : à adapter selon ta logique (ex: niveau ou attribut spécifique)
+            if hasattr(eleve, 'date_naissance') and eleve.date_naissance:
+                from datetime import date
+                age = (date.today() - eleve.date_naissance).days // 365
+                if age < 18:
+                    enfants += 1
+                else:
+                    adultes += 1
+            else:
+                adultes += 1
+    total = adultes + enfants
+    ws['AH57'] = adultes
+    ws['AH58'] = enfants
+    ws['AH59'] = total
+
+    # Export
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="fiche_securite_seance_{seance.id}.xlsx"'
+    return response
 

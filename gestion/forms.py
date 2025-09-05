@@ -103,7 +103,7 @@ class SeanceForm(forms.ModelForm):
 class PalanqueeForm(forms.ModelForm):
     class Meta:
         model = Palanquee
-        fields = ['nom', 'seance', 'section', 'encadrant', 'eleves', 'competences', 'precision_exercices', 'duree', 'profondeur_max']
+        fields = ['nom', 'seance', 'section', 'encadrant', 'competences', 'precision_exercices', 'duree', 'profondeur_max']
         widgets = {
             'nom': forms.TextInput(attrs={'placeholder': 'Nom de la palanquée'}),
             'precision_exercices': forms.Textarea(attrs={'rows': 5}),
@@ -116,7 +116,6 @@ class PalanqueeForm(forms.ModelForm):
         
         # Filtrer les adhérents selon leur statut
         self.fields['encadrant'].queryset = Adherent.objects.filter(statut='encadrant')
-        self.fields['eleves'].queryset = Adherent.objects.filter(statut='eleve')
         
         # Gestion de la séance
         if seance_id:

@@ -102,18 +102,38 @@ class PalanqueeUpdateView(LoginRequiredMixin, UpdateView):
     form_class = PalanqueeForm
     template_name = 'gestion/palanquee_form.html'
     success_url = reverse_lazy('palanquee_list')
-    
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        # Pour une modification, la séance sera automatiquement en lecture seule
-        return kwargs
-    
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        palanquee = self.object
+        seance = palanquee.seance
+        from gestion.models import InscriptionSeance, PalanqueeEleve
+        eleves_seance = [i.personne for i in InscriptionSeance.objects.filter(seance=seance).select_related('personne') if i.personne.statut == 'eleve']
+        eleves_palanquee = list(palanquee.eleves.all())
+        eleves_aptitudes = {}
+        for e in eleves_palanquee:
+            pe = PalanqueeEleve.objects.filter(palanquee=palanquee, eleve=e).first()
+            eleves_aptitudes[e.id] = pe.aptitude if pe else ''
+        # Prépare une liste de tuples (eleve, aptitude)
+        eleves_seance_aptitudes = [(eleve, eleves_aptitudes.get(eleve.id, '')) for eleve in eleves_seance]
+        context['eleves_seance_aptitudes'] = eleves_seance_aptitudes
+        context['eleves_palanquee'] = eleves_palanquee
+        return context
+
     def form_valid(self, form):
-        # Mettre à jour le queryset des compétences avant la validation
-        section = form.cleaned_data.get('section')
-        if section:
-            form.fields['competences'].queryset = form.fields['competences'].queryset.filter(section=section)
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        palanquee = self.object
+        from gestion.models import PalanqueeEleve
+        eleves_ids = self.request.POST.getlist('eleves_in_palanquee')
+        # Supprime les liens non cochés
+        PalanqueeEleve.objects.filter(palanquee=palanquee).exclude(eleve_id__in=eleves_ids).delete()
+        # Ajoute ou met à jour les liens cochés et leur aptitude
+        for eid in eleves_ids:
+            aptitude = self.request.POST.get(f'aptitude_{eid}', '').strip()
+            pe, created = PalanqueeEleve.objects.get_or_create(palanquee=palanquee, eleve_id=eid)
+            pe.aptitude = aptitude
+            pe.save()
+        return response
     
     def get_success_url(self):
         # Rediriger vers la séance associée

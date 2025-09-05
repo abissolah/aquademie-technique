@@ -188,13 +188,13 @@ class Palanquee(models.Model):
     seance = models.ForeignKey(Seance, on_delete=models.CASCADE, related_name='palanques')
     section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name='palanques')
     encadrant = models.ForeignKey(Adherent, on_delete=models.CASCADE, related_name='palanques_encadrees', limit_choices_to={'statut': 'encadrant'})
-    eleves = models.ManyToManyField(Adherent, related_name='palanques_suivies', limit_choices_to={'statut': 'eleve'})
     competences = models.ManyToManyField(Competence, related_name='palanques')
     precision_exercices = models.TextField()
     duree = models.IntegerField("Durée (minutes)", null=True, blank=True)
     profondeur_max = models.IntegerField("Profondeur max (mètres)", null=True, blank=True)
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)
+    eleves = models.ManyToManyField(Adherent, through='PalanqueeEleve', related_name='palanques_suivies', limit_choices_to={'statut': 'eleve'})
     
     class Meta:
         verbose_name = "Palanquée"
@@ -261,3 +261,10 @@ class InscriptionSeance(models.Model):
         unique_together = ('seance', 'personne')
     def __str__(self):
         return f"{self.personne} inscrit à {self.seance} le {self.date_inscription}"
+
+class PalanqueeEleve(models.Model):
+    palanquee = models.ForeignKey('Palanquee', on_delete=models.CASCADE)
+    eleve = models.ForeignKey('Adherent', on_delete=models.CASCADE)
+    aptitude = models.TextField(blank=True)
+    class Meta:
+        unique_together = ('palanquee', 'eleve')

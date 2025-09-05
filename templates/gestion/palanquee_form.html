@@ -72,7 +72,20 @@
                             {{ form.encadrant|as_crispy_field }}
                         </div>
                         <div class="col-md-6">
-                            {{ form.eleves|as_crispy_field }}
+                            <label class="form-label">Élèves inscrits à la séance</label>
+                            <div class="border rounded p-2" style="max-height: 250px; overflow-y: auto;">
+                                {% for eleve, aptitude in eleves_seance_aptitudes %}
+                                    <div class="form-check d-flex align-items-center mb-1">
+                                        <input class="form-check-input me-2" type="checkbox" name="eleves_in_palanquee" value="{{ eleve.id }}" id="eleve_{{ eleve.id }}" {% if eleve in eleves_palanquee %}checked{% endif %}>
+                                        <label class="form-check-label me-2" for="eleve_{{ eleve.id }}">
+                                            {{ eleve.nom }} {{ eleve.prenom }} ({{ eleve.get_niveau_display }})
+                                        </label>
+                                        <input type="text" name="aptitude_{{ eleve.id }}" class="form-control form-control-sm ms-2" placeholder="Aptitude" value="{{ aptitude }}" style="max-width: 180px;">
+                                    </div>
+                                {% empty %}
+                                    <span class="text-muted">Aucun élève inscrit à cette séance.</span>
+                                {% endfor %}
+                            </div>
                         </div>
                     </div>
                     

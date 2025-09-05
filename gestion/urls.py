@@ -66,6 +66,9 @@ urlpatterns = [
     path('seances/<int:seance_id>/exporter-inscrits/', views.exporter_inscrits_seance, name='exporter_inscrits_seance'),
     path('seances/<int:seance_id>/exporter-covoiturage/', views.exporter_covoiturage_seance, name='exporter_covoiturage_seance'),
     path('seances/<int:seance_id>/importer-palanquees/', views.importer_palanquees_seance, name='importer_palanquees_seance'),
+    path('seances/<int:seance_id>/creer-palanquees/', views.creer_palanquees, name='creer_palanquees'),
+    path('seances/<int:seance_id>/fiche-securite/', views.generer_fiche_securite, name='generer_fiche_securite'),
+    path('seances/<int:seance_id>/fiche-securite-excel/', views.generer_fiche_securite_excel, name='generer_fiche_securite_excel'),
     
     # Palanquées
     path('palanquees/', PalanqueeListView.as_view(), name='palanquee_list'),

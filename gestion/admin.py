@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, LienEvaluation, Lieu
+from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, LienEvaluation, Lieu, PalanqueeEleve
 
 @admin.register(Adherent)
 class AdherentAdmin(admin.ModelAdmin):
@@ -50,11 +50,7 @@ class GroupeCompetenceAdmin(admin.ModelAdmin):
         }),
     )
 
-class PalanqueeInline(admin.TabularInline):
-    model = Palanquee
-    extra = 0
-    readonly_fields = ['date_creation', 'date_modification']
-    fields = ['nom', 'seance', 'section', 'encadrant', 'eleves', 'competences', 'precision_exercices']
+# Suppression de la classe PalanqueeInline car le ManyToMany 'eleves' utilise un modèle intermédiaire
 
 @admin.register(Seance)
 class SeanceAdmin(admin.ModelAdmin):
@@ -63,7 +59,7 @@ class SeanceAdmin(admin.ModelAdmin):
     search_fields = ['lieu']
     date_hierarchy = 'date'
     readonly_fields = ['date_creation', 'date_modification']
-    inlines = [PalanqueeInline]
+    # inlines = [PalanqueeInline]  # supprimé car ManyToMany via modèle intermédiaire
     
     fieldsets = (
         ('Informations générales', {
@@ -84,22 +80,26 @@ class EvaluationInline(admin.TabularInline):
     extra = 0
     readonly_fields = ['date_evaluation']
 
+class PalanqueeEleveInline(admin.TabularInline):
+    model = PalanqueeEleve
+    extra = 0
+    fields = ['eleve', 'aptitude']
+
 @admin.register(Palanquee)
 class PalanqueeAdmin(admin.ModelAdmin):
     list_display = ['nom', 'seance', 'section', 'encadrant', 'nombre_eleves']
     list_filter = ['seance__date', 'section', 'encadrant']
     search_fields = ['nom', 'encadrant__nom', 'encadrant__prenom']
     date_hierarchy = 'seance__date'
-    filter_horizontal = ['eleves', 'competences']
+    filter_horizontal = ['competences']
     readonly_fields = ['date_creation', 'date_modification']
-    inlines = [EvaluationInline]
-    
+    inlines = [PalanqueeEleveInline, EvaluationInline]
     fieldsets = (
         ('Informations générales', {
             'fields': ('nom', 'seance', 'section', 'encadrant')
         }),
         ('Participants', {
-            'fields': ('eleves', 'competences')
+            'fields': ('competences',)
         }),
         ('Contenu', {
             'fields': ('precision_exercices',)
@@ -109,10 +109,9 @@ class PalanqueeAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-    
     def nombre_eleves(self, obj):
         return obj.eleves.count()
-    nombre_eleves.short_description = 'Nombre d\'élèves'
+    nombre_eleves.short_description = "Nombre d'élèves"
 
 @admin.register(Evaluation)
 class EvaluationAdmin(admin.ModelAdmin):
