@@ -1,6 +1,16 @@
 {% extends 'base.html' %}
 {% block title %}Évaluations de la palanquée{% endblock %}
 {% block content %}
+<style>
+    .star {
+        font-size: 1.3em;
+        color: #ccc;
+        margin-right: 2px;
+    }
+    .star.filled {
+        color: #ffc107;
+    }
+</style>
 <div class="container py-4">
     <h1 class="mb-4">Évaluations de la palanquée : {{ palanquee }}</h1>
     <div class="card mb-4">
@@ -10,24 +20,32 @@
             <strong>Date :</strong> {{ palanquee.seance.date|date:'d/m/Y' }}
         </div>
         <div class="card-body">
-            {% if evaluations_par_eleve %}
+            {% if eleves_data %}
                 <div class="row">
-                    {% for eleve, evaluations in evaluations_par_eleve.items %}
+                    {% for eleve_data in eleves_data %}
                     <div class="col-md-6 col-lg-4 mb-4">
                         <div class="card h-100">
                             <div class="card-header bg-light">
-                                <h5 class="mb-0"><i class="fas fa-user me-2"></i>{{ eleve.nom_complet }}</h5>
-                                <small class="text-muted">{{ eleve.get_niveau_display }}</small>
+                                <h5 class="mb-0"><i class="fas fa-user me-2"></i>{{ eleve_data.eleve.nom_complet }}</h5>
+                                <small class="text-muted">{{ eleve_data.eleve.get_niveau_display }}</small>
                             </div>
                             <div class="card-body">
-                                {% for competence in palanquee.competences.all %}
+                                {% for comp in eleve_data.competences %}
                                     <div class="mb-3 p-2 border rounded competence-item">
-                                        <strong>{{ competence.nom }}</strong><br>
-                                        {% for evaluation in evaluations %}
-                                            {% if evaluation.competence == competence %}
-                                                <span class="badge bg-primary">{{ evaluation.note }}/5</span>
-                                                {% if evaluation.commentaire %}<br><small>{{ evaluation.commentaire }}</small>{% endif %}
-                                            {% endif %}
+                                        <strong>{{ comp.competence.nom }}</strong><br>
+                                        {% for exo in comp.exercices %}
+                                            <span class="ms-2"><i class="fas fa-dumbbell"></i> {{ exo.exercice.nom }}</span>
+                                            <span class="ms-1">
+                                                {% if exo.note %}
+                                                    {% for i in range3 %}
+                                                        <span class="star{% if i <= exo.note %} filled{% endif %}">&#9733;</span>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <span class="badge bg-secondary ms-1">Non évalué</span>
+                                                {% endif %}
+                                            </span>
+                                            {% if exo.commentaire %}<br><small>{{ exo.commentaire }}</small>{% endif %}
+                                            <br>
                                         {% endfor %}
                                     </div>
                                 {% endfor %}

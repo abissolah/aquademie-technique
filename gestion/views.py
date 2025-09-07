@@ -34,6 +34,8 @@ from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Eva
 from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm, ExerciceForm
 from .utils import envoyer_lien_evaluation, envoyer_lien_evaluation_avec_cc
 from .models import PalanqueeEleve
+from gestion.models import EvaluationExercice, GroupeCompetence, Competence, Exercice, Adherent
+from django.contrib.admin.views.decorators import staff_member_required
 
 # Vues d'accueil et de navigation
 @login_required
@@ -105,6 +107,15 @@ class AdherentDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['today'] = timezone.now().date()
+        # Ajout : séances où l'adhérent est inscrit
+        from .models import InscriptionSeance
+        seances_inscrit = (
+            InscriptionSeance.objects
+            .filter(personne=self.object)
+            .select_related('seance')
+            .order_by('-seance__date')
+        )
+        context['seances_inscrit'] = [ins.seance for ins in seances_inscrit]
         return context
 
 class AdherentCreateView(LoginRequiredMixin, CreateView):
@@ -810,9 +821,13 @@ class LieuDeleteView(LoginRequiredMixin, DeleteView):
 @login_required
 def generer_lien_inscription_seance(request, seance_id):
     seance = get_object_or_404(Seance, pk=seance_id)
-    today = timezone.now().date()
-    days_until_next_wed = (2 - today.weekday() + 7) % 7 + 7  # 2 = mercredi
-    expiration = timezone.make_aware(datetime.combine(today + timedelta(days=days_until_next_wed), datetime.min.time()))
+    # Calcul du mercredi précédent la date de la séance
+    seance_date = seance.date
+    weekday = seance_date.weekday()  # 0=lundi, 2=mercredi
+    days_since_wed = (weekday - 2) % 7
+    expiration_date = seance_date - timedelta(days=days_since_wed)
+    # Heure d'expiration : 23:59
+    expiration = timezone.make_aware(datetime.combine(expiration_date, datetime.max.time().replace(hour=23, minute=59, second=0, microsecond=0)))
     lien, created = LienInscriptionSeance.objects.update_or_create(
         seance=seance,
         defaults={'date_expiration': expiration}
@@ -903,17 +918,23 @@ def api_inscrire_non_membre(request):
     prenom = request.POST.get('prenom', '').strip()
     non_membre = Adherent.objects.filter(type_personne='non_adherent', nom__iexact=nom, prenom__iexact=prenom).first()
     from .models import InscriptionSeance
+    debug_msgs = []
+    debug_msgs.append(f"POST: {dict(request.POST)}")
     if non_membre and InscriptionSeance.objects.filter(seance=seance, personne=non_membre).exists():
-        return JsonResponse({'success': False, 'message': 'Vous êtes déjà inscrit à cette séance.'})
+        debug_msgs.append("Déjà inscrit")
+        return JsonResponse({'success': False, 'message': 'Vous êtes déjà inscrit à cette séance.', 'debug': debug_msgs})
     if non_membre:
         form = NonAdherentInscriptionForm(request.POST, request.FILES, instance=non_membre)
+        debug_msgs.append("Form instance existant")
     else:
         form = NonAdherentInscriptionForm(request.POST, request.FILES)
+        debug_msgs.append("Form nouvelle instance")
     if form.is_valid():
         personne = form.save(commit=False)
         personne.type_personne = 'non_adherent'
         personne.save()
         form.save_m2m()
+        debug_msgs.append(f"Formulaire valide, personne id={personne.id}")
         # Inscription à la séance
         covoiturage = request.POST.get('covoiturage', '')
         lieu_covoiturage = request.POST.get('lieu_covoiturage', '')
@@ -924,21 +945,30 @@ def api_inscrire_non_membre(request):
                 covoiturage=covoiturage,
                 lieu_covoiturage=lieu_covoiturage
             )
+            debug_msgs.append("Inscription créée")
         else:
             inscription = InscriptionSeance.objects.filter(seance=seance, personne=personne).first()
             inscription.covoiturage = covoiturage
             inscription.lieu_covoiturage = lieu_covoiturage
             inscription.save()
+            debug_msgs.append("Inscription mise à jour")
         # Envoi mail confirmation
         if personne.email:
             subject = f"Confirmation d'inscription à la séance du {seance.date.strftime('%d/%m/%Y')}"
             url = request.build_absolute_uri(f"/inscription/{lien.uuid}/")
             message = render_to_string('gestion/email_confirmation_inscription.txt', {'seance': seance, 'personne': personne, 'url': url})
             cc_emails = getattr(settings, 'EMAIL_CC_DEFAULT', [])
-            send_mail(subject, message, None, [personne.email], cc=cc_emails, fail_silently=True)
-        return JsonResponse({'success': True, 'message': 'Inscription réussie ! Un email de confirmation vous a été envoyé.'})
+            if cc_emails:
+                from django.core.mail import EmailMessage
+                email = EmailMessage(subject, message, None, [personne.email], cc=cc_emails)
+                email.send(fail_silently=True)
+            else:
+                send_mail(subject, message, None, [personne.email], fail_silently=True)
+            debug_msgs.append("Mail envoyé")
+        return JsonResponse({'success': True, 'message': 'Inscription réussie ! Un email de confirmation vous a été envoyé.', 'debug': debug_msgs})
     else:
-        return JsonResponse({'success': False, 'message': 'Erreur : ' + str(form.errors)})
+        debug_msgs.append(f"Form errors: {form.errors}")
+        return JsonResponse({'success': False, 'message': 'Erreur : ' + str(form.errors), 'debug': debug_msgs})
 
 @login_required
 def supprimer_inscription_seance(request, inscription_id):
@@ -1398,4 +1428,47 @@ def generer_fiche_securite_excel(request, seance_id):
     response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename="fiche_securite_seance_{seance.id}.xlsx"'
     return response
+
+@staff_member_required
+def suivi_formation_eleve(request, eleve_id):
+    eleve = get_object_or_404(Adherent, pk=eleve_id)
+    # Récupérer toutes les sections de l'élève
+    sections = eleve.sections.all()
+    # Récupérer tous les groupes de compétences de ses sections
+    groupes = GroupeCompetence.objects.filter(section__in=sections).prefetch_related('competences__exercices')
+    # Récupérer toutes les évaluations exercices de l'élève
+    evals = EvaluationExercice.objects.filter(eleve=eleve)
+    evals_dict = {(e.exercice_id): e for e in evals}
+    progression = []
+    for groupe in groupes:
+        groupe_data = {'groupe': groupe, 'competences': [], 'etoile_groupe': True}
+        for comp in groupe.competences.all():
+            comp_data = {'competence': comp, 'exercices': [], 'etoile_competence': True}
+            for ex in comp.exercices.all():
+                eval_ex = evals_dict.get(ex.id)
+                etoiles = eval_ex.note if eval_ex else 0
+                commentaire = eval_ex.commentaire if eval_ex else ''
+                comp_data['exercices'].append({'exercice': ex, 'etoiles': etoiles, 'commentaire': commentaire})
+                if etoiles < 3:
+                    comp_data['etoile_competence'] = False
+            groupe_data['competences'].append(comp_data)
+            if not comp_data['etoile_competence']:
+                groupe_data['etoile_groupe'] = False
+        progression.append(groupe_data)
+    # Résumé
+    nb_groupes = len(progression)
+    nb_groupes_valides = sum(1 for g in progression if g['etoile_groupe'])
+    nb_competences = sum(len(g['competences']) for g in progression)
+    nb_competences_valides = sum(1 for g in progression for c in g['competences'] if c['etoile_competence'])
+    context = {
+        'eleve': eleve,
+        'progression': progression,
+        'nb_groupes': nb_groupes,
+        'nb_groupes_valides': nb_groupes_valides,
+        'nb_competences': nb_competences,
+        'nb_competences_valides': nb_competences_valides,
+        'evals': evals,  # debug
+        'range3': [1, 2, 3],
+    }
+    return render(request, 'gestion/suivi_formation_eleve.html', context)
 

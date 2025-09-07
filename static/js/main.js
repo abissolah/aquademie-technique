@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Amélioration des évaluations par étoiles
-    const starRatings = document.querySelectorAll('.star-rating');
+    /*const starRatings = document.querySelectorAll('.star-rating');
     starRatings.forEach(rating => {
         const stars = rating.querySelectorAll('input[type="radio"]');
         const labels = rating.querySelectorAll('label');
@@ -63,6 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
         stars.forEach((star, index) => {
             star.addEventListener('change', function() {
                 // Mettre à jour l'affichage des étoiles
+                
                 labels.forEach((label, labelIndex) => {
                     if (labelIndex < stars.length - 1 - this.value) {
                         label.style.color = '#ffc107';
@@ -73,7 +74,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
-
+*/
     // Confirmation de suppression
     const deleteButtons = document.querySelectorAll('.btn-danger');
     deleteButtons.forEach(button => {

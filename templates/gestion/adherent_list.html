@@ -199,7 +199,7 @@
                         <th>Téléphone</th>
                         <th>Niveau</th>
                         <th>Statut</th>
-                        <th>Validité CACI</th>
+                        <th>Date de délivrance du CACI</th>
                         <th>Fichier CACI</th>
                         <th>Actions</th>
                     </tr>
@@ -235,9 +235,9 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if adherent.date_fin_validite_caci %}
-                                <span class="{% if adherent.date_fin_validite_caci < today %}text-danger{% endif %}">
-                                    {{ adherent.date_fin_validite_caci|date:"d/m/Y" }}
+                                {% if adherent.date_delivrance_caci %}
+                                <span>
+                                    {{ adherent.date_delivrance_caci|date:"d/m/Y" }}
                                 </span>
                                 {% endif %}
                             </td>

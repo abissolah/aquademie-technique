@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Suivi de formation - {{ eleve.nom_complet }}{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4"><i class="fas fa-user-graduate me-2"></i>Suivi de formation de {{ eleve.nom_complet }}</h1>
+    <div class="mb-3">
+        <span class="badge bg-primary">{{ nb_groupes_valides }}/{{ nb_groupes }} groupes validés</span>
+        <span class="badge bg-success">{{ nb_competences_valides }}/{{ nb_competences }} compétences validées</span>
+    </div>
+    {% for g in progression %}
+    <div class="card mb-4">
+        <div class="card-header d-flex align-items-center">
+            <h5 class="mb-0 me-3">{{ g.groupe.intitule }}</h5>
+            {% if g.etoile_groupe %}
+                <span class="badge bg-warning text-dark"><i class="fas fa-star"></i> Groupe validé</span>
+            {% else %}
+                <span class="badge bg-secondary"><i class="far fa-star"></i> Groupe en cours</span>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% for c in g.competences %}
+            <div class="mb-3">
+                <h6 class="mb-1">{{ c.competence.nom }}
+                    {% if c.etoile_competence %}
+                        <span class="badge bg-warning text-dark"><i class="fas fa-star"></i> Compétence validée</span>
+                    {% else %}
+                        <span class="badge bg-secondary"><i class="far fa-star"></i> En cours</span>
+                    {% endif %}
+                </h6>
+                <div class="row">
+                    {% for e in c.exercices %}
+                    <div class="col-md-6 mb-2">
+                        <div class="border rounded p-2">
+                            <strong>{{ e.exercice.nom }}</strong>
+                            <span class="ms-2">
+                                {% for i in range3 %}
+                                    {% if i <= e.etoiles %}
+                                        <i class="fas fa-star text-warning"></i>
+                                    {% else %}
+                                        <i class="far fa-star text-muted"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </span>
+                            {% if e.commentaire %}
+                                <div class="small text-muted mt-1"><i class="fas fa-comment-dots"></i> {{ e.commentaire }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+    <a href="{% url 'adherent_detail' eleve.pk %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-2"></i>Retour à la fiche élève</a>
+</div>
+{% endblock %}

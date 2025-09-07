@@ -114,66 +114,32 @@
                 </h5>
             </div>
             <div class="card-body">
-                {% if adherent.statut == 'encadrant' %}
-                <!-- Séances encadrées -->
-                <h6>Séances encadrées ({{ adherent.seances_encadrees.count }})</h6>
-                {% if adherent.seances_encadrees.all %}
+                {% if seances_inscrit %}
+                <h6>Séances auxquelles cet adhérent est inscrit ({{ seances_inscrit|length }})</h6>
                 <div class="table-responsive">
                     <table class="table table-sm">
                         <thead>
                             <tr>
                                 <th>Date</th>
-                                <th>Palanquée</th>
-                                <th>Section</th>
-                                <th>Élèves</th>
+                                <th>Lieu</th>
+                                <th>Heure début</th>
+                                <th>Heure fin</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for seance in adherent.seances_encadrees.all %}
+                            {% for seance in seances_inscrit %}
                             <tr>
                                 <td>{{ seance.date|date:"d/m/Y" }}</td>
-                                <td>{{ seance.palanquee }}</td>
-                                <td><span class="badge bg-secondary">{{ seance.section.get_nom_display }}</span></td>
-                                <td>{{ seance.eleves.count }} élève{{ seance.eleves.count|pluralize }}</td>
+                                <td>{{ seance.lieu }}</td>
+                                <td>{{ seance.heure_debut|default_if_none:"-" }}</td>
+                                <td>{{ seance.heure_fin|default_if_none:"-" }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
                 {% else %}
-                <p class="text-muted">Aucune séance encadrée.</p>
-                {% endif %}
-                {% endif %}
-
-                {% if adherent.statut == 'eleve' %}
-                <!-- Séances suivies -->
-                <h6>Séances suivies ({{ adherent.seances_suivies.count }})</h6>
-                {% if adherent.seances_suivies.all %}
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Palanquée</th>
-                                <th>Section</th>
-                                <th>Encadrant</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for seance in adherent.seances_suivies.all %}
-                            <tr>
-                                <td>{{ seance.date|date:"d/m/Y" }}</td>
-                                <td>{{ seance.palanquee }}</td>
-                                <td><span class="badge bg-secondary">{{ seance.section.get_nom_display }}</span></td>
-                                <td>{{ seance.encadrant.nom_complet }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <p class="text-muted">Aucune séance suivie.</p>
-                {% endif %}
+                <p class="text-muted">Aucune séance à laquelle cet adhérent est inscrit.</p>
                 {% endif %}
             </div>
         </div>
@@ -227,10 +193,11 @@
                         <i class="fas fa-edit me-2"></i>Modifier l'adhérent
                     </a>
                     {% if adherent.statut == 'eleve' %}
-                    <a href="{% url 'seance_create' %}" class="btn btn-outline-primary">
-                        <i class="fas fa-plus me-2"></i>Créer une séance avec cet élève
+                    <a href="{% url 'suivi_formation_eleve' adherent.pk %}" class="btn btn-outline-info">
+                        <i class="fas fa-chart-line me-2"></i>Suivi de formation
                     </a>
                     {% endif %}
+                    <!-- Bouton "Créer une séance avec cet élève" retiré -->
                     {% if adherent.statut == 'encadrant' %}
                     <a href="{% url 'seance_create' %}" class="btn btn-outline-success">
                         <i class="fas fa-plus me-2"></i>Créer une séance avec cet encadrant

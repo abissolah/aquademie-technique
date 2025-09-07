@@ -101,57 +101,32 @@ class SeanceForm(forms.ModelForm):
         self.fields['directeur_plongee'].label_from_instance = lambda obj: f"{obj.nom_complet} ({obj.get_niveau_display()})"
 
 class PalanqueeForm(forms.ModelForm):
+    exercices_prevus = forms.ModelMultipleChoiceField(
+        queryset=Exercice.objects.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label="Exercices à réaliser (groupés par compétence)"
+    )
+
     class Meta:
         model = Palanquee
-        fields = ['nom', 'seance', 'section', 'encadrant', 'competences', 'precision_exercices', 'duree', 'profondeur_max']
+        fields = ['nom', 'seance', 'section', 'encadrant', 'exercices_prevus', 'precision_exercices', 'duree', 'profondeur_max']
         widgets = {
             'nom': forms.TextInput(attrs={'placeholder': 'Nom de la palanquée'}),
             'precision_exercices': forms.Textarea(attrs={'rows': 5}),
         }
     
     def __init__(self, *args, **kwargs):
-        # Récupérer la séance depuis les paramètres GET ou l'instance
         seance_id = kwargs.pop('seance_id', None)
         super().__init__(*args, **kwargs)
-        
-        # Filtrer les adhérents selon leur statut
         self.fields['encadrant'].queryset = Adherent.objects.filter(statut='encadrant')
-        
-        # Gestion de la séance
+        # Initialiser la séance si passée en paramètre
         if seance_id:
-            # Si une séance est spécifiée, la pré-sélectionner et la rendre en lecture seule
             try:
                 seance = Seance.objects.get(pk=seance_id)
                 self.fields['seance'].initial = seance
-                self.fields['seance'].widget.attrs['readonly'] = True
-                self.fields['seance'].widget.attrs['class'] = 'form-control-plaintext'
-                self.fields['seance'].help_text = f"Séance sélectionnée : {seance.date} - {seance.lieu}"
             except Seance.DoesNotExist:
                 pass
-        elif self.instance and self.instance.pk:
-            # Pour une modification, rendre la séance en lecture seule
-            self.fields['seance'].widget.attrs['readonly'] = True
-            self.fields['seance'].widget.attrs['class'] = 'form-control-plaintext'
-            self.fields['seance'].help_text = f"Séance : {self.instance.seance.date} - {self.instance.seance.lieu}"
-        
-        # Filtrer les compétences selon la section sélectionnée
-        if 'instance' in kwargs and kwargs['instance']:
-            # Pour une modification, utiliser la section de l'instance
-            self.fields['competences'].queryset = Competence.objects.filter(section=kwargs['instance'].section)
-        else:
-            # Pour une création, commencer avec un queryset vide
-            self.fields['competences'].queryset = Competence.objects.none()
-        
-        # Si des données POST sont fournies, mettre à jour le queryset des compétences
-        if 'data' in kwargs and kwargs['data']:
-            section_id = kwargs['data'].get('section')
-            if section_id:
-                try:
-                    section = Section.objects.get(id=section_id)
-                    self.fields['competences'].queryset = Competence.objects.filter(section=section)
-                except Section.DoesNotExist:
-                    self.fields['competences'].queryset = Competence.objects.none()
-
         # Pré-remplir le nom pour une création
         if not self.instance.pk:
             seance = None
@@ -168,6 +143,26 @@ class PalanqueeForm(forms.ModelForm):
             if seance:
                 count = seance.palanques.count()
                 self.fields['nom'].initial = f"P{count+1}"
+        # Exercices groupés par compétence selon la section
+        section = None
+        if 'section' in self.data:
+            try:
+                section = Section.objects.get(pk=self.data['section'])
+            except Section.DoesNotExist:
+                pass
+        elif self.instance and self.instance.pk:
+            section = self.instance.section
+        if section:
+            competences = Competence.objects.filter(section=section).prefetch_related('exercices')
+            exercices_ids = set()
+            for comp in competences:
+                exercices_ids.update(comp.exercices.values_list('id', flat=True))
+            self.fields['exercices_prevus'].queryset = Exercice.objects.filter(id__in=exercices_ids)
+            # Pour le template : fournir la structure groupée par compétence
+            self.competence_exercices = [(comp, comp.exercices.all()) for comp in competences]
+        else:
+            self.fields['exercices_prevus'].queryset = Exercice.objects.none()
+            self.competence_exercices = []
 
 class EvaluationForm(forms.ModelForm):
     class Meta:
@@ -196,6 +191,27 @@ class EvaluationBulkForm(forms.Form):
                 
                 # Champ commentaire optionnel
                 comment_field_name = f"comment_{eleve.id}_{competence.id}"
+                self.fields[comment_field_name] = forms.CharField(
+                    widget=forms.Textarea(attrs={'rows': 2, 'placeholder': 'Commentaire...'}),
+                    required=False,
+                    label=""
+                )
+
+class EvaluationExerciceBulkForm(forms.Form):
+    def __init__(self, palanquee, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.palanquee = palanquee
+        # Pour chaque élève et exercice prévu, créer un champ note (1-3 étoiles) et un champ commentaire
+        for eleve in palanquee.eleves.all():
+            for exercice in palanquee.exercices_prevus.all():
+                field_name = f"eval_{eleve.id}_{exercice.id}"
+                self.fields[field_name] = forms.ChoiceField(
+                    choices=[(1, '1 étoile'), (2, '2 étoiles'), (3, '3 étoiles')],
+                    label=f"{eleve.nom_complet} - {exercice.nom}",
+                    required=False,
+                    widget=forms.RadioSelect
+                )
+                comment_field_name = f"comment_{eleve.id}_{exercice.id}"
                 self.fields[comment_field_name] = forms.CharField(
                     widget=forms.Textarea(attrs={'rows': 2, 'placeholder': 'Commentaire...'}),
                     required=False,

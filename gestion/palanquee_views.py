@@ -12,8 +12,8 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 
-from .models import Palanquee, Evaluation, LienEvaluation
-from .forms import PalanqueeForm, EvaluationBulkForm
+from .models import Palanquee, Evaluation, LienEvaluation, EvaluationExercice
+from .forms import PalanqueeForm, EvaluationBulkForm, EvaluationExerciceBulkForm
 
 # Vues pour les palanquées
 class PalanqueeListView(LoginRequiredMixin, ListView):
@@ -71,31 +71,40 @@ class PalanqueeCreateView(LoginRequiredMixin, CreateView):
     model = Palanquee
     form_class = PalanqueeForm
     template_name = 'gestion/palanquee_form.html'
-    success_url = reverse_lazy('palanquee_list')
-    
+    # success_url = reverse_lazy('palanquee_list')  # On ne l'utilise plus
+
+    def get_initial(self):
+        initial = super().get_initial()
+        seance_id = self.request.GET.get('seance')
+        if seance_id:
+            initial['seance'] = seance_id
+        return initial
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        # Récupérer l'ID de la séance depuis les paramètres GET
         seance_id = self.request.GET.get('seance')
         if seance_id:
             kwargs['seance_id'] = seance_id
         return kwargs
-    
+
     def form_valid(self, form):
-        # Mettre à jour le queryset des compétences avant la validation
+        # Forcer la séance même si le champ est hidden
+        seance_id = self.request.GET.get('seance') or self.request.POST.get('seance')
+        if seance_id:
+            form.instance.seance_id = seance_id
         section = form.cleaned_data.get('section')
         if section:
             form.fields['competences'].queryset = form.fields['competences'].queryset.filter(section=section)
         response = super().form_valid(form)
         messages.success(self.request, 'Palanquée créée avec succès.')
         return response
-    
+
     def get_success_url(self):
-        # Rediriger vers la séance si elle était spécifiée
-        seance_id = self.request.GET.get('seance')
+        seance_id = self.request.GET.get('seance') or self.request.POST.get('seance')
         if seance_id:
-            return reverse_lazy('seance_update', kwargs={'pk': seance_id})
-        return super().get_success_url()
+            from django.urls import reverse
+            return reverse('seance_detail', kwargs={'pk': seance_id})
+        return reverse_lazy('palanquee_list')
 
 class PalanqueeUpdateView(LoginRequiredMixin, UpdateView):
     model = Palanquee
@@ -187,20 +196,37 @@ def palanquee_evaluation(request, pk):
 
 @login_required
 def palanquee_evaluation_view(request, pk):
-    """Voir les évaluations d'une palanquée"""
+    """Voir les évaluations d'une palanquée (par exercice, groupé par compétence)"""
     palanquee = get_object_or_404(Palanquee, pk=pk)
-    evaluations = Evaluation.objects.filter(palanquee=palanquee).select_related('eleve', 'competence')
-    
-    # Organiser les évaluations par élève (liste d'évaluations)
-    evaluations_par_eleve = {}
-    for evaluation in evaluations:
-        if evaluation.eleve not in evaluations_par_eleve:
-            evaluations_par_eleve[evaluation.eleve] = []
-        evaluations_par_eleve[evaluation.eleve].append(evaluation)
-    
+    eleves = palanquee.eleves.all()
+    exercices_prevus = palanquee.exercices_prevus.select_related().all()
+    # On regroupe les exercices par compétence
+    from collections import defaultdict
+    exercices_par_competence = defaultdict(list)
+    for exercice in exercices_prevus:
+        for comp in exercice.competences.all():
+            exercices_par_competence[comp].append(exercice)
+    # On prépare la structure : {eleve: {competence: [ {exercice, note, commentaire} ] } }
+    evaluations = EvaluationExercice.objects.filter(palanquee=palanquee)
+    eval_dict = {(e.eleve_id, e.exercice_id): e for e in evaluations}
+    data = []
+    for eleve in eleves:
+        comp_list = []
+        for comp, exos in exercices_par_competence.items():
+            exo_list = []
+            for exo in exos:
+                eval_ex = eval_dict.get((eleve.id, exo.id))
+                exo_list.append({
+                    'exercice': exo,
+                    'note': eval_ex.note if eval_ex else None,
+                    'commentaire': eval_ex.commentaire if eval_ex else '',
+                })
+            comp_list.append({'competence': comp, 'exercices': exo_list})
+        data.append({'eleve': eleve, 'competences': comp_list})
     context = {
         'palanquee': palanquee,
-        'evaluations_par_eleve': evaluations_par_eleve,
+        'eleves_data': data,
+        'range3': [1, 2, 3],
     }
     return render(request, 'gestion/palanquee_evaluation_view.html', context)
 
@@ -229,71 +255,78 @@ def generer_lien_evaluation(request, pk):
     return redirect('palanquee_detail', pk=pk)
 
 def evaluation_publique(request, token):
-    """Page d'évaluation publique accessible sans connexion"""
+    """Page d'évaluation publique accessible sans connexion (par exercice)"""
     lien = get_object_or_404(LienEvaluation, token=token, est_valide=True)
-    
     if timezone.now() > lien.date_expiration:
         messages.error(request, 'Ce lien d\'évaluation a expiré.')
         return render(request, 'gestion/evaluation_expiree.html')
-    
     palanquee = lien.palanquee
-    
     if request.method == 'POST':
-        form = EvaluationBulkForm(palanquee, request.POST)
+        form = EvaluationExerciceBulkForm(palanquee, request.POST)
         if form.is_valid():
-            # Sauvegarder les évaluations
             evaluations_sauvegardees = 0
-            total_evaluations_attendues = palanquee.eleves.count() * palanquee.competences.count()
-            
+            total_evaluations_attendues = palanquee.eleves.count() * palanquee.exercices_prevus.count()
+            encadrant = palanquee.encadrant
             for eleve in palanquee.eleves.all():
-                for competence in palanquee.competences.all():
-                    note = form.cleaned_data.get(f'eval_{eleve.id}_{competence.id}')
-                    commentaire = form.cleaned_data.get(f'comment_{eleve.id}_{competence.id}')
-                    
-                    if note is not None:
-                        evaluation, created = Evaluation.objects.get_or_create(
-                            palanquee=palanquee,
+                for exercice in palanquee.exercices_prevus.all():
+                    note = form.cleaned_data.get(f'eval_{eleve.id}_{exercice.id}')
+                    commentaire = form.cleaned_data.get(f'comment_{eleve.id}_{exercice.id}')
+                    if note:
+                        eval_obj, created = EvaluationExercice.objects.get_or_create(
                             eleve=eleve,
-                            competence=competence,
-                            defaults={'note': note, 'commentaire': commentaire}
+                            exercice=exercice,
+                            defaults={'palanquee': palanquee, 'encadrant': encadrant, 'note': note, 'commentaire': commentaire}
                         )
                         if not created:
-                            evaluation.note = note
-                            evaluation.commentaire = commentaire
-                            evaluation.save()
+                            # On garde la meilleure note
+                            eval_obj.note = max(int(note), eval_obj.note)
+                            eval_obj.commentaire = commentaire
+                            eval_obj.palanquee = palanquee
+                            eval_obj.encadrant = encadrant
+                            eval_obj.save()
                         evaluations_sauvegardees += 1
-            
-            # Vérifier si toutes les évaluations ont été soumises
             if evaluations_sauvegardees == total_evaluations_attendues:
-                # Toutes les évaluations sont complètes, marquer le lien comme utilisé
                 lien.est_valide = False
                 lien.save()
                 messages.success(request, 'Toutes les évaluations ont été soumises avec succès. Le lien d\'évaluation est maintenant fermé.')
                 return render(request, 'gestion/evaluation_soumise.html')
             else:
-                # Évaluations partielles, garder le lien actif
-                messages.success(request, f'{evaluations_sauvegardees}/{total_evaluations_attendues} évaluations sauvegardées. Vous pouvez continuer à évaluer les compétences restantes.')
+                messages.success(request, f'{evaluations_sauvegardees}/{total_evaluations_attendues} évaluations sauvegardées. Vous pouvez continuer à évaluer les exercices restants.')
                 return redirect('evaluation_publique', token=token)
     else:
-        form = EvaluationBulkForm(palanquee)
-    
-    # Charger les évaluations existantes pour pré-remplir le formulaire
+        form = EvaluationExerciceBulkForm(palanquee)
+    # Pré-remplir avec les évaluations existantes
     evaluations_existantes = {}
-    for evaluation in Evaluation.objects.filter(palanquee=palanquee):
-        key = f'eval_{evaluation.eleve.id}_{evaluation.competence.id}'
+    for evaluation in EvaluationExercice.objects.filter(palanquee=palanquee):
+        key = f'eval_{evaluation.eleve.id}_{evaluation.exercice.id}'
         evaluations_existantes[key] = evaluation.note
-        
-        key_comment = f'comment_{evaluation.eleve.id}_{evaluation.competence.id}'
+        key_comment = f'comment_{evaluation.eleve.id}_{evaluation.exercice.id}'
         evaluations_existantes[key_comment] = evaluation.commentaire
-    
-    # Pré-remplir le formulaire avec les données existantes
     if evaluations_existantes:
-        form = EvaluationBulkForm(palanquee, initial=evaluations_existantes)
-    
+        form = EvaluationExerciceBulkForm(palanquee, initial=evaluations_existantes)
+    # Préparer la structure eleves_exercices pour le template
+    eleves_exercices = []
+    for eleve in palanquee.eleves.all():
+        exos = []
+        for exercice in palanquee.exercices_prevus.all():
+            field_name = f"eval_{eleve.id}_{exercice.id}"
+            comment_field = f"comment_{eleve.id}_{exercice.id}"
+            value = form.initial.get(field_name, '')
+            exos.append({
+                'exercice': exercice,
+                'field_name': field_name,
+                'comment_field': form[comment_field],
+                'value': value,
+            })
+        eleves_exercices.append({
+            'eleve': eleve,
+            'exercices': exos,
+        })
     context = {
         'palanquee': palanquee,
         'form': form,
         'token': token,
+        'eleves_exercices': eleves_exercices,
     }
     return render(request, 'gestion/evaluation_publique.html', context)
 

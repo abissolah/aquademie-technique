@@ -30,6 +30,7 @@ urlpatterns = [
     
     # Élèves
     path('eleves/', views.EleveListView.as_view(), name='eleve_list'),
+    path('eleves/<int:eleve_id>/suivi-formation/', views.suivi_formation_eleve, name='suivi_formation_eleve'),
     
     # Encadrants
     path('encadrants/', views.EncadrantListView.as_view(), name='encadrant_list'),

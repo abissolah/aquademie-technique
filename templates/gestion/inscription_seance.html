@@ -35,7 +35,8 @@
                         <h5 class="mb-0">Formulaire d'inscription pour les non-adhérents</h5>
                     </div>
                     <div class="card-body">
-                        <form id="form-non-adherent" enctype="multipart/form-data">
+                        <form id="form-non-adherent" method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
                             <div class="mb-3">
                                 <label class="form-label">Type d'inscription :</label>
                                 <div>
@@ -357,19 +358,43 @@
     // Validation JS à la soumission
     const formNonAdhérent = document.getElementById('form-non-adherent');
     formNonAdhérent.onsubmit = function(e) {
+        e.preventDefault();
         const type = document.querySelector('input[name="type_non_adherent"]:checked');
         if (!type) {
             alert('Merci de sélectionner votre type d\'inscription.');
-            e.preventDefault();
             return false;
         }
         if (type.value === 'plongeur') {
             if (!document.getElementById('nm-date-delivrance-caci').value || !document.getElementById('nm-caci-fichier').value) {
                 alert('Merci de renseigner la date de délivrance et le fichier CACI.');
-                e.preventDefault();
                 return false;
             }
         }
+        // Soumission AJAX
+        const formData = new FormData(formNonAdhérent);
+        formData.append('uuid', "{{ lien.uuid }}");
+        fetch('/api/inscrire-non-membre/', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            const resultDiv = document.getElementById('result-non-adherent');
+            if (data.success) {
+                resultDiv.innerHTML = '<div class="alert alert-success">' + data.message + '</div>';
+                formNonAdhérent.querySelector('button[type="submit"]').disabled = true;
+                setTimeout(function() { window.location.reload(); }, 5000);
+            } else {
+                resultDiv.innerHTML = '<div class="alert alert-danger">' + data.message + '</div>';
+                if (data.debug) {
+                    resultDiv.innerHTML += '<pre class="text-start small">' + JSON.stringify(data.debug, null, 2) + '</pre>';
+                }
+            }
+        })
+        .catch(() => {
+            document.getElementById('result-non-adherent').innerHTML = '<div class="alert alert-danger">Erreur lors de l\'inscription.</div>';
+        });
+        return false;
     };
 </script>
 {% endblock %}

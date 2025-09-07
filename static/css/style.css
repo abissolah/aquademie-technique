@@ -191,11 +191,7 @@ body {
     transition: color 0.2s ease;
 }
 
-.star-rating label:hover,
-.star-rating label:hover ~ label,
-.star-rating input:checked ~ label {
-    color: var(--warning-color);
-}
+
 
 /* Responsive design */
 @media (max-width: 768px) {

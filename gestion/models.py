@@ -195,6 +195,7 @@ class Palanquee(models.Model):
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)
     eleves = models.ManyToManyField(Adherent, through='PalanqueeEleve', related_name='palanques_suivies', limit_choices_to={'statut': 'eleve'})
+    exercices_prevus = models.ManyToManyField('Exercice', related_name='palanquees_prevues', blank=True, verbose_name="Exercices prévus")
     
     class Meta:
         verbose_name = "Palanquée"
@@ -268,3 +269,20 @@ class PalanqueeEleve(models.Model):
     aptitude = models.TextField(blank=True)
     class Meta:
         unique_together = ('palanquee', 'eleve')
+
+class EvaluationExercice(models.Model):
+    palanquee = models.ForeignKey(Palanquee, on_delete=models.CASCADE, related_name='evaluations_exercices')
+    eleve = models.ForeignKey(Adherent, on_delete=models.CASCADE, related_name='evaluations_exercices_recues', limit_choices_to={'statut': 'eleve'})
+    exercice = models.ForeignKey(Exercice, on_delete=models.CASCADE, related_name='evaluations')
+    encadrant = models.ForeignKey(Adherent, on_delete=models.CASCADE, related_name='evaluations_exercices_donnees', limit_choices_to={'statut': 'encadrant'})
+    note = models.IntegerField(choices=[(1, 'Non maîtrisé'), (2, 'En cours d’acquisition'), (3, 'Maîtrisé')])
+    commentaire = models.TextField(blank=True)
+    date_evaluation = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Évaluation exercice"
+        verbose_name_plural = "Évaluations exercices"
+        unique_together = ['eleve', 'exercice']
+    
+    def __str__(self):
+        return f"{self.eleve.nom_complet} - {self.exercice.nom} : {self.note} étoiles"
