@@ -958,12 +958,18 @@ def api_inscrire_non_membre(request):
             url = request.build_absolute_uri(f"/inscription/{lien.uuid}/")
             message = render_to_string('gestion/email_confirmation_inscription.txt', {'seance': seance, 'personne': personne, 'url': url})
             cc_emails = getattr(settings, 'EMAIL_CC_DEFAULT', [])
-            if cc_emails:
-                from django.core.mail import EmailMessage
-                email = EmailMessage(subject, message, None, [personne.email], cc=cc_emails)
-                email.send(fail_silently=True)
-            else:
-                send_mail(subject, message, None, [personne.email], fail_silently=True)
+            try:
+                if cc_emails:
+                    from django.core.mail import EmailMessage
+                    email = EmailMessage(subject, message, None, [personne.email], cc=cc_emails)
+                    email.send(fail_silently=False)
+                else:
+                    send_mail(subject, message, None, [personne.email], fail_silently=False)
+                debug_msgs.append("Mail envoyé avec succès")
+                print(f"[INSCRIPTION] Mail envoyé à {personne.email}")
+            except Exception as e:
+                debug_msgs.append(f"Erreur lors de l'envoi du mail : {e}")
+                print(f"[INSCRIPTION] Erreur envoi mail : {e}")
             debug_msgs.append("Mail envoyé")
         return JsonResponse({'success': True, 'message': 'Inscription réussie ! Un email de confirmation vous a été envoyé.', 'debug': debug_msgs})
     else:

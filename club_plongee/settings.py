@@ -145,12 +145,13 @@ LOGOUT_REDIRECT_URL = '/login/'
 
 # Configuration Email
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'  # À configurer selon votre fournisseur
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'ab.issolah@gmail.com'  # À configurer
-EMAIL_HOST_PASSWORD = 'oanc zszb gxhf icqy'  # À configurer
-DEFAULT_FROM_EMAIL = 'Aquadémie Paris Plongée <ab.issolah@gmail.com>'
+EMAIL_HOST = 'ssl0.ovh.net' #'smtp.gmail.com'  # À configurer selon votre fournisseur
+EMAIL_PORT = 465#587
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = True
+EMAIL_HOST_USER = 'contact@app-suivitech.fr' #'ab.issolah@gmail.com'  # À configurer
+EMAIL_HOST_PASSWORD = 'az9^e5Wzox'  # À configurer
+DEFAULT_FROM_EMAIL = 'Aquadémie Paris Plongée <contact@app-suivitech.fr>'
 
 # Adresses en copie par défaut
 EMAIL_CC_DEFAULT = [
