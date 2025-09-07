@@ -59,6 +59,9 @@
                                 <th>Email</th>
                                 <th>Téléphone</th>
                                 <th>Niveau</th>
+                                <th>Statut</th>
+                                <th>Date de délivrance du CACI</th>
+                                <th>Fichier CACI</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -96,6 +99,21 @@
                                     <span class="badge bg-info">{{ eleve.get_niveau_display }}</span>
                                 </td>
                                 <td>
+                                    <span class="badge bg-success">Élève</span>
+                                </td>
+                                <td>
+                                    {% if eleve.date_delivrance_caci %}
+                                    <span>{{ eleve.date_delivrance_caci|date:"d/m/Y" }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if eleve.caci_fichier %}
+                                        <a href="{{ eleve.caci_fichier.url }}" target="_blank">Télécharger</a>
+                                    {% else %}
+                                        <span class="text-muted">Aucun fichier</span>
+                                    {% endif %}
+                                </td>
+                                <td>
                                     <div class="btn-group" role="group">
                                         <a href="{% url 'adherent_detail' eleve.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
                                             <i class="fas fa-eye"></i>
@@ -105,6 +123,9 @@
                                         </a>
                                         <a href="{% url 'adherent_delete' eleve.pk %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
                                             <i class="fas fa-trash"></i>
+                                        </a>
+                                        <a href="{% url 'suivi_formation_eleve' eleve.pk %}" class="btn btn-sm btn-outline-success" title="Suivi formation">
+                                            <i class="fas fa-graduation-cap"></i>
                                         </a>
                                     </div>
                                 </td>

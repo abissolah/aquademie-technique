@@ -173,6 +173,11 @@
                                         <a href="{% url 'adherent_delete' adherent.pk %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
                                             <i class="fas fa-trash"></i>
                                         </a>
+                                        {% if adherent.statut == 'eleve' %}
+                                        <a href="{% url 'suivi_formation_eleve' adherent.pk %}" class="btn btn-sm btn-outline-success" title="Suivi formation">
+                                            <i class="fas fa-graduation-cap"></i>
+                                        </a>
+                                        {% endif %}
                                     </div>
                                 </td>
                             </tr>
