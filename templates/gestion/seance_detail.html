@@ -83,10 +83,10 @@
                                             {{ eleve.nom }} {{ eleve.prenom }}{% if not forloop.last %}, {% endif %}
                                         {% endfor %}
                                     {% else %}-{% endif %}<br>
-                                    <strong>Compétences :</strong> 
-                                    {% if palanquee.competences.all %}
-                                        {% for comp in palanquee.competences.all %}
-                                            {{ comp.nom }}{% if not forloop.last %}, {% endif %}
+                                    <strong>Exercices :</strong> 
+                                    {% if palanquee.exercices_prevus.all %}
+                                        {% for ex in palanquee.exercices_prevus.all %}
+                                            {{ ex.nom }}{% if not forloop.last %}, {% endif %}
                                         {% endfor %}
                                     {% else %}-{% endif %}
                                 </p>
@@ -111,6 +111,9 @@
                                     <a href="{% url 'palanquee_delete' palanquee.pk %}" class="btn btn-outline-danger btn-sm">
                                         <i class="fas fa-trash"></i> Supprimer
                                     </a>
+                                    <button type="button" class="btn btn-outline-info btn-sm" onclick="ouvrirDialogDuplication({{ palanquee.id }})">
+                                        <i class="fas fa-copy"></i> Dupliquer les exercices
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -162,11 +165,19 @@
                     {% if seance.inscriptions.count > 0 %}
                     <a href="{% url 'creer_palanquees' seance.pk %}" class="btn btn-success mb-2"><i class="fas fa-users"></i> Créer les palanquées</a>
                     {% endif %}
-                    <a href="{% url 'exporter_covoiturage_seance' seance.pk %}" class="btn btn-outline-success">
-                        <i class="fas fa-car"></i> Exporter covoiturage
+                    <a href="{% url 'envoyer_mail_covoiturage' seance.pk %}" class="btn btn-outline-success">
+                        <i class="fas fa-car"></i> Envoyer mail covoiturage
                     </a>
                     <a href="{% url 'generer_fiche_securite_excel' seance.pk %}" class="btn btn-outline-danger">
                         <i class="fas fa-file-excel"></i> Éditer la fiche de sécurité
+                    </a>
+                    {% if user.is_staff %}
+                    <a href="{% url 'admin_inscription_seance' seance.pk %}" class="btn btn-outline-info">
+                        <i class="fas fa-user-plus"></i> Inscrire un adhérent/non adhérent
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'envoyer_pdf_palanquees_encadrants' seance.pk %}" class="btn btn-outline-info">
+                        <i class="fas fa-file-pdf"></i> Générer et envoyer PDF à tous les encadrants
                     </a>
                 </div>
             </div>
@@ -378,29 +389,76 @@
 
 {% block extra_js %}
 <script>
-function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(function() {
-        // Afficher une notification de succès
-        const toast = document.createElement('div');
-        toast.className = 'position-fixed top-0 end-0 p-3';
-        toast.style.zIndex = '1050';
-        toast.innerHTML = `
-            <div class="toast show" role="alert">
-                <div class="toast-header">
-                    <strong class="me-auto">Succès</strong>
-                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-                </div>
-                <div class="toast-body">
-                    Lien copié dans le presse-papiers !
-                </div>
-            </div>
-        `;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            document.body.removeChild(toast);
-        }, 3000);
+function ouvrirDialogDuplication(sourceId) {
+    const dialog = document.getElementById('dupliquerExercicesDialog');
+    const inputSource = document.getElementById('sourcePalanqueeIdDialog');
+    if (!dialog || !inputSource) {
+        alert("Erreur technique : la boîte de dialogue ou l'input caché n'est pas présent dans le HTML. Vérifiez le placement du <dialog> dans le template.");
+        return;
+    }
+    inputSource.value = sourceId;
+    // Désactive la case de la palanquée source
+    document.querySelectorAll('#palanquees-cibles-list-dialog input[type=checkbox]').forEach(cb => {
+        cb.disabled = (cb.value == sourceId);
+        cb.checked = false;
     });
+    dialog.showModal();
 }
+function fermerDialogDuplication() {
+    document.getElementById('dupliquerExercicesDialog').close();
+}
+document.addEventListener('DOMContentLoaded', function() {
+    const validerBtn = document.getElementById('valider-duplication-exercices-dialog');
+    if (validerBtn) {
+        validerBtn.addEventListener('click', function() {
+            const sourcePalanqueeId = document.getElementById('sourcePalanqueeIdDialog').value;
+            const cibles = Array.from(document.querySelectorAll('#palanquees-cibles-list-dialog input[type=checkbox]:checked')).map(cb => cb.value);
+            if (!sourcePalanqueeId || cibles.length === 0) {
+                alert('Veuillez sélectionner au moins une palanquée cible.');
+                return;
+            }
+            fetch("{% url 'dupliquer_exercices_palanquee' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+                body: JSON.stringify({ source: sourcePalanqueeId, cibles: cibles })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.error || 'Erreur lors de la duplication.');
+                }
+            })
+            .catch(() => alert('Erreur lors de la duplication.'));
+        });
+    }
+});
 </script>
+<dialog id="dupliquerExercicesDialog">
+    <form method="dialog" id="dupliquer-exercices-form-dialog">
+      <h5>Dupliquer les exercices</h5>
+      <input type="hidden" name="source_palanquee_id" id="sourcePalanqueeIdDialog">
+      <div class="mb-3">
+        <label>Sélectionnez les palanquées cibles :</label>
+        <div id="palanquees-cibles-list-dialog">
+          {% for pal in palanquees %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="{{ pal.id }}" id="palanqueeCibleDialog{{ pal.id }}" name="palanquees_cibles">
+              <label class="form-check-label" for="palanqueeCibleDialog{{ pal.id }}">
+                {{ pal.nom }}
+              </label>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      <menu>
+        <button type="button" class="btn btn-secondary me-2" onclick="fermerDialogDuplication()">Annuler</button>
+        <button type="button" class="btn btn-primary" id="valider-duplication-exercices-dialog">Valider</button>
+      </menu>
+    </form>
+  </dialog>
 {% endblock %} 

@@ -7,6 +7,9 @@
     <strong>Directeur de plongée :</strong> {% if seance.directeur_plongee %}{{ seance.directeur_plongee.nom_complet }} ({{ seance.directeur_plongee.get_niveau_display }}){% else %}<span class="text-muted">Non défini</span>{% endif %}</p>
     <form id="form-palanquees" method="post">
         {% csrf_token %}
+        <div class="mb-3">
+            <button type="button" class="btn btn-outline-primary" id="add-autonome-col">Ajouter une palanquée d'autonomes</button>
+        </div>
         <div class="table-responsive">
             <table class="table table-bordered align-middle" id="table-palanquees">
                 <thead>
@@ -25,6 +28,7 @@
                                 </div>
                             </th>
                         {% endfor %}
+                        <!-- Colonnes autonomes dynamiques -->
                     </tr>
                 </thead>
                 <tbody>
@@ -33,12 +37,28 @@
                         <td>{{ eleve.nom }} {{ eleve.prenom }}</td>
                         <td>{{ eleve.get_niveau_display }}</td>
                         <td>{% for s in eleve.sections.all %}<span class="badge bg-info me-1">{{ s.get_nom_display }}</span>{% endfor %}</td>
-                        <td><input type="text" name="aptitude_{{ eleve.id }}" class="form-control form-control-sm"></td>
+                        <td>
+                            <select name="aptitude_{{ eleve.id }}" class="form-select form-select-sm">
+                                <option value="">---</option>
+                                <option value="PE12">PE12</option>
+                                <option value="PE20">PE20</option>
+                                <option value="PA20">PA20</option>
+                                <option value="PE40">PE40</option>
+                                <option value="PA40">PA40</option>
+                                <option value="PA60">PA60</option>
+                                <option value="GP">GP</option>
+                                <option value="E1">E1</option>
+                                <option value="E2">E2</option>
+                                <option value="E3">E3</option>
+                                <option value="E4">E4</option>
+                            </select>
+                        </td>
                         {% for moniteur in encadrants %}
                         <td class="text-center">
                             <input type="checkbox" name="affectation_{{ eleve.id }}_{{ moniteur.id }}" class="affectation-checkbox" data-eleve="{{ eleve.id }}" data-moniteur="{{ moniteur.id }}">
                         </td>
                         {% endfor %}
+                        <!-- Cases autonomes dynamiques -->
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -68,6 +88,52 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
         });
+    });
+
+    // Gestion des colonnes autonomes dynamiques
+    let autonomeCount = 0;
+    const table = document.getElementById('table-palanquees');
+    const addAutonomeBtn = document.getElementById('add-autonome-col');
+    addAutonomeBtn.addEventListener('click', function() {
+        autonomeCount++;
+        // Ajout de l'en-tête
+        const theadRow = table.querySelector('thead tr');
+        const th = document.createElement('th');
+        th.className = 'text-center autonome-th';
+        th.innerHTML = `Autonomes n°${autonomeCount}<br><span class="badge bg-secondary">Sans encadrant</span>
+            <div class="mt-2">
+                <input type="number" name="profondeur_max_autonome_${autonomeCount}" class="form-control form-control-sm mb-1" placeholder="Profondeur max" min="0">
+                <input type="number" name="duree_max_autonome_${autonomeCount}" class="form-control form-control-sm" placeholder="Durée max (min)" min="0">
+            </div>`;
+        theadRow.appendChild(th);
+        // Ajout des cases à cocher pour chaque élève
+        const tbodyRows = table.querySelectorAll('tbody tr');
+        tbodyRows.forEach(function(row) {
+            const td = document.createElement('td');
+            td.className = 'text-center autonome-td';
+            const eleveId = row.querySelector('input[name^="affectation_"]')?.dataset.eleve || row.querySelector('select[name^="aptitude_"]')?.name.split('_')[1];
+            td.innerHTML = `<input type="checkbox" name="affectation_autonome_${autonomeCount}_${eleveId}" class="affectation-autonome-checkbox" data-eleve="${eleveId}" data-autonome="${autonomeCount}">`;
+            row.appendChild(td);
+        });
+    });
+
+    // Gestion de l'exclusivité des affectations (encadrant/autonome)
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('affectation-autonome-checkbox')) {
+            const eleveId = e.target.dataset.eleve;
+            if (e.target.checked) {
+                // Désactive toutes les autres cases pour cet élève
+                document.querySelectorAll('[data-eleve="' + eleveId + '"]').forEach(function(cb) {
+                    if (cb !== e.target) {
+                        cb.disabled = true;
+                    }
+                });
+            } else {
+                document.querySelectorAll('[data-eleve="' + eleveId + '"]').forEach(function(cb) {
+                    cb.disabled = false;
+                });
+            }
+        }
     });
 });
 </script>

@@ -53,6 +53,11 @@
                             {{ form.directeur_plongee|as_crispy_field }}
                         </div>
                     </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            {{ form.presence_president|as_crispy_field }}
+                        </div>
+                    </div>
                     
                     <div class="d-flex justify-content-between">
                         <a href="{% url 'seance_list' %}" class="btn btn-outline-secondary">

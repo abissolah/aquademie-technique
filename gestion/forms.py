@@ -69,9 +69,10 @@ class GroupeCompetenceForm(forms.ModelForm):
         self.fields['theorie'].required = True
 
 class SeanceForm(forms.ModelForm):
+    presence_president = forms.BooleanField(label="Présence du président", required=False)
     class Meta:
         model = Seance
-        fields = ['date', 'heure_debut', 'heure_fin', 'lieu', 'directeur_plongee']
+        fields = ['date', 'heure_debut', 'heure_fin', 'lieu', 'directeur_plongee', 'presence_president']
         widgets = {
             'date': forms.DateInput(
                 attrs={'type': 'date'},
@@ -120,6 +121,7 @@ class PalanqueeForm(forms.ModelForm):
         seance_id = kwargs.pop('seance_id', None)
         super().__init__(*args, **kwargs)
         self.fields['encadrant'].queryset = Adherent.objects.filter(statut='encadrant')
+        self.fields['encadrant'].required = False
         # Initialiser la séance si passée en paramètre
         if seance_id:
             try:
@@ -295,5 +297,166 @@ class ExerciceForm(forms.ModelForm):
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3}),
         }
+
+class AdminInscriptionSeanceForm(forms.Form):
+    adherent = forms.ModelChoiceField(
+        queryset=Adherent.objects.filter(type_personne='adherent'),
+        required=False,
+        label="Adhérent du club",
+        help_text="Sélectionner un adhérent existant OU remplir les champs ci-dessous pour un non adhérent."
+    )
+    # Champs pour non adhérent
+    nom = forms.CharField(required=False, label="Nom")
+    prenom = forms.CharField(required=False, label="Prénom")
+    date_naissance = forms.DateField(required=False, label="Date de naissance", widget=forms.DateInput(attrs={'type': 'date'}))
+    adresse = forms.CharField(required=False, label="Adresse")
+    code_postal = forms.CharField(required=False, label="Code postal")
+    ville = forms.CharField(required=False, label="Ville")
+    email = forms.EmailField(required=False, label="Email")
+    telephone = forms.CharField(required=False, label="Téléphone")
+    photo = forms.ImageField(required=False, label="Photo")
+    numero_licence = forms.CharField(required=False, label="Numéro de licence")
+    assurance = forms.ChoiceField(
+        choices=[
+            ('', 'Aucune assurance'),
+            ('Piscine', 'Piscine'),
+            ('Loisir 1', 'Loisir 1'),
+            ('Loisir 2', 'Loisir 2'),
+            ('Loisir 3', 'Loisir 3'),
+            ('Loisir Top 1', 'Loisir Top 1'),
+            ('Loisir Top 2', 'Loisir Top 2'),
+            ('Loisir Top 3', 'Loisir Top 3'),
+        ],
+        required=False,
+        label="Assurance"
+    )
+    caci_fichier = forms.FileField(required=False, label="Fichier CACI")
+    date_delivrance_caci = forms.DateField(required=False, label="Date de délivrance du CACI", widget=forms.DateInput(attrs={'type': 'date'}))
+    niveau = forms.ChoiceField(
+        choices=[
+            ('', 'Niveau'),
+            ('debutant', 'Débutant'),
+            ('niveau1', 'Niveau 1'),
+            ('niveau2', 'Niveau 2'),
+            ('niveau3', 'Niveau 3'),
+            ('initiateur1', 'Initiateur 1'),
+            ('initiateur2', 'Initiateur 2'),
+            ('moniteur_federal1', 'Moniteur fédéral 1'),
+            ('moniteur_federal2', 'Moniteur fédéral 2'),
+        ],
+        required=False,
+        label="Niveau"
+    )
+    statut = forms.ChoiceField(
+        choices=[('eleve', 'Élève'), ('encadrant', 'Encadrant')],
+        required=False,
+        label="Statut"
+    )
+    covoiturage = forms.ChoiceField(
+        choices=[('', '---'), ('none', 'Je ne souhaite pas de covoiturage'), ('propose', 'Je peux proposer du covoiturage'), ('besoin', "J'aurai besoin de covoiturage")],
+        required=False,
+        label="Covoiturage"
+    )
+    lieu_covoiturage = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Lieu de prise en charge"
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        adherent = cleaned_data.get('adherent')
+        nom = cleaned_data.get('nom')
+        prenom = cleaned_data.get('prenom')
+        email = cleaned_data.get('email')
+        if not adherent and not (nom and prenom and email):
+            raise forms.ValidationError("Sélectionnez un adhérent OU renseignez nom, prénom et email pour un non adhérent.")
+        return cleaned_data
+
+class PublicNonAdherentInscriptionForm(forms.ModelForm):
+    covoiturage = forms.ChoiceField(
+        choices=[('', '--'), ('none', 'Je ne souhaite pas de covoiturage'), ('propose', 'Je peux proposer du covoiturage'), ('besoin', 'J\'aurai besoin de covoiturage')],
+        required=False,
+        label="Covoiturage"
+    )
+    lieu_covoiturage = forms.CharField(
+        required=False,
+        label="Lieu de prise en charge du covoiturage"
+    )
+    type_non_adherent = forms.ChoiceField(
+        choices=[('bapteme', 'Je suis débutant (baptême)'), ('plongeur', 'Je suis plongeur / encadrant')],
+        widget=forms.RadioSelect,
+        required=True,
+        label="Type d'inscription"
+    )
+
+    class Meta:
+        model = Adherent
+        fields = [
+            'type_non_adherent', 'nom', 'prenom', 'date_naissance', 'adresse', 'code_postal', 'ville', 'email',
+            'telephone', 'photo', 'numero_licence', 'assurance', 'caci_fichier', 'date_delivrance_caci',
+            'niveau', 'statut'
+        ]
+        widgets = {
+            'date_naissance': forms.DateInput(attrs={'type': 'date'}),
+            'date_delivrance_caci': forms.DateInput(attrs={'type': 'date'}),
+            'adresse': forms.TextInput(),
+            'niveau': forms.Select(choices=[
+                ('', 'Niveau'),
+                ('debutant', 'Débutant'),
+                ('niveau1', 'Niveau 1'),
+                ('niveau2', 'Niveau 2'),
+                ('niveau3', 'Niveau 3'),
+                ('initiateur1', 'Initiateur 1'),
+                ('initiateur2', 'Initiateur 2'),
+                ('moniteur_federal1', 'Moniteur fédéral 1'),
+                ('moniteur_federal2', 'Moniteur fédéral 2'),
+            ]),
+            'statut': forms.Select(choices=[('eleve', 'Élève'), ('encadrant', 'Encadrant')]),
+            'assurance': forms.Select(choices=[
+                ('', 'Aucune assurance'),
+                ('Piscine', 'Piscine'),
+                ('Loisir 1', 'Loisir 1'),
+                ('Loisir 2', 'Loisir 2'),
+                ('Loisir 3', 'Loisir 3'),
+                ('Loisir Top 1', 'Loisir Top 1'),
+                ('Loisir Top 2', 'Loisir Top 2'),
+                ('Loisir Top 3', 'Loisir Top 3'),
+            ]),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Par défaut, certains champs ne sont requis que pour plongeur/encadrant
+        self.fields['caci_fichier'].required = False
+        self.fields['date_delivrance_caci'].required = False
+        self.fields['photo'].required = False
+        self.fields['numero_licence'].required = False
+        self.fields['assurance'].required = False
+        self.fields['niveau'].required = True
+        self.fields['statut'].required = True
+        # Suppression du champ sections
+        if 'sections' in self.fields:
+            self.fields.pop('sections')
+
+    def clean(self):
+        cleaned_data = super().clean()
+        type_non_adherent = cleaned_data.get('type_non_adherent')
+        # Pour plongeur/encadrant, CACI obligatoire
+        if type_non_adherent == 'plongeur':
+            if not cleaned_data.get('caci_fichier'):
+                self.add_error('caci_fichier', 'Le fichier CACI est obligatoire pour les plongeurs/encadrants.')
+            if not cleaned_data.get('date_delivrance_caci'):
+                self.add_error('date_delivrance_caci', 'La date de délivrance du CACI est obligatoire pour les plongeurs/encadrants.')
+        return cleaned_data
+
+    def clean_date_delivrance_caci(self):
+        from datetime import timedelta, date
+        date_delivrance = self.cleaned_data.get('date_delivrance_caci')
+        if date_delivrance:
+            expiration = date_delivrance + timedelta(days=365)
+            if expiration < date.today():
+                raise forms.ValidationError("Votre CACI doit être valide.")
+        return date_delivrance
 
  

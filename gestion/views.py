@@ -31,11 +31,18 @@ from django.views.decorators.csrf import csrf_protect
 from django.conf import settings
 
 from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation, Palanquee, Lieu, LienInscriptionSeance, InscriptionSeance, Exercice
-from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm, ExerciceForm
+from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm, ExerciceForm, AdminInscriptionSeanceForm
 from .utils import envoyer_lien_evaluation, envoyer_lien_evaluation_avec_cc
 from .models import PalanqueeEleve
 from gestion.models import EvaluationExercice, GroupeCompetence, Competence, Exercice, Adherent
 from django.contrib.admin.views.decorators import staff_member_required
+from django.core.mail import EmailMessage
+import tempfile
+from gestion.palanquee_views import generer_fiche_palanquee_pdf
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.pagesizes import A4
 
 # Vues d'accueil et de navigation
 @login_required
@@ -918,17 +925,18 @@ def api_inscrire_non_membre(request):
     prenom = request.POST.get('prenom', '').strip()
     non_membre = Adherent.objects.filter(type_personne='non_adherent', nom__iexact=nom, prenom__iexact=prenom).first()
     from .models import InscriptionSeance
+    from .forms import PublicNonAdherentInscriptionForm
     debug_msgs = []
     debug_msgs.append(f"POST: {dict(request.POST)}")
     if non_membre and InscriptionSeance.objects.filter(seance=seance, personne=non_membre).exists():
         debug_msgs.append("Déjà inscrit")
         return JsonResponse({'success': False, 'message': 'Vous êtes déjà inscrit à cette séance.', 'debug': debug_msgs})
     if non_membre:
-        form = NonAdherentInscriptionForm(request.POST, request.FILES, instance=non_membre)
-        debug_msgs.append("Form instance existant")
+        form = PublicNonAdherentInscriptionForm(request.POST, request.FILES, instance=non_membre)
+        debug_msgs.append("Form instance existant (PublicNonAdherentInscriptionForm)")
     else:
-        form = NonAdherentInscriptionForm(request.POST, request.FILES)
-        debug_msgs.append("Form nouvelle instance")
+        form = PublicNonAdherentInscriptionForm(request.POST, request.FILES)
+        debug_msgs.append("Form nouvelle instance (PublicNonAdherentInscriptionForm)")
     if form.is_valid():
         personne = form.save(commit=False)
         personne.type_personne = 'non_adherent'
@@ -936,8 +944,8 @@ def api_inscrire_non_membre(request):
         form.save_m2m()
         debug_msgs.append(f"Formulaire valide, personne id={personne.id}")
         # Inscription à la séance
-        covoiturage = request.POST.get('covoiturage', '')
-        lieu_covoiturage = request.POST.get('lieu_covoiturage', '')
+        covoiturage = form.cleaned_data.get('covoiturage', '')
+        lieu_covoiturage = form.cleaned_data.get('lieu_covoiturage', '')
         if not InscriptionSeance.objects.filter(seance=seance, personne=personne).exists():
             InscriptionSeance.objects.create(
                 seance=seance,
@@ -958,19 +966,14 @@ def api_inscrire_non_membre(request):
             url = request.build_absolute_uri(f"/inscription/{lien.uuid}/")
             message = render_to_string('gestion/email_confirmation_inscription.txt', {'seance': seance, 'personne': personne, 'url': url})
             cc_emails = getattr(settings, 'EMAIL_CC_DEFAULT', [])
+            from django.core.mail import EmailMessage
             try:
-                if cc_emails:
-                    from django.core.mail import EmailMessage
-                    email = EmailMessage(subject, message, None, [personne.email], cc=cc_emails)
-                    email.send(fail_silently=False)
-                else:
-                    send_mail(subject, message, None, [personne.email], fail_silently=False)
-                debug_msgs.append("Mail envoyé avec succès")
-                print(f"[INSCRIPTION] Mail envoyé à {personne.email}")
-            except Exception as e:
-                debug_msgs.append(f"Erreur lors de l'envoi du mail : {e}")
-                print(f"[INSCRIPTION] Erreur envoi mail : {e}")
-            debug_msgs.append("Mail envoyé")
+                email = EmailMessage(subject, message, None, [personne.email], cc=cc_emails)
+                email.send(fail_silently=True)
+                debug_msgs.append("Mail envoyé")
+            except Exception as mail_e:
+                debug_msgs.append(f"Erreur envoi mail: {str(mail_e)}")
+                print(f"[INSCRIPTION] Erreur envoi mail: {str(mail_e)}") # Log to console
         return JsonResponse({'success': True, 'message': 'Inscription réussie ! Un email de confirmation vous a été envoyé.', 'debug': debug_msgs})
     else:
         debug_msgs.append(f"Form errors: {form.errors}")
@@ -1222,17 +1225,40 @@ def creer_palanquees(request, seance_id):
             duree = request.POST.get(f'duree_max_{moniteur.id}')
             profs[moniteur.id] = int(prof) if prof else None
             durees[moniteur.id] = int(duree) if duree else None
+        # --- Gestion des palanquées autonomes ---
+        # Cherche les colonnes autonomes dynamiques
+        autonome_cols = []
+        for key in request.POST.keys():
+            if key.startswith('affectation_autonome_'):
+                parts = key.split('_')
+                if len(parts) == 4:
+                    autonome_num = parts[2]
+                    if autonome_num not in autonome_cols:
+                        autonome_cols.append(autonome_num)
+        # Regroupe les élèves par colonne autonome
+        autonomes_groupes = {num: [] for num in autonome_cols}
+        for num in autonome_cols:
+            for eleve in eleves:
+                if request.POST.get(f'affectation_autonome_{num}_{eleve.id}'):
+                    autonomes_groupes[num].append(str(eleve.id))
+        # --- Fin gestion autonomes ---
         # Vérification : tous les moniteurs doivent avoir au moins un élève
         moniteurs_utilises = set([mid for mid in affectations.values() if mid])
         moniteurs_sans = [m for m in encadrants if m.id not in moniteurs_utilises]
-        if moniteurs_sans:
+        # On ne bloque plus si des élèves sont affectés à des autonomes
+        if moniteurs_sans and not autonome_cols:
             from django.contrib import messages
-            messages.error(request, "Tous les moniteurs doivent avoir au moins une palanquée (un élève affecté).")
+            messages.error(request, "Tous les moniteurs doivent avoir au moins une palanquée (un élève affecté), ou il doit y avoir au moins une palanquée d'autonomes.")
             return render(request, 'gestion/creer_palanquees.html', {
                 'seance': seance, 'eleves': eleves, 'encadrants': encadrants
             })
         # Vérification : élèves non affectés
         eleves_non_aff = [e for e, m in affectations.items() if not m]
+        # Retirer les élèves affectés à une palanquée autonome
+        for num, eids in autonomes_groupes.items():
+            for eid in eids:
+                if eid in eleves_non_aff:
+                    eleves_non_aff.remove(eid)
         if eleves_non_aff and not request.POST.get('confirm_non_affectes'):
             from django.contrib import messages
             messages.warning(request, "Certains élèves ne sont pas affectés à une palanquée. Confirmez pour continuer.")
@@ -1272,6 +1298,37 @@ def creer_palanquees(request, seance_id):
                         duree=durees[moniteur.id]
                     )
                     for eid in eleves_ids:
+                        aptitude = palanquees_data[eid]['aptitude']
+                        PalanqueeEleve.objects.create(palanquee=palanquee, eleve_id=eid, aptitude=aptitude)
+                # Création des palanquées autonomes
+                for num, eids in autonomes_groupes.items():
+                    if not eids:
+                        continue
+                    eleves_objs = [e for e in eleves if str(e.id) in eids]
+                    # Section la plus faible des élèves
+                    section = None
+                    niveau_min = None
+                    for e in eleves_objs:
+                        s = e.sections.first()
+                        if s:
+                            if not section or (hasattr(e, 'niveau') and (niveau_min is None or e.niveau < niveau_min)):
+                                section = s
+                                niveau_min = e.niveau
+                    # Récupérer profondeur et durée pour cette colonne autonome
+                    prof = request.POST.get(f'profondeur_max_autonome_{num}')
+                    duree = request.POST.get(f'duree_max_autonome_{num}')
+                    profondeur_max = int(prof) if prof else None
+                    duree_max = int(duree) if duree else None
+                    palanquee = Palanquee.objects.create(
+                        nom=f"Palanquée autonomes n°{num}",
+                        seance=seance,
+                        section=section,
+                        encadrant=None,
+                        precision_exercices='',
+                        profondeur_max=profondeur_max,
+                        duree=duree_max
+                    )
+                    for eid in eids:
                         aptitude = palanquees_data[eid]['aptitude']
                         PalanqueeEleve.objects.create(palanquee=palanquee, eleve_id=eid, aptitude=aptitude)
             from django.contrib import messages
@@ -1363,6 +1420,8 @@ def generer_fiche_securite_excel(request, seance_id):
     directeur = seance.directeur_plongee.nom_complet if seance.directeur_plongee else "-"
     ws['H5'] = directeur
     ws['H56'] = directeur
+    # Présence du président
+    ws['AC4'] = "Oui" if getattr(seance, 'presence_president', False) else "Non"
 
     # --- Mapping blocs palanquée ---
     bloc_map = [
@@ -1374,7 +1433,6 @@ def generer_fiche_securite_excel(request, seance_id):
     prof_col = {'A': 'F', 'M': 'R', 'Y': 'AD'}
     duree_col = {'A': 'J', 'M': 'V', 'Y': 'AH'}
 
-    # Mapping niveau encadrant
     def niveau_encadrant_display(niveau):
         mapping = {
             'encadrant1': 'E1',
@@ -1386,46 +1444,64 @@ def generer_fiche_securite_excel(request, seance_id):
         }
         return mapping.get(niveau, niveau)
 
-    for idx, palanquee in enumerate(palanquees[:9]):
-        base_row, base_col = bloc_map[idx]
-        # Encadrant
-        ws[f'{base_col}{base_row}'] = palanquee.encadrant.nom_complet if palanquee.encadrant else "-"
-        niveau = palanquee.encadrant.niveau if palanquee.encadrant and hasattr(palanquee.encadrant, 'niveau') else "-"
-        ws[f'{niveau_col[base_col]}{base_row}'] = niveau_encadrant_display(niveau)
-        # Élèves (max 4 par bloc)
-        eleves = list(palanquee.eleves.all())
-        for i in range(4):
-            nom_cell = f'{base_col}{base_row+2+i}'
-            niv_cell = f'{niveau_col[base_col]}{base_row+2+i}'
-            if i < len(eleves):
-                ws[nom_cell] = f"{eleves[i].nom} {eleves[i].prenom}"
-                ws[niv_cell] = eleves[i].get_niveau_display() if hasattr(eleves[i], 'get_niveau_display') else "-"
-            else:
-                ws[nom_cell] = ""
-                ws[niv_cell] = ""
-        # Profondeur et durée
-        ws[f'{prof_col[base_col]}{base_row+7}'] = palanquee.profondeur_max if palanquee.profondeur_max else "-"
-        ws[f'{duree_col[base_col]}{base_row+7}'] = palanquee.duree if palanquee.duree else "-"
-
-    # Comptage adultes/enfants/total
-    adultes = 0
-    enfants = 0
-    for palanquee in palanquees:
-        for eleve in palanquee.eleves.all():
-            # Critère enfant : à adapter selon ta logique (ex: niveau ou attribut spécifique)
-            if hasattr(eleve, 'date_naissance') and eleve.date_naissance:
-                from datetime import date
-                age = (date.today() - eleve.date_naissance).days // 365
-                if age < 18:
-                    enfants += 1
+    # Découpage en tranches de 9 palanquées
+    nb_blocs = (len(palanquees) + 8) // 9
+    for bloc_idx in range(nb_blocs):
+        if bloc_idx > 0:
+            # Ajoute une nouvelle feuille à partir du modèle
+            ws_new = wb.copy_worksheet(ws)
+            ws_new.title = f"Fiche {bloc_idx+1}"
+            ws = ws_new
+        # Remplir les infos fixes à chaque feuille/bloc
+        ws['D2'] = seance.date.strftime('%d/%m/%Y')
+        ws['P2'] = seance.heure_debut.strftime('%Hh%M') if seance.heure_debut else "-"
+        ws['AA2'] = seance.heure_fin.strftime('%Hh%M') if seance.heure_fin else "-"
+        ws['H5'] = directeur
+        ws['H56'] = directeur
+        ws['AC4'] = "Oui" if getattr(seance, 'presence_president', False) else "Non"
+        # Palanquées de ce bloc
+        palanquees_bloc = palanquees[bloc_idx*9:(bloc_idx+1)*9]
+        for idx, palanquee in enumerate(palanquees_bloc):
+            base_row, base_col = bloc_map[idx]
+            ws[f'{base_col}{base_row}'] = palanquee.encadrant.nom_complet if palanquee.encadrant else "-"
+            niveau = palanquee.encadrant.niveau if palanquee.encadrant and hasattr(palanquee.encadrant, 'niveau') else "-"
+            ws[f'{niveau_col[base_col]}{base_row}'] = niveau_encadrant_display(niveau)
+            eleves = list(palanquee.eleves.all())
+            for i in range(4):
+                nom_cell = f'{base_col}{base_row+2+i}'
+                niv_cell = f'{niveau_col[base_col]}{base_row+2+i}'
+                if i < len(eleves):
+                    eleve = eleves[i]
+                    ws[nom_cell] = f"{eleve.nom} {eleve.prenom}"
+                    aptitude = "-"
+                    palanquee_eleve = palanquee.palanqueeeleve_set.filter(eleve=eleve).first()
+                    if palanquee_eleve and palanquee_eleve.aptitude:
+                        aptitude = palanquee_eleve.get_aptitude_display()
+                    ws[niv_cell] = aptitude
                 else:
-                    adultes += 1
-            else:
-                adultes += 1
-    total = adultes + enfants
-    ws['AH57'] = adultes
-    ws['AH58'] = enfants
-    ws['AH59'] = total
+                    ws[nom_cell] = ""
+                    ws[niv_cell] = ""
+            ws[f'{prof_col[base_col]}{base_row+7}'] = palanquee.profondeur_max if palanquee.profondeur_max else "-"
+            ws[f'{duree_col[base_col]}{base_row+7}'] = palanquee.duree if palanquee.duree else "-"
+        # Comptage adultes/enfants/total (sur la première feuille uniquement)
+        if bloc_idx == 0:
+            adultes = 0
+            enfants = 0
+            for palanquee in palanquees:
+                for eleve in palanquee.eleves.all():
+                    if hasattr(eleve, 'date_naissance') and eleve.date_naissance:
+                        from datetime import date
+                        age = (date.today() - eleve.date_naissance).days // 365
+                        if age < 18:
+                            enfants += 1
+                        else:
+                            adultes += 1
+                    else:
+                        adultes += 1
+            total = adultes + enfants
+            ws['AH57'] = adultes
+            ws['AH58'] = enfants
+            ws['AH59'] = total
 
     # Export
     output = BytesIO()
@@ -1477,4 +1553,182 @@ def suivi_formation_eleve(request, eleve_id):
         'range3': [1, 2, 3],
     }
     return render(request, 'gestion/suivi_formation_eleve.html', context)
+
+@login_required
+@staff_member_required
+def admin_inscription_seance(request, seance_id):
+    if not request.user.is_staff:
+        return redirect('seance_detail', pk=seance_id)
+    seance = get_object_or_404(Seance, pk=seance_id)
+    if request.method == 'POST':
+        form = AdminInscriptionSeanceForm(request.POST, request.FILES)
+        if form.is_valid():
+            adherent = form.cleaned_data.get('adherent')
+            if adherent:
+                personne = adherent
+            else:
+                # Créer un non adhérent avec tous les champs du formulaire
+                personne, created = Adherent.objects.get_or_create(
+                    nom=form.cleaned_data['nom'],
+                    prenom=form.cleaned_data['prenom'],
+                    email=form.cleaned_data['email'],
+                    defaults={
+                        'type_personne': 'non_adherent',
+                        'date_naissance': form.cleaned_data.get('date_naissance'),
+                        'adresse': form.cleaned_data.get('adresse', ''),
+                        'code_postal': form.cleaned_data.get('code_postal', ''),
+                        'ville': form.cleaned_data.get('ville', ''),
+                        'telephone': form.cleaned_data.get('telephone', ''),
+                        'photo': form.cleaned_data.get('photo'),
+                        'numero_licence': form.cleaned_data.get('numero_licence', ''),
+                        'assurance': form.cleaned_data.get('assurance', ''),
+                        'caci_fichier': form.cleaned_data.get('caci_fichier'),
+                        'date_delivrance_caci': form.cleaned_data.get('date_delivrance_caci'),
+                        'niveau': form.cleaned_data.get('niveau', ''),
+                        'statut': form.cleaned_data.get('statut', 'eleve'),
+                    }
+                )
+                # Si déjà existant, on met à jour les champs manquants
+                if not created:
+                    for field in ['date_naissance', 'adresse', 'code_postal', 'ville', 'telephone', 'photo', 'numero_licence', 'assurance', 'caci_fichier', 'date_delivrance_caci', 'niveau', 'statut']:
+                        value = form.cleaned_data.get(field)
+                        if value:
+                            setattr(personne, field, value)
+                    personne.type_personne = 'non_adherent'
+                    personne.save()
+            # Créer l'inscription si pas déjà inscrite
+            from .models import InscriptionSeance
+            covoiturage = form.cleaned_data.get('covoiturage', '')
+            lieu_covoiturage = form.cleaned_data.get('lieu_covoiturage', '')
+            if not InscriptionSeance.objects.filter(seance=seance, personne=personne).exists():
+                InscriptionSeance.objects.create(
+                    seance=seance,
+                    personne=personne,
+                    covoiturage=covoiturage,
+                    lieu_covoiturage=lieu_covoiturage
+                )
+                messages.success(request, f"{personne.nom} {personne.prenom} inscrit à la séance.")
+            else:
+                messages.info(request, f"{personne.nom} {personne.prenom} est déjà inscrit à cette séance.")
+            return redirect('seance_detail', pk=seance_id)
+    else:
+        form = AdminInscriptionSeanceForm()
+    return render(request, 'gestion/admin_inscription_seance.html', {'form': form, 'seance': seance})
+
+@csrf_exempt
+@require_POST
+@login_required
+def dupliquer_exercices_palanquee(request):
+    import json
+    try:
+        data = json.loads(request.body)
+        source_id = int(data.get('source'))
+        cibles = [int(cid) for cid in data.get('cibles', [])]
+        source = Palanquee.objects.get(pk=source_id)
+        exercices = list(source.exercices_prevus.all())
+        for cible_id in cibles:
+            cible = Palanquee.objects.get(pk=cible_id)
+            cible.exercices_prevus.set(exercices)
+            cible.save()
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@login_required
+def envoyer_pdf_palanquees_encadrants(request, seance_id):
+    seance = get_object_or_404(Seance, pk=seance_id)
+    palanquees = seance.palanques.all()
+    nb_envoyes = 0
+    erreurs = []
+    for palanquee in palanquees:
+        encadrant = palanquee.encadrant
+        if not encadrant or not encadrant.email:
+            continue
+        # Générer le PDF en mémoire (même contenu que generer_fiche_palanquee_pdf)
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        elements = []
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle', parent=styles['Heading1'], fontSize=16, spaceAfter=30, alignment=TA_CENTER
+        )
+        heading_style = ParagraphStyle(
+            'CustomHeading', parent=styles['Heading2'], fontSize=14, spaceAfter=12, spaceBefore=20
+        )
+        normal_style = styles['Normal']
+        elements.append(Paragraph(f"Fiche de Palanquée - {palanquee.section.get_nom_display()}", title_style))
+        elements.append(Spacer(1, 20))
+        elements.append(Paragraph("Informations générales", heading_style))
+        elements.append(Paragraph(f"<b>Date :</b> {palanquee.seance.date.strftime('%d/%m/%Y')}", normal_style))
+        elements.append(Paragraph(f"<b>Lieu :</b> {palanquee.seance.lieu}", normal_style))
+        elements.append(Paragraph(f"<b>Encadrant :</b> {palanquee.encadrant.nom_complet}", normal_style))
+        elements.append(Paragraph(f"<b>Section :</b> {palanquee.section.get_nom_display()}", normal_style))
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph("Élèves", heading_style))
+        eleves_list = [eleve.nom_complet for eleve in palanquee.eleves.all()]
+        elements.append(Paragraph(f"<b>Participants :</b> {', '.join(eleves_list)}", normal_style))
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph("Exercices prévus", heading_style))
+        exercices_list = [ex.nom for ex in palanquee.exercices_prevus.all()]
+        for i, exercice in enumerate(exercices_list, 1):
+            elements.append(Paragraph(f"{i}. {exercice}", normal_style))
+        elements.append(Spacer(1, 12))
+        if palanquee.precision_exercices:
+            elements.append(Paragraph("Précisions des exercices", heading_style))
+            elements.append(Paragraph(palanquee.precision_exercices, normal_style))
+        doc.build(elements)
+        buffer.seek(0)
+        # Préparer et envoyer le mail
+        subject = f"Fiche palanquée - {palanquee.nom} ({seance.date})"
+        body = render_to_string('gestion/email_pdf_palanquee.txt', {'palanquee': palanquee, 'seance': seance})
+        email = EmailMessage(subject, body, to=[encadrant.email])
+        email.attach(f"fiche_palanquee_{palanquee.seance.date}_{palanquee.section.get_nom_display()}.pdf", buffer.read(), 'application/pdf')
+        try:
+            email.send()
+            nb_envoyes += 1
+        except Exception as e:
+            erreurs.append(f"{encadrant.nom_complet} : {str(e)}")
+    if nb_envoyes:
+        messages.success(request, f"{nb_envoyes} PDF envoyés aux encadrants.")
+    if erreurs:
+        messages.error(request, "Erreurs lors de l'envoi : " + ", ".join(erreurs))
+    return redirect('seance_detail', pk=seance_id)
+
+@login_required
+def envoyer_mail_covoiturage(request, seance_id):
+    seance = get_object_or_404(Seance, pk=seance_id)
+    # Récupérer les inscriptions
+    inscriptions = seance.inscriptions.select_related('personne')
+    conducteurs = [ins for ins in inscriptions if ins.covoiturage == 'propose']
+    passagers = [ins for ins in inscriptions if ins.covoiturage == 'besoin']
+    if not conducteurs or not passagers:
+        messages.warning(request, "Aucun conducteur ou aucun passager à notifier.")
+        return redirect('seance_detail', pk=seance_id)
+    # Préparer le tableau HTML
+    tableau = "<table border='1' cellpadding='4' cellspacing='0'><tr><th>Nom</th><th>Prénom</th><th>Email</th><th>Lieu</th></tr>"
+    for ins in conducteurs:
+        tableau += f"<tr><td>{ins.personne.nom}</td><td>{ins.personne.prenom}</td><td>{ins.personne.email}</td><td>{ins.lieu_covoiturage or ''}</td></tr>"
+    tableau += "</table>"
+    # Préparer les emails CC
+    cc = getattr(settings, 'EMAIL_CC_COVOIT', [])
+    # Envoyer un mail à chaque passager
+    nb_envoyes = 0
+    erreurs = []
+    for ins in passagers:
+        if not ins.personne.email:
+            continue
+        subject = f"Covoiturage pour la séance du {seance.date.strftime('%d/%m/%Y')}"
+        body = f"Bonjour {ins.personne.prenom},<br><br>Voici la liste des personnes qui proposent du covoiturage pour la séance du {seance.date.strftime('%d/%m/%Y')} :<br><br>{tableau}<br><br>Merci de contacter directement les conducteurs pour organiser votre déplacement.<br><br>Cordialement,<br>Le club"
+        email = EmailMessage(subject, body, to=[ins.personne.email], cc=cc)
+        email.content_subtype = "html"
+        try:
+            email.send()
+            nb_envoyes += 1
+        except Exception as e:
+            erreurs.append(f"{ins.personne.nom} {ins.personne.prenom} : {str(e)}")
+    if nb_envoyes:
+        messages.success(request, f"{nb_envoyes} mails de covoiturage envoyés.")
+    if erreurs:
+        messages.error(request, "Erreurs lors de l'envoi : " + ", ".join(erreurs))
+    return redirect('seance_detail', pk=seance_id)
 

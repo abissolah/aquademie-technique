@@ -10,6 +10,7 @@
     --danger-color: #dc3545;
     --light-color: #f8f9fa;
     --dark-color: #212529;
+    --bandeau-color: #0896AA;
 }
 
 /* Améliorations générales */
@@ -31,6 +32,10 @@ body {
 
 .navbar-nav .nav-link:hover {
     color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.navbar.bg-primary, .navbar.bg-primary {
+    background-color: var(--bandeau-color) !important;
 }
 
 /* Cards */

@@ -36,7 +36,6 @@
                         <div class="col-md-6">
                             <p><strong>Encadrant :</strong> {{ palanquee.encadrant.nom_complet }}</p>
                             <p><strong>Nombre d'élèves :</strong> {{ palanquee.eleves.count }}</p>
-                            <p><strong>Nombre de compétences :</strong> {{ palanquee.competences.count }}</p>
                         </div>
                     </div>
                     
@@ -79,22 +78,22 @@
                 </div>
             </div>
 
-            <!-- Compétences -->
+            <!-- Exercices prévus -->
             <div class="card shadow mb-4">
                 <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Compétences travaillées</h6>
+                    <h6 class="m-0 font-weight-bold text-primary">Exercices prévus</h6>
                 </div>
                 <div class="card-body">
-                    {% if palanquee.competences.all %}
+                    {% if palanquee.exercices_prevus.all %}
                     <div class="row">
-                        {% for competence in palanquee.competences.all %}
+                        {% for exercice in palanquee.exercices_prevus.all %}
                         <div class="col-md-6 mb-3">
                             <div class="card border-left-success">
                                 <div class="card-body">
-                                    <h6 class="card-title">{{ competence.nom }}</h6>
+                                    <h6 class="card-title">{{ exercice.nom }}</h6>
                                     <p class="card-text">
                                         <small class="text-muted">
-                                            Section : {{ competence.section.get_nom_display }}
+                                            Compétence : {{ exercice.competences.all|join:", " }}
                                         </small>
                                     </p>
                                 </div>
@@ -103,7 +102,7 @@
                         {% endfor %}
                     </div>
                     {% else %}
-                    <p class="text-muted">Aucune compétence assignée à cette palanquée.</p>
+                    <p class="text-muted">Aucun exercice prévu pour cette palanquée.</p>
                     {% endif %}
                 </div>
             </div>

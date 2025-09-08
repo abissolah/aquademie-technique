@@ -11,7 +11,9 @@
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- Custom CSS -->
-    <!-- <link href="{% static 'css/style.css' %}" rel="stylesheet"> -->
+    <link href="{% static 'css/style.css' %}" rel="stylesheet">
+    
+    <link rel="icon" type="image/jpeg" href="{% static 'logo.jpeg' %}">
     
     {% block extra_css %}{% endblock %}
 </head>
@@ -20,7 +22,8 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="{% url 'dashboard' %}">
-                <span><i class="fas fa-water me-2"></i>Aquadémie Paris Plongée</span>
+                <img src="{% static 'logo.jpeg' %}" alt="Logo" style="height: 48px; width: auto; margin-right: 0.5rem;">
+                Aquadémie Paris Plongée
             </a>
             
             {% if user.is_authenticated %}

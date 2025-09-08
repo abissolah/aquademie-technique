@@ -70,7 +70,7 @@ class Adherent(models.Model):
         ('Loisir Top 3', 'Loisir Top 3'),
     ]
     assurance = models.CharField(max_length=20, choices=ASSURANCE_CHOICES, blank=True, default='', verbose_name="Assurance")
-    date_delivrance_caci = models.DateField(verbose_name="Date de délivrance du CACI")
+    date_delivrance_caci = models.DateField(verbose_name="Date de délivrance du CACI", null=True, blank=True)
     niveau = models.CharField(max_length=20, choices=NIVEAUX_CHOICES)
     statut = models.CharField(max_length=10, choices=STATUT_CHOICES, default='eleve')
     sections = models.ManyToManyField(Section, related_name='adherents', blank=True, verbose_name="Sections")
@@ -168,6 +168,7 @@ class Seance(models.Model):
         limit_choices_to={'statut': 'encadrant', 'type_personne': 'adherent'},
         verbose_name="Directeur de plongée"
     )
+    presence_president = models.BooleanField("Présence du président", default=False)
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)
     
@@ -187,7 +188,7 @@ class Palanquee(models.Model):
     nom = models.CharField(max_length=200)
     seance = models.ForeignKey(Seance, on_delete=models.CASCADE, related_name='palanques')
     section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name='palanques')
-    encadrant = models.ForeignKey(Adherent, on_delete=models.CASCADE, related_name='palanques_encadrees', limit_choices_to={'statut': 'encadrant'})
+    encadrant = models.ForeignKey(Adherent, on_delete=models.SET_NULL, null=True, blank=True, related_name='palanques_encadrees', limit_choices_to={'statut': 'encadrant'})
     competences = models.ManyToManyField(Competence, related_name='palanques')
     precision_exercices = models.TextField()
     duree = models.IntegerField("Durée (minutes)", null=True, blank=True)
@@ -264,9 +265,22 @@ class InscriptionSeance(models.Model):
         return f"{self.personne} inscrit à {self.seance} le {self.date_inscription}"
 
 class PalanqueeEleve(models.Model):
+    APTITUDE_CHOICES = [
+        ('PE12', 'PE12'),
+        ('PE20', 'PE20'),
+        ('PA20', 'PA20'),
+        ('PE40', 'PE40'),
+        ('PA40', 'PA40'),
+        ('PA60', 'PA60'),
+        ('GP', 'GP'),
+        ('E1', 'E1'),
+        ('E2', 'E2'),
+        ('E3', 'E3'),
+        ('E4', 'E4'),
+    ]
     palanquee = models.ForeignKey('Palanquee', on_delete=models.CASCADE)
     eleve = models.ForeignKey('Adherent', on_delete=models.CASCADE)
-    aptitude = models.TextField(blank=True)
+    aptitude = models.CharField(max_length=10, choices=APTITUDE_CHOICES, blank=True)
     class Meta:
         unique_together = ('palanquee', 'eleve')
 

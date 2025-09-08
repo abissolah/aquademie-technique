@@ -137,10 +137,11 @@
                                         </select>
                                     </div>
                                 </div>
-                                <div class="mb-2">
+                                <!-- Suppression du bloc Sections -->
+                                <!-- <div class="mb-2">
                                     <label class="form-label">Sections :</label>
                                     <div id="nm-sections-checkboxes" class="d-flex flex-wrap gap-2"></div>
-                                </div>
+                                </div> -->
                                 <div id="alerte-caci-non-adherent" class="mb-2"></div>
                                 <!-- Champs covoiturage juste avant le bouton -->
                                 <div class="row mb-2">
@@ -277,21 +278,8 @@
     };
 
     // Chargement des sections pour les checkboxes
-    fetch('/sections/').then(r => r.text()).then(html => {
-        // On parse le HTML pour extraire les sections (hack rapide)
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const options = doc.querySelectorAll('input[type=checkbox][name=sections]');
-        const container = document.getElementById('nm-sections-checkboxes');
-        options.forEach(opt => {
-            const label = doc.querySelector('label[for="' + opt.id + '"]');
-            const div = document.createElement('div');
-            div.className = 'form-check';
-            div.innerHTML = `<input class="form-check-input" type="checkbox" name="sections" value="${opt.value}" id="nm-section-${opt.value}">
-            <label class="form-check-label" for="nm-section-${opt.value}">${label ? label.textContent : opt.value}</label>`;
-            container.appendChild(div);
-        });
-    });
+    // Supprimer aussi le chargement JS des sections
+    // Supprimer aussi le chargement JS des sections
     // Recherche AJAX pour pré-remplir
     function preRemplirNonAdhérent() {
         const nom = document.getElementById('nm-nom').value.trim();
@@ -386,9 +374,6 @@
                 setTimeout(function() { window.location.reload(); }, 5000);
             } else {
                 resultDiv.innerHTML = '<div class="alert alert-danger">' + data.message + '</div>';
-                if (data.debug) {
-                    resultDiv.innerHTML += '<pre class="text-start small">' + JSON.stringify(data.debug, null, 2) + '</pre>';
-                }
             }
         })
         .catch(() => {

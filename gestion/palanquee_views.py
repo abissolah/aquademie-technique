@@ -379,11 +379,11 @@ def generer_fiche_palanquee_pdf(request, pk):
     elements.append(Paragraph(f"<b>Participants :</b> {', '.join(eleves_list)}", normal_style))
     elements.append(Spacer(1, 12))
     
-    # Compétences
-    elements.append(Paragraph("Compétences", heading_style))
-    competences_list = [competence.nom for competence in palanquee.competences.all()]
-    for i, competence in enumerate(competences_list, 1):
-        elements.append(Paragraph(f"{i}. {competence}", normal_style))
+    # Exercices prévus
+    elements.append(Paragraph("Exercices prévus", heading_style))
+    exercices_list = [ex.nom for ex in palanquee.exercices_prevus.all()]
+    for i, exercice in enumerate(exercices_list, 1):
+        elements.append(Paragraph(f"{i}. {exercice}", normal_style))
     elements.append(Spacer(1, 12))
     
     # Précisions des exercices

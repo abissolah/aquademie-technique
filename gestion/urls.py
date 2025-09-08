@@ -70,6 +70,9 @@ urlpatterns = [
     path('seances/<int:seance_id>/creer-palanquees/', views.creer_palanquees, name='creer_palanquees'),
     path('seances/<int:seance_id>/fiche-securite/', views.generer_fiche_securite, name='generer_fiche_securite'),
     path('seances/<int:seance_id>/fiche-securite-excel/', views.generer_fiche_securite_excel, name='generer_fiche_securite_excel'),
+    path('seances/<int:seance_id>/admin-inscription/', views.admin_inscription_seance, name='admin_inscription_seance'),
+    path('seances/<int:seance_id>/envoyer-pdf-palanquees/', views.envoyer_pdf_palanquees_encadrants, name='envoyer_pdf_palanquees_encadrants'),
+    path('seances/<int:seance_id>/envoyer-mail-covoiturage/', views.envoyer_mail_covoiturage, name='envoyer_mail_covoiturage'),
     
     # Palanquées
     path('palanquees/', PalanqueeListView.as_view(), name='palanquee_list'),
@@ -110,6 +113,7 @@ urlpatterns = [
     # APIs
     path('api/competences-section/', views.get_competences_section, name='get_competences_section'),
     path('api/eleves-section/', views.get_eleves_section, name='get_eleves_section'),
+    path('api/dupliquer-exercices-palanquee/', views.dupliquer_exercices_palanquee, name='dupliquer_exercices_palanquee'),
     path('inscription/<uuid:uuid>/', views.inscription_seance_uuid, name='inscription_seance_uuid'),
     path('api/membres-app/', views.api_membres_app, name='api_membres_app'),
     path('api/inscrire-membre-app/', views.api_inscrire_membre_app, name='api_inscrire_membre_app'),

@@ -1,0 +1,8 @@
+Bonjour {{ palanquee.encadrant.nom_complet }},
+
+Veuillez trouver en pièce jointe la fiche PDF de votre palanquée « {{ palanquee.nom }} » pour la séance du {{ seance.date|date:"d/m/Y" }}.
+
+Merci de votre engagement et bonne séance !
+
+Cordialement,
+Le club
