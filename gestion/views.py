@@ -1732,3 +1732,32 @@ def envoyer_mail_covoiturage(request, seance_id):
         messages.error(request, "Erreurs lors de l'envoi : " + ", ".join(erreurs))
     return redirect('seance_detail', pk=seance_id)
 
+@csrf_exempt
+@require_POST
+@login_required
+def envoyer_mail_inscription(request):
+    import json
+    try:
+        data = json.loads(request.body)
+        email = data.get('email')
+        if not email:
+            return JsonResponse({'success': False, 'error': 'Adresse email manquante.'})
+        # Lien du formulaire d'inscription publique
+        url = request.build_absolute_uri('/adherents/inscription/')
+        subject = "Finalisation de ton inscription - Aquadémie Paris Plongée"
+        body = f"""
+Bonjour,
+
+Ton inscription n'est pas finalisée, je te prie de remplir ce formulaire : {url}
+
+Note que sans cela tu ne pourras pas t'inscrire aux fosses.
+
+Cordialement,
+Mouss
+"""
+        email_obj = EmailMessage(subject, body, to=[email])
+        email_obj.send()
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+

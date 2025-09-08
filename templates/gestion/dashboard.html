@@ -144,6 +144,26 @@
         </div>
     </div>
 </div>
+<!-- Bouton envoyer mail inscription -->
+<div class="mb-3">
+  <button class="btn btn-outline-info" type="button" onclick="ouvrirDialogMailInscription()">
+    <i class="fas fa-envelope"></i> Envoyer mail inscription
+  </button>
+</div>
+<!-- Dialog HTML5 -->
+<dialog id="dialogMailInscription">
+  <form method="dialog" id="formMailInscription">
+    <h5>Envoyer un mail d'inscription</h5>
+    <div class="mb-3">
+      <label for="emailInscription" class="form-label">Adresse email</label>
+      <input type="email" class="form-control" id="emailInscription" name="email" required>
+    </div>
+    <menu>
+      <button type="button" class="btn btn-secondary me-2" onclick="fermerDialogMailInscription()">Annuler</button>
+      <button type="submit" class="btn btn-primary">Envoyer</button>
+    </menu>
+  </form>
+</dialog>
 <!-- Bloc Alertes CACI déplacé ici -->
 <div class="row mb-4">
     <div class="col-md-12">
@@ -273,4 +293,37 @@
         </div>
     </div>
 </div>
+{% endblock %} 
+
+{% block extra_js %}
+<script>
+function ouvrirDialogMailInscription() {
+  document.getElementById('dialogMailInscription').showModal();
+}
+function fermerDialogMailInscription() {
+  document.getElementById('dialogMailInscription').close();
+}
+document.getElementById('formMailInscription').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const email = document.getElementById('emailInscription').value;
+  fetch("{% url 'envoyer_mail_inscription' %}", {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token }}',
+    },
+    body: JSON.stringify({ email: email })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('Mail envoyé !');
+      fermerDialogMailInscription();
+    } else {
+      alert(data.error || 'Erreur lors de l\'envoi du mail.');
+    }
+  })
+  .catch(() => alert('Erreur lors de l\'envoi du mail.'));
+});
+</script>
 {% endblock %} 

@@ -120,4 +120,5 @@ urlpatterns = [
     path('api/recherche-non-membre/', views.api_recherche_non_membre, name='api_recherche_non_membre'),
     path('api/inscrire-non-membre/', views.api_inscrire_non_membre, name='api_inscrire_non_membre'),
     path('inscription/<int:inscription_id>/supprimer/', views.supprimer_inscription_seance, name='supprimer_inscription_seance'),
+    path('envoyer-mail-inscription/', views.envoyer_mail_inscription, name='envoyer_mail_inscription'),
 ] 
