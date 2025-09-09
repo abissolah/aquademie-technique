@@ -1723,19 +1723,22 @@ def envoyer_mail_covoiturage(request, seance_id):
     tableau += "</table>"
     cc = getattr(settings, 'EMAIL_CC_COVOIT', [])
     signature_html = get_signature_html()
-    signature_img_path = os.path.join(settings.BASE_DIR, 'static', 'Signature_mouss.png')
+    signature_img_path = os.path.join(settings.BASE_DIR, 'static', 'Signature_mouss2.png')
     nb_envoyes = 0
     erreurs = []
     for ins in passagers:
         if not ins.personne.email:
             continue
         subject = f"Covoiturage pour la séance du {seance.date.strftime('%d/%m/%Y')}"
-        body = f"Bonjour {ins.personne.prenom},<br><br>Voici la liste des personnes qui proposent du covoiturage pour la séance du {seance.date.strftime('%d/%m/%Y')} :<br><br>{tableau}<br><br>Merci de contacter directement les conducteurs pour organiser votre déplacement.<br><br>Cordialement,<br>Le club" + signature_html
-        email = EmailMessage(subject, body, to=[ins.personne.email], cc=cc)
-        email.content_subtype = "html"
+        body_html = f"Bonjour {ins.personne.prenom},<br><br>Voici la liste des personnes qui proposent du covoiturage pour la séance du {seance.date.strftime('%d/%m/%Y')} :<br><br>{tableau}<br><br>Merci de contacter directement les conducteurs pour organiser ton déplacement.<br><br>Subaquatiquement," + signature_html
+        email = EmailMultiAlternatives(subject, '', to=[ins.personne.email], cc=cc)
+        email.attach_alternative(body_html, "text/html")
         if os.path.exists(signature_img_path):
             with open(signature_img_path, 'rb') as img:
-                email.attach_inline('Signature_mouss.png', img.read(), 'image/png', cid='signature_mouss')
+                mime_img = MIMEImage(img.read(), _subtype='png')
+                mime_img.add_header('Content-ID', '<signature_mouss2>')
+                mime_img.add_header('Content-Disposition', 'inline', filename='Signature_mouss2.png')
+                email.attach(mime_img)
         try:
             email.send()
             nb_envoyes += 1
