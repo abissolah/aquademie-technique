@@ -29,6 +29,7 @@ from openpyxl.styles import Alignment
 from openpyxl.styles import PatternFill
 from django.views.decorators.csrf import csrf_protect
 from django.conf import settings
+import os
 
 from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation, Palanquee, Lieu, LienInscriptionSeance, InscriptionSeance, Exercice
 from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm, ExerciceForm, AdminInscriptionSeanceForm
@@ -43,6 +44,9 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
+from gestion.utils import get_signature_html
+from django.core.mail import EmailMultiAlternatives
+from email.mime.image import MIMEImage
 
 # Vues d'accueil et de navigation
 @login_required
@@ -1641,6 +1645,9 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
     palanquees = seance.palanques.all()
     nb_envoyes = 0
     erreurs = []
+    cc = getattr(settings, 'EMAIL_CC_DEFAULT', [])
+    signature_html = get_signature_html()
+    signature_img_path = os.path.join(settings.BASE_DIR, 'static', 'Signature_mouss.png')
     for palanquee in palanquees:
         encadrant = palanquee.encadrant
         if not encadrant or not encadrant.email:
@@ -1682,8 +1689,14 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
         # Préparer et envoyer le mail
         subject = f"Fiche palanquée - {palanquee.nom} ({seance.date})"
         body = render_to_string('gestion/email_pdf_palanquee.txt', {'palanquee': palanquee, 'seance': seance})
-        email = EmailMessage(subject, body, to=[encadrant.email])
+        body_html = f"<p>{body.replace(chr(10), '<br>')}</p>{signature_html}"
+        email = EmailMessage(subject, body, to=[encadrant.email], cc=cc)
+        email.content_subtype = "html"
         email.attach(f"fiche_palanquee_{palanquee.seance.date}_{palanquee.section.get_nom_display()}.pdf", buffer.read(), 'application/pdf')
+        email.body = body_html
+        if os.path.exists(signature_img_path):
+            with open(signature_img_path, 'rb') as img:
+                email.attach_inline('Signature_mouss.png', img.read(), 'image/png', cid='signature_mouss')
         try:
             email.send()
             nb_envoyes += 1
@@ -1698,30 +1711,31 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
 @login_required
 def envoyer_mail_covoiturage(request, seance_id):
     seance = get_object_or_404(Seance, pk=seance_id)
-    # Récupérer les inscriptions
     inscriptions = seance.inscriptions.select_related('personne')
     conducteurs = [ins for ins in inscriptions if ins.covoiturage == 'propose']
     passagers = [ins for ins in inscriptions if ins.covoiturage == 'besoin']
     if not conducteurs or not passagers:
         messages.warning(request, "Aucun conducteur ou aucun passager à notifier.")
         return redirect('seance_detail', pk=seance_id)
-    # Préparer le tableau HTML
     tableau = "<table border='1' cellpadding='4' cellspacing='0'><tr><th>Nom</th><th>Prénom</th><th>Email</th><th>Lieu</th></tr>"
     for ins in conducteurs:
         tableau += f"<tr><td>{ins.personne.nom}</td><td>{ins.personne.prenom}</td><td>{ins.personne.email}</td><td>{ins.lieu_covoiturage or ''}</td></tr>"
     tableau += "</table>"
-    # Préparer les emails CC
     cc = getattr(settings, 'EMAIL_CC_COVOIT', [])
-    # Envoyer un mail à chaque passager
+    signature_html = get_signature_html()
+    signature_img_path = os.path.join(settings.BASE_DIR, 'static', 'Signature_mouss.png')
     nb_envoyes = 0
     erreurs = []
     for ins in passagers:
         if not ins.personne.email:
             continue
         subject = f"Covoiturage pour la séance du {seance.date.strftime('%d/%m/%Y')}"
-        body = f"Bonjour {ins.personne.prenom},<br><br>Voici la liste des personnes qui proposent du covoiturage pour la séance du {seance.date.strftime('%d/%m/%Y')} :<br><br>{tableau}<br><br>Merci de contacter directement les conducteurs pour organiser votre déplacement.<br><br>Cordialement,<br>Le club"
+        body = f"Bonjour {ins.personne.prenom},<br><br>Voici la liste des personnes qui proposent du covoiturage pour la séance du {seance.date.strftime('%d/%m/%Y')} :<br><br>{tableau}<br><br>Merci de contacter directement les conducteurs pour organiser votre déplacement.<br><br>Cordialement,<br>Le club" + signature_html
         email = EmailMessage(subject, body, to=[ins.personne.email], cc=cc)
         email.content_subtype = "html"
+        if os.path.exists(signature_img_path):
+            with open(signature_img_path, 'rb') as img:
+                email.attach_inline('Signature_mouss.png', img.read(), 'image/png', cid='signature_mouss')
         try:
             email.send()
             nb_envoyes += 1
@@ -1738,25 +1752,33 @@ def envoyer_mail_covoiturage(request, seance_id):
 @login_required
 def envoyer_mail_inscription(request):
     import json
+    from email.mime.image import MIMEImage
     try:
         data = json.loads(request.body)
         email = data.get('email')
         if not email:
             return JsonResponse({'success': False, 'error': 'Adresse email manquante.'})
-        # Lien du formulaire d'inscription publique
         url = request.build_absolute_uri('/adherents/inscription/')
         subject = "Finalisation de ton inscription - Aquadémie Paris Plongée"
-        body = f"""
-Bonjour,
-
-Ton inscription n'est pas finalisée, je te prie de remplir ce formulaire : {url}
-
-Note que sans cela tu ne pourras pas t'inscrire aux fosses.
-
-Cordialement,
-Mouss
-"""
-        email_obj = EmailMessage(subject, body, to=[email])
+        signature_html = get_signature_html()
+        signature_img_path = os.path.join(settings.BASE_DIR, 'static', 'Signature_mouss2.png')
+        body_html = f"""
+Bonjour,<br><br>
+Je constate que tu as procédé à ton inscription sur HelloAsso et que tu as omis de renseigner le formulaire de l'étape n°1.<br>
+<span style='color:red;font-weight:bold;'>Pour le moment tu n'as pas la possibilité de t'inscrire aux fosses.</span><br><br>
+Pour y remédier, il faut finaliser ton inscription et renseigner ce formulaire : <a href='{url}'>{url}</a><br><br>
+Je t'en remercie par avance.<br><br>
+Subaquatiquement,<br>
+""" + signature_html
+        cc = getattr(settings, 'EMAIL_CC_DEFAULT', [])
+        email_obj = EmailMultiAlternatives(subject, '', to=[email], cc=cc)
+        email_obj.attach_alternative(body_html, "text/html")
+        if os.path.exists(signature_img_path):
+            with open(signature_img_path, 'rb') as img:
+                mime_img = MIMEImage(img.read(), _subtype='png')
+                mime_img.add_header('Content-ID', '<signature_mouss2>')
+                mime_img.add_header('Content-Disposition', 'inline', filename='Signature_mouss2.png')
+                email_obj.attach(mime_img)
         email_obj.send()
         return JsonResponse({'success': True})
     except Exception as e:

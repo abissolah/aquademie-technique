@@ -4,6 +4,7 @@ from django.utils.html import strip_tags
 from django.conf import settings
 from django.urls import reverse
 from .models import LienEvaluation
+from django.templatetags.static import static
 
 
 def envoyer_lien_evaluation(lien_evaluation, request=None):
@@ -116,3 +117,11 @@ def envoyer_lien_evaluation_avec_cc(lien_evaluation, cc_emails=None, request=Non
         return True, "Email envoyé avec succès"
     except Exception as e:
         return False, f"Erreur lors de l'envoi de l'email : {str(e)}" 
+
+
+def get_signature_html():
+    return '''
+    <div style="margin-top:20px; text-align:left;">
+      <img src="cid:signature_mouss2" alt="Signature Mouss" style="min-width:420px; width:420px; max-width:100%;">
+    </div>
+    ''' 

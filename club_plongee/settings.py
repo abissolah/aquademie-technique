@@ -155,10 +155,10 @@ DEFAULT_FROM_EMAIL = 'Aquadémie Paris Plongée <contact@app-suivitech.fr>'
 
 # Adresses en copie par défaut
 EMAIL_CC_DEFAULT = [
-    'ab.issolah@gmail.com',  # À configurer
+    'ab.issolah@gmail.com', 'mouss.hippocampe@outlook.fr' # À configurer
 ]
 EMAIL_CC_COVOIT = [
-    'ab.issolah@gmail.com',  # À configurer
+    'ab.issolah@gmail.com', 'mouss.hippocampe@outlook.fr','aquademiepp@gmail.com' # À configurer
 ]
 
 # Configuration du site
