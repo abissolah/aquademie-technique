@@ -80,6 +80,7 @@
                     {{ form.date_delivrance_caci|as_crispy_field }}
 
                     {{ form.caci_fichier|as_crispy_field }}
+                    {{ form.caci_valide|as_crispy_field }}
                     {% if object and object.caci_fichier %}
                         <div class="mb-3">
                             <label class="form-label">Fichier CACI actuel :</label>

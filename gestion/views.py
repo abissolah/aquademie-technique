@@ -64,6 +64,7 @@ def dashboard(request):
     context['adherents_sans_caci'] = adherents.filter(caci_fichier__isnull=True) | adherents.filter(caci_fichier='')
     context['adherents_caci_expire'] = adherents.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__lt=today - timedelta(days=365))
     context['adherents_caci_bientot'] = adherents.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__gte=today - timedelta(days=365), date_delivrance_caci__lte=today - timedelta(days=335))
+    context['adherents_caci_non_valide'] = Adherent.objects.filter(caci_valide=False)
     return render(request, 'gestion/dashboard.html', context)
 
 # Vues pour les adhérents
@@ -1760,4 +1761,13 @@ Mouss
         return JsonResponse({'success': True})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+@login_required
+def valider_caci(request, adherent_id):
+    adherent = get_object_or_404(Adherent, pk=adherent_id)
+    if request.method == 'POST':
+        adherent.caci_valide = True
+        adherent.save()
+        messages.success(request, f"CACI validé pour {adherent.nom} {adherent.prenom}.")
+    return redirect('dashboard')
 

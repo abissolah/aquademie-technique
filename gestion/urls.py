@@ -27,6 +27,7 @@ urlpatterns = [
     path('adherents/export-excel/', views.export_adherents_excel, name='export_adherents_excel'),
     path('adherents/inscription/', views.AdherentPublicCreateView.as_view(), name='adherent_public_create'),
     path('adherents/inscription/success/', views.dashboard, name='adherent_public_success'),
+    path('adherents/<int:adherent_id>/valider-caci/', views.valider_caci, name='valider_caci'),
     
     # Élèves
     path('eleves/', views.EleveListView.as_view(), name='eleve_list'),

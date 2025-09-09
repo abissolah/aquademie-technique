@@ -215,6 +215,55 @@
     </div>
 </div>
 
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card border-warning">
+      <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Adhérents avec CACI non validé</h5>
+      </div>
+      <div class="card-body">
+        {% if adherents_caci_non_valide %}
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle">
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Prénom</th>
+                <th>Date de délivrance du CACI</th>
+                <th>Fichier CACI</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in adherents_caci_non_valide %}
+              <tr>
+                <td>{{ a.nom|upper }}</td>
+                <td>{{ a.prenom|capfirst }}</td>
+                <td>{{ a.date_delivrance_caci|date:'d/m/Y' }}</td>
+                <td>
+                  {% if a.caci_fichier %}
+                    <a href="{{ a.caci_fichier.url }}" target="_blank">Télécharger</a>
+                  {% else %}-{% endif %}
+                </td>
+                <td>
+                  <form method="post" action="{% url 'valider_caci' a.pk %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button class="btn btn-success btn-sm" title="Valider le CACI"><i class="fas fa-check"></i> Valider le CACI</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <span class="text-success">Tous les CACI sont validés.</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Séances récentes -->
 <div class="row mb-4">
     <div class="col-md-6">

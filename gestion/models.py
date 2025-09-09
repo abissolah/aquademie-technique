@@ -48,6 +48,7 @@ class Adherent(models.Model):
     ]
     type_personne = models.CharField(max_length=20, choices=TYPE_PERSONNE_CHOICES, default='adherent', verbose_name="Type de personne")
     caci_fichier = models.FileField(upload_to='caci/', blank=True, null=True, verbose_name="Fichier CACI")
+    caci_valide = models.BooleanField("CACI validé", default=False)
     
     nom = models.CharField(max_length=100)
     prenom = models.CharField(max_length=100)
