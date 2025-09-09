@@ -362,7 +362,8 @@ def generer_fiche_palanquee_pdf(request, pk):
     normal_style = styles['Normal']
     
     # Titre
-    elements.append(Paragraph(f"Fiche de Palanquée - {palanquee.section.get_nom_display()}", title_style))
+    encadrant_nom = palanquee.encadrant.nom_complet if palanquee.encadrant else "-"
+    elements.append(Paragraph(f"Palanquée : {encadrant_nom}", title_style))
     elements.append(Spacer(1, 20))
     
     # Informations générales
@@ -386,9 +387,9 @@ def generer_fiche_palanquee_pdf(request, pk):
         elements.append(Paragraph(f"{i}. {exercice}", normal_style))
     elements.append(Spacer(1, 12))
     
-    # Précisions des exercices
+    # Nota (anciennement Précisions des exercices)
     if palanquee.precision_exercices:
-        elements.append(Paragraph("Précisions des exercices", heading_style))
+        elements.append(Paragraph("Nota", heading_style))
         elements.append(Paragraph(palanquee.precision_exercices, normal_style))
     
     # Construire le PDF

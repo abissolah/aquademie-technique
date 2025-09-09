@@ -123,6 +123,8 @@ class PalanqueeForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['encadrant'].queryset = Adherent.objects.filter(statut='encadrant')
         self.fields['encadrant'].required = False
+        self.fields['precision_exercices'].label = 'Nota'
+        self.fields['precision_exercices'].required = False
         # Initialiser la séance si passée en paramètre
         if seance_id:
             try:

@@ -13,7 +13,7 @@
                 <i class="fas fa-users me-2"></i>
                 {% if form.instance.pk %}Modifier la Palanquée{% else %}Nouvelle Palanquée{% endif %}
             </h1>
-            <a href="{% if form.instance.pk and form.instance.seance %}{% url 'seance_update' form.instance.seance.pk %}{% else %}{% url 'palanquee_list' %}{% endif %}" class="btn btn-outline-secondary">
+            <a href="{% if form.instance.pk and form.instance.seance %}{% url 'seance_detail' form.instance.seance.pk %}{% else %}{% url 'palanquee_list' %}{% endif %}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-2"></i>{% if form.instance.pk and form.instance.seance %}Retour à la séance{% else %}Retour à la liste{% endif %}
             </a>
         </div>

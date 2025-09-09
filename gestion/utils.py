@@ -11,8 +11,8 @@ def envoyer_lien_evaluation(lien_evaluation, request=None):
     """
     Envoie un email avec le lien d'évaluation à l'encadrant
     """
-    seance = lien_evaluation.seance
-    encadrant = seance.encadrant
+    seance = lien_evaluation.palanquee.seance
+    encadrant = lien_evaluation.palanquee.encadrant
     
     # Construire l'URL complète du lien
     if request:
@@ -34,7 +34,7 @@ def envoyer_lien_evaluation(lien_evaluation, request=None):
     text_content = strip_tags(html_content)
     
     # Préparer l'email
-    subject = f"Lien d'évaluation - Séance du {seance.date.strftime('%d/%m/%Y')} - {seance.palanquee}"
+    subject = f"Lien d'évaluation - Séance du {seance.date.strftime('%d/%m/%Y')} - {lien_evaluation.palanquee.nom}"
     
     # Destinataires
     to_emails = [encadrant.email]

@@ -1538,6 +1538,9 @@ def suivi_formation_eleve(request, eleve_id):
                 comp_data['exercices'].append({'exercice': ex, 'etoiles': etoiles, 'commentaire': commentaire})
                 if etoiles < 3:
                     comp_data['etoile_competence'] = False
+            # Si la compétence n'a aucun exercice, elle n'est pas validée
+            if not comp_data['exercices']:
+                comp_data['etoile_competence'] = False
             groupe_data['competences'].append(comp_data)
             if not comp_data['etoile_competence']:
                 groupe_data['etoile_groupe'] = False
@@ -1684,12 +1687,13 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
             'CustomHeading', parent=styles['Heading2'], fontSize=14, spaceAfter=12, spaceBefore=20
         )
         normal_style = styles['Normal']
-        elements.append(Paragraph(f"Fiche de Palanquée - {palanquee.section.get_nom_display()}", title_style))
+        encadrant_nom = palanquee.encadrant.nom_complet if palanquee.encadrant else "-"
+        elements.append(Paragraph(f"Palanquée : {encadrant_nom}", title_style))
         elements.append(Spacer(1, 20))
         elements.append(Paragraph("Informations générales", heading_style))
         elements.append(Paragraph(f"<b>Date :</b> {palanquee.seance.date.strftime('%d/%m/%Y')}", normal_style))
         elements.append(Paragraph(f"<b>Lieu :</b> {palanquee.seance.lieu}", normal_style))
-        elements.append(Paragraph(f"<b>Encadrant :</b> {palanquee.encadrant.nom_complet}", normal_style))
+        elements.append(Paragraph(f"<b>Encadrant :</b> {encadrant_nom}", normal_style))
         elements.append(Paragraph(f"<b>Section :</b> {palanquee.section.get_nom_display()}", normal_style))
         elements.append(Spacer(1, 12))
         elements.append(Paragraph("Élèves", heading_style))
@@ -1702,7 +1706,7 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
             elements.append(Paragraph(f"{i}. {exercice}", normal_style))
         elements.append(Spacer(1, 12))
         if palanquee.precision_exercices:
-            elements.append(Paragraph("Précisions des exercices", heading_style))
+            elements.append(Paragraph("Nota", heading_style))
             elements.append(Paragraph(palanquee.precision_exercices, normal_style))
         doc.build(elements)
         buffer.seek(0)
@@ -1710,13 +1714,15 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
         subject = f"Fiche palanquée - {palanquee.nom} ({seance.date})"
         body = render_to_string('gestion/email_pdf_palanquee.txt', {'palanquee': palanquee, 'seance': seance})
         body_html = f"<p>{body.replace(chr(10), '<br>')}</p>{signature_html}"
-        email = EmailMessage(subject, body, to=[encadrant.email], cc=cc)
-        email.content_subtype = "html"
+        email = EmailMultiAlternatives(subject, body, to=[encadrant.email], cc=cc)
         email.attach(f"fiche_palanquee_{palanquee.seance.date}_{palanquee.section.get_nom_display()}.pdf", buffer.read(), 'application/pdf')
-        email.body = body_html
+        email.attach_alternative(body_html, "text/html")
         if os.path.exists(signature_img_path):
             with open(signature_img_path, 'rb') as img:
-                email.attach_inline('Signature_mouss.png', img.read(), 'image/png', cid='signature_mouss')
+                mime_img = MIMEImage(img.read(), _subtype='png')
+                mime_img.add_header('Content-ID', '<signature_mouss2>')
+                mime_img.add_header('Content-Disposition', 'inline', filename='Signature_mouss2.png')
+                email.attach(mime_img)
         try:
             email.send()
             nb_envoyes += 1
@@ -1815,4 +1821,38 @@ def valider_caci(request, adherent_id):
         adherent.save()
         messages.success(request, f"CACI validé pour {adherent.nom} {adherent.prenom}.")
     return redirect('dashboard')
+
+@login_required
+def envoyer_liens_evaluation_encadrants(request, seance_id):
+    seance = get_object_or_404(Seance, pk=seance_id)
+    nb_envoyes = 0
+    erreurs = []
+    for palanquee in seance.palanques.all():
+        encadrant = palanquee.encadrant
+        if not encadrant or not encadrant.email:
+            erreurs.append(f"{palanquee.nom} : pas d'encadrant ou d'email")
+            continue
+        # Chercher un lien d'évaluation actif ou en créer un
+        from .models import LienEvaluation
+        lien = LienEvaluation.objects.filter(palanquee=palanquee, date_expiration__gte=timezone.now()).last()
+        if not lien:
+            # Créer un nouveau lien
+            import uuid
+            from datetime import timedelta
+            lien = LienEvaluation.objects.create(
+                palanquee=palanquee,
+                token=uuid.uuid4(),
+                date_expiration=seance.date + timedelta(days=2)
+            )
+        # Envoyer le mail
+        ok, msg = envoyer_lien_evaluation(lien, request)
+        if ok:
+            nb_envoyes += 1
+        else:
+            erreurs.append(f"{palanquee.nom} : {msg}")
+    if nb_envoyes:
+        messages.success(request, f"{nb_envoyes} mails de lien d'évaluation envoyés aux encadrants.")
+    if erreurs:
+        messages.error(request, "Erreurs lors de l'envoi : " + ", ".join(erreurs))
+    return redirect('seance_detail', pk=seance_id)
 

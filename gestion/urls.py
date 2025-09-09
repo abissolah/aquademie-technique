@@ -74,6 +74,7 @@ urlpatterns = [
     path('seances/<int:seance_id>/admin-inscription/', views.admin_inscription_seance, name='admin_inscription_seance'),
     path('seances/<int:seance_id>/envoyer-pdf-palanquees/', views.envoyer_pdf_palanquees_encadrants, name='envoyer_pdf_palanquees_encadrants'),
     path('seances/<int:seance_id>/envoyer-mail-covoiturage/', views.envoyer_mail_covoiturage, name='envoyer_mail_covoiturage'),
+    path('seances/<int:seance_id>/envoyer-liens-evaluation/', views.envoyer_liens_evaluation_encadrants, name='envoyer_liens_evaluation_encadrants'),
     
     # Palanquées
     path('palanquees/', PalanqueeListView.as_view(), name='palanquee_list'),

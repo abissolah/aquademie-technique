@@ -93,7 +93,7 @@
                                 {% if palanquee.precision_exercices %}
                                     <hr>
                                     <small class="text-muted">
-                                        <strong>Exercices :</strong> {{ palanquee.precision_exercices|truncatewords:20 }}
+                                        <strong>Nota :</strong> {{ palanquee.precision_exercices|truncatewords:20 }}
                                     </small>
                                 {% endif %}
                             </div>
@@ -178,6 +178,9 @@
                     {% endif %}
                     <a href="{% url 'envoyer_pdf_palanquees_encadrants' seance.pk %}" class="btn btn-outline-info">
                         <i class="fas fa-file-pdf"></i> Générer et envoyer PDF à tous les encadrants
+                    </a>
+                    <a href="{% url 'envoyer_liens_evaluation_encadrants' seance.pk %}" class="btn btn-outline-info">
+                        <i class="fas fa-link"></i> Générer et envoyer liens d'évaluation à tous les encadrants
                     </a>
                 </div>
             </div>
