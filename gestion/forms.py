@@ -315,7 +315,6 @@ class AdminInscriptionSeanceForm(forms.Form):
     ville = forms.CharField(required=False, label="Ville")
     email = forms.EmailField(required=False, label="Email")
     telephone = forms.CharField(required=False, label="Téléphone")
-    photo = forms.ImageField(required=False, label="Photo")
     numero_licence = forms.CharField(required=False, label="Numéro de licence")
     assurance = forms.ChoiceField(
         choices=[

@@ -937,11 +937,11 @@ def api_inscrire_non_membre(request):
         debug_msgs.append("Déjà inscrit")
         return JsonResponse({'success': False, 'message': 'Vous êtes déjà inscrit à cette séance.', 'debug': debug_msgs})
     if non_membre:
-        form = PublicNonAdherentInscriptionForm(request.POST, request.FILES, instance=non_membre)
-        debug_msgs.append("Form instance existant (PublicNonAdherentInscriptionForm)")
+        form = AdherentPublicForm(request.POST, request.FILES, instance=non_membre)
+        debug_msgs.append("Form instance existant (AdherentPublicForm)")
     else:
-        form = PublicNonAdherentInscriptionForm(request.POST, request.FILES)
-        debug_msgs.append("Form nouvelle instance (PublicNonAdherentInscriptionForm)")
+        form = AdherentPublicForm(request.POST, request.FILES)
+        debug_msgs.append("Form nouvelle instance (AdherentPublicForm)")
     if form.is_valid():
         personne = form.save(commit=False)
         personne.type_personne = 'non_adherent'
@@ -1566,12 +1566,18 @@ def admin_inscription_seance(request, seance_id):
         return redirect('seance_detail', pk=seance_id)
     seance = get_object_or_404(Seance, pk=seance_id)
     if request.method == 'POST':
+        print('--- ADMIN INSCRIPTION DEBUG ---')
+        print('POST:', dict(request.POST))
+        print('FILES:', dict(request.FILES))
         form = AdminInscriptionSeanceForm(request.POST, request.FILES)
+        print('Form is valid:', form.is_valid())
         if form.is_valid():
             adherent = form.cleaned_data.get('adherent')
+            print('adherent:', adherent)
             if adherent:
                 personne = adherent
             else:
+                print('form.cleaned_data:', {k: v for k, v in form.cleaned_data.items()})
                 # Créer un non adhérent avec tous les champs du formulaire
                 personne, created = Adherent.objects.get_or_create(
                     nom=form.cleaned_data['nom'],
@@ -1584,23 +1590,37 @@ def admin_inscription_seance(request, seance_id):
                         'code_postal': form.cleaned_data.get('code_postal', ''),
                         'ville': form.cleaned_data.get('ville', ''),
                         'telephone': form.cleaned_data.get('telephone', ''),
-                        'photo': form.cleaned_data.get('photo'),
                         'numero_licence': form.cleaned_data.get('numero_licence', ''),
                         'assurance': form.cleaned_data.get('assurance', ''),
-                        'caci_fichier': form.cleaned_data.get('caci_fichier'),
                         'date_delivrance_caci': form.cleaned_data.get('date_delivrance_caci'),
                         'niveau': form.cleaned_data.get('niveau', ''),
                         'statut': form.cleaned_data.get('statut', 'eleve'),
                     }
                 )
-                # Si déjà existant, on met à jour les champs manquants
+                print('Adherent created:', created, 'id:', personne.id)
+                # Gérer le fichier CACI et la photo après création/mise à jour
+                caci_file = form.cleaned_data.get('caci_fichier')
+                print('caci_fichier in cleaned_data:', caci_file)
+                if caci_file:
+                    personne.caci_fichier = caci_file
+                    print('caci_fichier affecté à personne')
+                if 'photo' in form.cleaned_data:
+                    photo_file = form.cleaned_data.get('photo')
+                    print('photo in cleaned_data:', photo_file)
+                    if photo_file:
+                        personne.photo = photo_file
+                        print('photo affectée à personne')
                 if not created:
-                    for field in ['date_naissance', 'adresse', 'code_postal', 'ville', 'telephone', 'photo', 'numero_licence', 'assurance', 'caci_fichier', 'date_delivrance_caci', 'niveau', 'statut']:
+                    for field in ['date_naissance', 'adresse', 'code_postal', 'ville', 'telephone', 'numero_licence', 'assurance', 'date_delivrance_caci', 'niveau', 'statut']:
                         value = form.cleaned_data.get(field)
                         if value:
                             setattr(personne, field, value)
                     personne.type_personne = 'non_adherent'
+                try:
                     personne.save()
+                    print('personne.save() OK')
+                except Exception as e:
+                    print('ERREUR personne.save():', e)
             # Créer l'inscription si pas déjà inscrite
             from .models import InscriptionSeance
             covoiturage = form.cleaned_data.get('covoiturage', '')
