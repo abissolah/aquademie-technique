@@ -30,6 +30,7 @@ from openpyxl.styles import PatternFill
 from django.views.decorators.csrf import csrf_protect
 from django.conf import settings
 import os
+import shutil
 
 from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation, Palanquee, Lieu, LienInscriptionSeance, InscriptionSeance, Exercice
 from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm, ExerciceForm, AdminInscriptionSeanceForm
@@ -1855,4 +1856,53 @@ def envoyer_liens_evaluation_encadrants(request, seance_id):
     if erreurs:
         messages.error(request, "Erreurs lors de l'envoi : " + ", ".join(erreurs))
     return redirect('seance_detail', pk=seance_id)
+
+def copier_caci(request, adherent_id):
+    adherent = get_object_or_404(Adherent, pk=adherent_id)
+    if not adherent.caci_fichier:
+        messages.error(request, "Aucun fichier CACI à copier pour cet adhérent.")
+        return redirect('adherent_list')
+    chemin_sftp = getattr(settings, 'CHEMIN_SFTP', None)
+    if not chemin_sftp:
+        messages.error(request, "CHEMIN_SFTP non configuré dans les settings.")
+        return redirect('adherent_list')
+    nom = adherent.nom.strip().replace(' ', '_')
+    prenom = adherent.prenom.strip().replace(' ', '_')
+    ext = os.path.splitext(adherent.caci_fichier.name)[1]
+    nouveau_nom = f"CACI_{nom}_{prenom}{ext}"
+    source_path = adherent.caci_fichier.path
+    dest_path = os.path.join(chemin_sftp, nouveau_nom)
+    try:
+        shutil.copy2(source_path, dest_path)
+        messages.success(request, f"Fichier CACI copié sous {nouveau_nom}.")
+    except Exception as e:
+        messages.error(request, f"Erreur lors de la copie : {e}")
+    return redirect('adherent_list')
+
+def copier_tous_caci(request):
+    from .models import Adherent
+    chemin_sftp = getattr(settings, 'CHEMIN_SFTP', None)
+    if not chemin_sftp:
+        messages.error(request, "CHEMIN_SFTP non configuré dans les settings.")
+        return redirect('adherent_list')
+    adherents = Adherent.objects.filter(caci_fichier__isnull=False).exclude(caci_fichier='')
+    nb_copies = 0
+    erreurs = []
+    for adherent in adherents:
+        nom = adherent.nom.strip().replace(' ', '_')
+        prenom = adherent.prenom.strip().replace(' ', '_')
+        ext = os.path.splitext(adherent.caci_fichier.name)[1]
+        nouveau_nom = f"CACI_{nom}_{prenom}{ext}"
+        source_path = adherent.caci_fichier.path
+        dest_path = os.path.join(chemin_sftp, nouveau_nom)
+        try:
+            shutil.copy2(source_path, dest_path)
+            nb_copies += 1
+        except Exception as e:
+            erreurs.append(f"{adherent.nom} {adherent.prenom} : {e}")
+    if nb_copies:
+        messages.success(request, f"{nb_copies} fichier(s) CACI copié(s) dans {chemin_sftp}.")
+    if erreurs:
+        messages.error(request, "Erreurs : " + ", ".join(erreurs))
+    return redirect('adherent_list')
 

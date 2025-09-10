@@ -28,6 +28,8 @@ urlpatterns = [
     path('adherents/inscription/', views.AdherentPublicCreateView.as_view(), name='adherent_public_create'),
     path('adherents/inscription/success/', views.dashboard, name='adherent_public_success'),
     path('adherents/<int:adherent_id>/valider-caci/', views.valider_caci, name='valider_caci'),
+    path('adherents/<int:adherent_id>/copier-caci/', views.copier_caci, name='copier_caci'),
+    path('adherents/copier-tous-caci/', views.copier_tous_caci, name='copier_tous_caci'),
     
     # Élèves
     path('eleves/', views.EleveListView.as_view(), name='eleve_list'),

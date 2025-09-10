@@ -22,6 +22,9 @@
                 <a href="{% url 'adherent_create' %}" class="btn btn-primary">
                     <i class="fas fa-plus me-2"></i>Nouvel adhérent
                 </a>
+                <a href="{% url 'copier_tous_caci' %}" class="btn btn-secondary">
+                    <i class="fas fa-copy me-2"></i>Copier tous les CACI
+                </a>
             </div>
         </div>
     </div>
@@ -173,6 +176,11 @@
                                         <a href="{% url 'adherent_delete' adherent.pk %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
                                             <i class="fas fa-trash"></i>
                                         </a>
+                                        {% if adherent.caci_fichier %}
+                                        <a href="{% url 'copier_caci' adherent.pk %}" class="btn btn-sm btn-outline-secondary" title="Copier CACI">
+                                            <i class="fas fa-copy"></i>
+                                        </a>
+                                        {% endif %}
                                         {% if adherent.statut == 'eleve' %}
                                         <a href="{% url 'suivi_formation_eleve' adherent.pk %}" class="btn btn-sm btn-outline-success" title="Suivi formation">
                                             <i class="fas fa-graduation-cap"></i>

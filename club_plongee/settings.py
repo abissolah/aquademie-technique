@@ -161,6 +161,8 @@ EMAIL_CC_COVOIT = [
     'ab.issolah@gmail.com', # À configurer
 ]
 
+CHEMIN_SFTP = 'c:\mine\work'
+
 # Configuration du site
 SITE_NAME = 'Aquadémie Paris Plongée'
 SITE_URL = 'http://127.0.0.1:8000'  # À configurer en production
