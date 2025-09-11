@@ -1072,6 +1072,15 @@ class AdherentPublicCreateView(CreateView):
     template_name = 'gestion/adherent_public_form.html'
     success_url = None  # Pas de redirection
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['inscription_2025_2026'] = getattr(self, 'inscription_2025_2026', False)
+        return context
+
+    def dispatch(self, request, *args, **kwargs):
+        self.inscription_2025_2026 = kwargs.get('inscription_2025_2026', False)
+        return super().dispatch(request, *args, **kwargs)
+
     def form_valid(self, form):
         form.save()
         return self.render_to_response(self.get_context_data(form=self.form_class(), inscription_success=True))
@@ -1788,7 +1797,7 @@ def envoyer_mail_inscription(request):
         email = data.get('email')
         if not email:
             return JsonResponse({'success': False, 'error': 'Adresse email manquante.'})
-        url = request.build_absolute_uri('/adherents/inscription/')
+        url = request.build_absolute_uri('/adherents/inscription/2025-2026/')
         subject = "Finalisation de ton inscription - Aquadémie Paris Plongée"
         signature_html = get_signature_html()
         signature_img_path = os.path.join(settings.BASE_DIR, 'static', 'Signature_mouss2.png')

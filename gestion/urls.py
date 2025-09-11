@@ -25,8 +25,8 @@ urlpatterns = [
     path('adherents/import-excel/', views.import_adherents_excel, name='import_adherents_excel'),
     path('adherents/telecharger-modele/', views.download_excel_template, name='download_excel_template'),
     path('adherents/export-excel/', views.export_adherents_excel, name='export_adherents_excel'),
-    path('adherents/inscription/', views.AdherentPublicCreateView.as_view(), name='adherent_public_create'),
-    path('adherents/inscription/success/', views.dashboard, name='adherent_public_success'),
+    path('adherents/inscription-2025-2026/', views.AdherentPublicCreateView.as_view(), name='adherent_public_create'),
+    path('adherents/inscription-2025-2026/success/', views.dashboard, name='adherent_public_success'),
     path('adherents/<int:adherent_id>/valider-caci/', views.valider_caci, name='valider_caci'),
     path('adherents/<int:adherent_id>/copier-caci/', views.copier_caci, name='copier_caci'),
     path('adherents/copier-tous-caci/', views.copier_tous_caci, name='copier_tous_caci'),
@@ -125,4 +125,5 @@ urlpatterns = [
     path('api/inscrire-non-membre/', views.api_inscrire_non_membre, name='api_inscrire_non_membre'),
     path('inscription/<int:inscription_id>/supprimer/', views.supprimer_inscription_seance, name='supprimer_inscription_seance'),
     path('envoyer-mail-inscription/', views.envoyer_mail_inscription, name='envoyer_mail_inscription'),
+    path('adherents/inscription/2025-2026/', views.AdherentPublicCreateView.as_view(), {'inscription_2025_2026': True}, name='adherent_public_create_2025_2026'),
 ] 

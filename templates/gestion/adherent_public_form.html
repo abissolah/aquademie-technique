@@ -7,8 +7,9 @@
 <div class="row justify-content-center">
     <div class="col-lg-8">
         <div class="card mt-4">
-            <div class="card-header">
-                <h3 class="mb-0"><i class="fas fa-user-plus me-2"></i>Inscription d'un nouvel adhérent</h3>
+            <div class="card-header text-center" style="background: none; border-bottom: none;">
+                <img src="/static/bandeau_aquademie.png" alt="Bannière Aquademie" class="img-fluid mb-3" style="max-height:120px;object-fit:cover;">
+                <h3 class="mb-0"><i class="fas fa-user-plus me-2"></i>Adhésion Aquademie 2025 - 2026</h3>
             </div>
             <div class="card-body">
                 {% if messages %}
@@ -17,23 +18,29 @@
                     {% endfor %}
                 {% endif %}
                 {% if inscription_success %}
-                    <div class="alert alert-success text-center">
-                        <span class="fs-4 text-success">L'étape 1 est complète, passez à l'étape 2.<br><br></span>
-                        <span class="fs-1 text-success fw-bold">Etape 2 :</span><br><br>
-                        <span class="fs-4 text-success">Revenez sur le formulaire HelloAsso - Choisissez votre tarif, n'oubliez pas votre option à l'étape 2.<br>
-                            En application des obligations légales, la licence FFESSM inclut automatiquement une Assurance Responsabilité Civile. Tout licencié est ainsi
-                            assuré pour les dommages corporels, matériels et/ou immatériels dont il serait responsable vis à vis d'autrui, dans le cadre de la pratique des
-                            activités fédérales, dans le monde entier. Mais la licence permet également, si vous le désirez, de souscrire une Assurance Individuelle
-                            Accident Loisir 1, Loisir 2,Loisir 3... Cette assurance optionnelle couvre le licencié pour ses propres dommages corporels sans tiers
-                            responsable identifié.Renseignements supplémentaires sur le site : <a href="https://www.assurdiving.com/" target="_blank">https://www.assurdiving.com/</a><br><br>
-                        L'option Loisir1 est recommandée par APP.<br>
-                        Remplissez le formulaire et réglez !</span>
-                    </div>
-                    <div class="text-center mt-4">
-                        <a href="https://www.helloasso.com/associations/aquademie-paris-plongee/adhesions/adhesion-aquademie-2025-2026/1" target="_blank" class="btn btn-primary btn-lg">
-                            <i class="fas fa-arrow-right me-2"></i>Continuer mon inscription
-                        </a>
-                    </div>
+                    {% if inscription_2025_2026 %}
+                        <div class="alert alert-success text-center">
+                            <span class="fs-4 text-success">Votre inscription est validée.</span>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-success text-center">
+                            <span class="fs-4 text-success">L'étape 1 est complète, passez à l'étape 2.<br><br></span>
+                            <span class="fs-1 text-success fw-bold">Etape 2 :</span><br><br>
+                            <span class="fs-4 text-success">Revenez sur le formulaire HelloAsso - Choisissez votre tarif, n'oubliez pas votre option à l'étape 2.<br>
+                                En application des obligations légales, la licence FFESSM inclut automatiquement une Assurance Responsabilité Civile. Tout licencié est ainsi
+                                assuré pour les dommages corporels, matériels et/ou immatériels dont il serait responsable vis à vis d'autrui, dans le cadre de la pratique des
+                                activités fédérales, dans le monde entier. Mais la licence permet également, si vous le désirez, de souscrire une Assurance Individuelle
+                                Accident Loisir 1, Loisir 2,Loisir 3... Cette assurance optionnelle couvre le licencié pour ses propres dommages corporels sans tiers
+                                responsable identifié.Renseignements supplémentaires sur le site : <a href="https://www.assurdiving.com/" target="_blank">https://www.assurdiving.com/</a><br><br>
+                            L'option Loisir1 est recommandée par APP.<br>
+                            Remplissez le formulaire et réglez !</span>
+                        </div>
+                        <div class="text-center mt-4">
+                            <a href="https://www.helloasso.com/associations/aquademie-paris-plongee/adhesions/adhesion-aquademie-2025-2026/1" target="_blank" class="btn btn-primary btn-lg">
+                                <i class="fas fa-arrow-right me-2"></i>Continuer mon inscription
+                            </a>
+                        </div>
+                    {% endif %}
                 {% else %}
                 <form method="post" enctype="multipart/form-data" novalidate id="adherent-public-form">
                     {% csrf_token %}
