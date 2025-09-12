@@ -1878,7 +1878,12 @@ def copier_caci(request, adherent_id):
     nom = adherent.nom.strip().replace(' ', '_')
     prenom = adherent.prenom.strip().replace(' ', '_')
     ext = os.path.splitext(adherent.caci_fichier.name)[1]
-    nouveau_nom = f"CACI_{nom}_{prenom}{ext}"
+    date_caci = ''
+    if adherent.date_delivrance_caci:
+        date_caci = adherent.date_delivrance_caci.strftime('%Y-%m-%d')
+    else:
+        date_caci = 'sansdate'
+    nouveau_nom = f"CACI_{nom}_{prenom}-{date_caci}{ext}"
     source_path = adherent.caci_fichier.path
     dest_path = os.path.join(chemin_sftp, nouveau_nom)
     try:
@@ -1901,7 +1906,12 @@ def copier_tous_caci(request):
         nom = adherent.nom.strip().replace(' ', '_')
         prenom = adherent.prenom.strip().replace(' ', '_')
         ext = os.path.splitext(adherent.caci_fichier.name)[1]
-        nouveau_nom = f"CACI_{nom}_{prenom}{ext}"
+        date_caci = ''
+        if adherent.date_delivrance_caci:
+            date_caci = adherent.date_delivrance_caci.strftime('%Y-%m-%d')
+        else:
+            date_caci = 'sansdate'
+        nouveau_nom = f"CACI_{nom}_{prenom}-{date_caci}{ext}"
         source_path = adherent.caci_fichier.path
         dest_path = os.path.join(chemin_sftp, nouveau_nom)
         try:
