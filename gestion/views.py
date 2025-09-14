@@ -927,7 +927,7 @@ def api_inscrire_membre_app(request):
             message = render_to_string('gestion/email_confirmation_inscription.txt', {'seance': seance, 'personne': membre, 'url': url})
             cc_emails = getattr(settings, 'EMAIL_CC_DEFAULT', [])
             from django.core.mail import EmailMessage
-            email = EmailMessage(subject, message, None, [membre.email], cc=cc_emails)
+            email = EmailMessage(subject, message, None, [membre.email])#
             email.send(fail_silently=True)
         return JsonResponse({'success': True, 'message': 'Inscription réussie ! Un email de confirmation vous a été envoyé.'})
     except Exception as e:
@@ -986,7 +986,7 @@ def api_inscrire_non_membre(request):
             cc_emails = getattr(settings, 'EMAIL_CC_DEFAULT', [])
             from django.core.mail import EmailMessage
             try:
-                email = EmailMessage(subject, message, None, [personne.email], cc=cc_emails)
+                email = EmailMessage(subject, message, None, [personne.email])#, cc=cc_emails
                 email.send(fail_silently=True)
                 debug_msgs.append("Mail envoyé")
             except Exception as mail_e:

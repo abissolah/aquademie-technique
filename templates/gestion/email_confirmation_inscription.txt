@@ -1,6 +1,6 @@
 Bonjour {{ personne.prenom }},
 
-Ton inscription à la séance du {{ seance.date|date:'d/m/Y' }} ({{ seance.lieu.nom }}) a bien été prise en compte.
+Ton inscription à la séance du {{ seance.date|date:'d/m/Y' }} ({{ seance.lieu.nom }}) a bien été prise en compte. Tu recevras une confirmation de ta participation très prochainement.
 
 
 Merci et à bientôt sous l'eau !
