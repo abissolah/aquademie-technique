@@ -1,8 +1,8 @@
-Bonjour {{ palanquee.encadrant.nom_complet }},
+Bonjour {{ palanquee.encadrant.prenom }},
 
-Veuillez trouver en pièce jointe la fiche PDF de votre palanquée « {{ palanquee.nom }} » pour la séance du {{ seance.date|date:"d/m/Y" }}.
+Je te prie de trouver en pièce jointe la fiche PDF de ta palanquée « {{ palanquee.nom }} » pour la séance du {{ seance.date|date:"d/m/Y" }}.
 
-Merci de votre engagement et bonne séance !
+Merci de ton engagement et bonne séance !
 
-Cordialement,
-Le club
+Subaquatiquement,
+

@@ -5,9 +5,16 @@ L'inscription à la prochaine séance de plongée est ouverte !
 Séance : {{ seance.date|date:'d/m/Y' }}
 Heure : {{ seance.heure_debut|default:'--'|time:'H:i' }} - {{ seance.heure_fin|default:'--'|time:'H:i' }}
 Lieu : {{ seance.lieu.nom }}
+Adresse : {{ seance.lieu.adresse }}, {{ seance.lieu.code_postal }} {{ seance.lieu.ville }}
 
-Pour vous inscrire, cliquez sur le lien suivant (valable jusqu'au {{ lien.date_expiration|date:'d/m/Y H:i' }}) :
+Bonjour {{ adherent.prenom }},
+Pour t'inscrire à cette séance, je te prie de cliquer sur le bouton ci-dessous  (valable jusqu'au {{ lien.date_expiration|date:'d/m/Y H:i' }}) :
 {{ url }}
 
 Merci et à bientôt sous l'eau !
-Club de Plongée
+Subaquatiquement,
+
+--
+Mouss
+Responsable Plongée
+Aquadémie Paris Plongée

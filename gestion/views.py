@@ -867,16 +867,28 @@ def envoyer_mail_invitation_seance(request, seance_id):
     message_txt = render_to_string('gestion/email_invitation_seance.txt', {'seance': seance, 'lien': lien, 'url': url})
     message_html = render_to_string('gestion/email_invitation_seance.html', {'seance': seance, 'lien': lien, 'url': url})
     cc_emails = getattr(settings, 'EMAIL_CC_DEFAULT', [])
-    datatuple = [(subject, message_txt, None, [email], cc_emails) for email in emails]
+    datatuple = [(subject, adherent, [adherent.email], cc_emails) for adherent in adherents if adherent.email]
     from django.core.mail import EmailMultiAlternatives
-    for subject, message, from_email, recipient_list, cc_list in datatuple:
-        email = EmailMultiAlternatives(subject, message, None, recipient_list, cc=cc_list)
+    for subject, adherent, recipient_list, cc_list in datatuple:
+        url = request.build_absolute_uri(f"/inscription/{lien.uuid}/")
+        context = {'seance': seance, 'lien': lien, 'url': url, 'adherent': adherent}
+        message_txt = render_to_string('gestion/email_invitation_seance.txt', context)
+        message_html = render_to_string('gestion/email_invitation_seance.html', context)
+        email = EmailMultiAlternatives(subject, message_txt, None, recipient_list, cc=cc_list)
         email.attach_alternative(message_html, "text/html")
+        # Attacher l'image de signature en inline
+        signature_img_path = os.path.join(settings.BASE_DIR, 'static', 'Signature_mouss2.png')
+        if os.path.exists(signature_img_path):
+            with open(signature_img_path, 'rb') as img:
+                mime_img = MIMEImage(img.read(), _subtype='png')
+                mime_img.add_header('Content-ID', '<signature_mouss2>')
+                mime_img.add_header('Content-Disposition', 'inline', filename='Signature_mouss2.png')
+                email.attach(mime_img)
         email.send()
     messages.success(request, f"Invitation envoyée à {len(emails)} adhérents.")
     return redirect('seance_detail', pk=seance_id)
 
-@login_required
+
 def inscription_seance_uuid(request, uuid):
     lien = get_object_or_404(LienInscriptionSeance, uuid=uuid)
     now = timezone.now()
@@ -938,10 +950,10 @@ def api_inscrire_non_membre(request):
         debug_msgs.append("Déjà inscrit")
         return JsonResponse({'success': False, 'message': 'Vous êtes déjà inscrit à cette séance.', 'debug': debug_msgs})
     if non_membre:
-        form = AdherentPublicForm(request.POST, request.FILES, instance=non_membre)
+        form = PublicNonAdherentInscriptionForm(request.POST, request.FILES, instance=non_membre)
         debug_msgs.append("Form instance existant (AdherentPublicForm)")
     else:
-        form = AdherentPublicForm(request.POST, request.FILES)
+        form = PublicNonAdherentInscriptionForm(request.POST, request.FILES)
         debug_msgs.append("Form nouvelle instance (AdherentPublicForm)")
     if form.is_valid():
         personne = form.save(commit=False)
@@ -1725,7 +1737,7 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
         body = render_to_string('gestion/email_pdf_palanquee.txt', {'palanquee': palanquee, 'seance': seance})
         body_html = f"<p>{body.replace(chr(10), '<br>')}</p>{signature_html}"
         email = EmailMultiAlternatives(subject, body, to=[encadrant.email], cc=cc)
-        email.attach(f"fiche_palanquee_{palanquee.seance.date}_{palanquee.section.get_nom_display()}.pdf", buffer.read(), 'application/pdf')
+        email.attach(f"fiche_palanquee_{palanquee.seance.date}_{palanquee.encadrant.nom_complet}.pdf", buffer.read(), 'application/pdf')
         email.attach_alternative(body_html, "text/html")
         if os.path.exists(signature_img_path):
             with open(signature_img_path, 'rb') as img:

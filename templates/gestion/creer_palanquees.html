@@ -24,7 +24,7 @@
                                 <span class="badge bg-info">{{ moniteur.get_niveau_display }}</span>
                                 <div class="mt-2">
                                     <input type="number" name="profondeur_max_{{ moniteur.id }}" class="form-control form-control-sm mb-1" placeholder="Profondeur max" min="0">
-                                    <input type="number" name="duree_max_{{ moniteur.id }}" class="form-control form-control-sm" placeholder="Durée max (min)" min="0">
+                                    <input type="number" name="duree_max_{{ moniteur.id }}" class="form-control form-control-sm" placeholder="Durée max (min)" min="0" value="40">
                                 </div>
                             </th>
                         {% endfor %}

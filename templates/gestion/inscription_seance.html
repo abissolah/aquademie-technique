@@ -6,8 +6,8 @@
         <div class="col-lg-8 col-md-10">
             <div class="card shadow-sm mb-4">
                 <div class="card-header text-center">
-                    <h2 class="mb-0">Inscription à la séance</h2>
-                    <p class="mb-0 text-muted small">{{ seance.date|date:'d/m/Y' }} à {{ seance.lieu.nom }} ({{ seance.heure_debut|default:'--'|time:'H:i' }})</p>
+                    <h2 class="mb-0">Inscription à la séance du {{ seance.date|date:'d/m/Y' }}</h2>
+                    <h3 class="mb-0">à {{ seance.lieu.nom }} ({{ seance.heure_debut|default:'--'|time:'H:i' }})</h3>
                 </div>
                 <div class="card-body text-center">
                     <h5 class="mb-4">Êtes-vous adhérent du club APP ?</h5>
@@ -159,7 +159,7 @@
                                         <input type="text" name="lieu_covoiturage" id="nm-lieu-covoiturage" class="form-control" placeholder="Lieu de prise en charge">
                                     </div>
                                 </div>
-                                <button type="submit" class="btn btn-success mt-2">S'inscrire</button>
+                                <button id="btn-inscrire-non-adherent" type="submit" class="btn btn-success mt-2">S'inscrire</button>
                             </div>
                         </form>
                         <div id="result-non-adherent" class="mt-3"></div>
@@ -172,6 +172,10 @@
 {% endblock %}
 {% block extra_js %}
 <script>
+    // Ajout de la date de la séance dans une variable JS
+    const DATE_SEANCE = '{{ seance.date|date:"Y-m-d" }}';
+    document.body.setAttribute('data-date-seance', DATE_SEANCE);
+
     document.getElementById('btn-adherent').onclick = function(e) {
         e.preventDefault();
         document.getElementById('inscription-adherent').style.display = '';
@@ -208,6 +212,37 @@
     function selectMembre(m) {
         membreSelectionne = m;
         document.getElementById('infos-adherent').style.display = '';
+        // Calcul de la validité du CACI
+        let caciMsg = '';
+        let caciStyle = '';
+        let disableBtn = false;
+        let dateDelivrance = m.date_delivrance_caci;
+        let dateSeance = DATE_SEANCE;
+        let caciDate = null;
+        let seanceDate = null;
+        if (dateDelivrance) {
+            // date_delivrance_caci est au format dd/mm/yyyy
+            const parts = dateDelivrance.split('/');
+            caciDate = new Date(parts[2], parts[1]-1, parts[0]);
+        }
+        if (dateSeance) {
+            // dateSeance est au format yyyy-mm-dd
+            const parts = dateSeance.split('-');
+            seanceDate = new Date(parts[0], parts[1]-1, parts[2]);
+        }
+        if (caciDate && seanceDate) {
+            // Date d'expiration = date de délivrance + 1 an
+            let expiration = new Date(caciDate);
+            expiration.setFullYear(expiration.getFullYear() + 1);
+            // Différence en jours entre expiration et date de séance
+            const diffDays = (expiration - seanceDate) / (1000*60*60*24);
+            if (diffDays < 0) {
+                caciMsg = '<span class="fw-bold text-danger">Attention, ton CACI est Expiré, tu ne peux pas t\'inscrire à cette séance.</span>';
+                disableBtn = true;
+            } else if (diffDays < 31) {
+                caciMsg = '<span class="fw-bold" style="color:orange;">Attention ton CACI expire bientôt !</span>';
+            }
+        }
         document.getElementById('infos-adherent').innerHTML = `
             <div class="card">
                 <div class="card-body">
@@ -215,7 +250,7 @@
                     <p class="mb-1"><strong>Niveau :</strong> ${m.niveau}</p>
                     <p class="mb-1"><strong>Section :</strong> ${m.sections.join(', ')}</p>
                     <p class="mb-1"><strong>Statut :</strong> ${m.statut}</p>
-                    <p class="mb-1"><strong>Date validité CACI :</strong> <span id="alerte-caci">${m.date_fin_validite_caci}</span></p>
+                    <p class="mb-1"><strong>Date d'établissement du CACI :</strong> <span id="alerte-caci">${m.date_delivrance_caci}</span><br>${caciMsg}</p>
                     <div class="row mb-2 mt-3">
                         <div class="col-md-6">
                             <label for="ad-covoiturage" class="form-label">Covoiturage</label>
@@ -231,19 +266,14 @@
                             <input type="text" id="ad-lieu-covoiturage" class="form-control" placeholder="Lieu de prise en charge">
                         </div>
                     </div>
-                    <button class="btn btn-success mt-2" onclick="inscrireMembre(${m.id})">S'inscrire</button>
+                    <button class="btn btn-success mt-2" id="btn-inscrire-adherent" onclick="inscrireMembre(${m.id})">S'inscrire</button>
                 </div>
             </div>
         `;
-        // Alerte CACI si moins d'un mois
-        if (m.date_fin_validite_caci) {
-            const parts = m.date_fin_validite_caci.split('/');
-            const caciDate = new Date(parts[2], parts[1]-1, parts[0]);
-            const now = new Date();
-            const diff = (caciDate - now) / (1000*60*60*24);
-            if (diff < 31) {
-                document.getElementById('alerte-caci').innerHTML += ' <span class="badge bg-danger ms-2">Attention, votre CACI expire bientôt !</span>';
-            }
+        // Désactiver le bouton si CACI expiré
+        const btn = document.getElementById('btn-inscrire-adherent');
+        if (disableBtn && btn) {
+            btn.disabled = true;
         }
     }
     document.getElementById('recherche-adherent').addEventListener('input', function() {
@@ -312,16 +342,40 @@
     // Alerte CACI si moins d'un mois
     function checkAlerteCaciNonAdhérent() {
         const val = document.getElementById('nm-date-delivrance-caci').value;
-        if (val) {
+        let dateSeance = DATE_SEANCE;
+        let disableBtn = false;
+        
+        if (dateSeance) {
+            // dateSeance est au format yyyy-mm-dd
+            const parts = dateSeance.split('-');
+            seanceDate = new Date(parts[0], parts[1]-1, parts[2]);
+        }
+        if (val && seanceDate) {
             const caciDate = new Date(val);
-            const now = new Date();
-            const diff = (caciDate - now) / (1000*60*60*24);
+            let expiration = new Date(caciDate);
+            expiration.setFullYear(expiration.getFullYear() + 1);
+            
+
+            const diff = (expiration - seanceDate) / (1000*60*60*24);
             const alertDiv = document.getElementById('alerte-caci-non-adherent');
-            if (diff < 31) {
-                alertDiv.innerHTML = '<span class="badge bg-danger">Attention, votre CACI expire bientôt !</span>';
+            if (diff < 0) {
+                alertDiv.innerHTML = '<span class="badge bg-danger">Attention, ton CACI est expiré, tu ne peux pas t\'inscrire à cette séance.</span>';
+                disableBtn = true;
+            }
+            else if (diff < 31) {
+                alertDiv.innerHTML = '<span class="badge bg-danger">Attention, ton CACI expire bientôt !</span>';
             } else {
                 alertDiv.innerHTML = '';
             }
+        }
+
+        const btn = document.getElementById('btn-inscrire-non-adherent');
+        if (disableBtn && btn) {
+            btn.disabled = true;
+        }
+        else {
+            btn.disabled = false;
+            alertDiv.innerHTML = '';
         }
     }
     document.getElementById('nm-date-delivrance-caci').addEventListener('change', checkAlerteCaciNonAdhérent);
