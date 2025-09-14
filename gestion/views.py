@@ -1490,7 +1490,7 @@ def generer_fiche_securite_excel(request, seance_id):
         palanquees_bloc = palanquees[bloc_idx*9:(bloc_idx+1)*9]
         for idx, palanquee in enumerate(palanquees_bloc):
             base_row, base_col = bloc_map[idx]
-            ws[f'{base_col}{base_row}'] = palanquee.encadrant.nom_complet if palanquee.encadrant else "-"
+            ws[f'{base_col}{base_row}'] = palanquee.encadrant.nom_complet if palanquee.encadrant else "AUTONOMES"
             niveau = palanquee.encadrant.niveau if palanquee.encadrant and hasattr(palanquee.encadrant, 'niveau') else "-"
             ws[f'{niveau_col[base_col]}{base_row}'] = niveau_encadrant_display(niveau)
             eleves = list(palanquee.eleves.all())
@@ -1535,7 +1535,7 @@ def generer_fiche_securite_excel(request, seance_id):
     wb.save(output)
     output.seek(0)
     response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = f'attachment; filename="fiche_securite_seance_{seance.id}.xlsx"'
+    response['Content-Disposition'] = f'attachment; filename="APP_Fiche-secu_{seance.date.strftime('%Y-%m-%d')}.xlsx"'
     return response
 
 @staff_member_required

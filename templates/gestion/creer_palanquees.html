@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', function() {
         th.innerHTML = `Autonomes n°${autonomeCount}<br><span class="badge bg-secondary">Sans encadrant</span>
             <div class="mt-2">
                 <input type="number" name="profondeur_max_autonome_${autonomeCount}" class="form-control form-control-sm mb-1" placeholder="Profondeur max" min="0">
-                <input type="number" name="duree_max_autonome_${autonomeCount}" class="form-control form-control-sm" placeholder="Durée max (min)" min="0">
+                <input type="number" name="duree_max_autonome_${autonomeCount}" class="form-control form-control-sm" placeholder="Durée max (min)" value="40" min="0">
             </div>`;
         theadRow.appendChild(th);
         // Ajout des cases à cocher pour chaque élève
@@ -119,6 +119,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Gestion de l'exclusivité des affectations (encadrant/autonome)
     document.addEventListener('change', function(e) {
+        debugger;
         if (e.target.classList.contains('affectation-autonome-checkbox')) {
             const eleveId = e.target.dataset.eleve;
             if (e.target.checked) {
