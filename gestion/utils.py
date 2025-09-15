@@ -24,6 +24,7 @@ def envoyer_lien_evaluation(lien_evaluation, request=None):
     context = {
         'seance': seance,
         'encadrant': encadrant,
+        'palanquee': lien_evaluation.palanquee,
         'lien': lien_evaluation,
         'lien_complet': lien_complet,
         'site_name': getattr(settings, 'SITE_NAME', 'Aquadémie Paris Plongée'),
