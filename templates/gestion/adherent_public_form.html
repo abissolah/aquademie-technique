@@ -73,8 +73,8 @@
                         const diffMs = expiration - now;
                         const diffDays = diffMs / (1000 * 60 * 60 * 24);
                         if (diffDays < 0) {
-                            messageDiv.innerHTML = '<div class="alert alert-danger fw-bold">Votre CACI doit être valide.</div>';
-                            submitBtn.disabled = true;
+                            messageDiv.innerHTML = '<div class="alert alert-danger fw-bold">Attention, votre CACI est expiré.</div>';
+                            
                         } else if (diffDays < 30) {
                             messageDiv.innerHTML = '<div class="alert alert-danger fw-bold">Attention, votre CACI expire bientôt.</div>';
                         }

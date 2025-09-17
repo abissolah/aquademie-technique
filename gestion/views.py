@@ -1548,6 +1548,10 @@ def suivi_formation_eleve(request, eleve_id):
     # Récupérer toutes les évaluations exercices de l'élève
     evals = EvaluationExercice.objects.filter(eleve=eleve)
     evals_dict = {(e.exercice_id): e for e in evals}
+    # Historique par exercice
+    historiques = {}
+    for ex in Exercice.objects.all():
+        historiques[ex.id] = list(EvaluationExercice.objects.filter(eleve=eleve, exercice=ex).order_by('-date_evaluation'))
     progression = []
     for groupe in groupes:
         groupe_data = {'groupe': groupe, 'competences': [], 'etoile_groupe': True}
@@ -1581,6 +1585,7 @@ def suivi_formation_eleve(request, eleve_id):
         'nb_competences_valides': nb_competences_valides,
         'evals': evals,  # debug
         'range3': [1, 2, 3],
+        'historiques': historiques,
     }
     return render(request, 'gestion/suivi_formation_eleve.html', context)
 

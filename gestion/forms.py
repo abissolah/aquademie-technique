@@ -267,7 +267,8 @@ class AdherentPublicForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['photo'].required = True
-        self.fields['caci_fichier'].required = True
+        self.fields['caci_fichier'].required = False
+        self.fields['date_delivrance_caci'].required = False
         self.fields['code_postal'].required = True
         self.fields['ville'].required = True
         self.fields['assurance'].required = False
@@ -277,14 +278,14 @@ class AdherentPublicForm(forms.ModelForm):
         if 'sections' in self.fields:
             self.fields.pop('sections')
 
-    def clean_date_delivrance_caci(self):
-        from datetime import timedelta, date
-        date_delivrance = self.cleaned_data.get('date_delivrance_caci')
-        if date_delivrance:
-            expiration = date_delivrance + timedelta(days=365)
-            if expiration < date.today():
-                raise forms.ValidationError("Votre CACI doit être valide.")
-        return date_delivrance
+    #def clean_date_delivrance_caci(self):
+    #    from datetime import timedelta, date
+    #    date_delivrance = self.cleaned_data.get('date_delivrance_caci')
+    #    if date_delivrance:
+    #        expiration = date_delivrance + timedelta(days=365)
+    #        if expiration < date.today():
+    #            raise forms.ValidationError("Votre CACI doit être valide.")
+    #    return date_delivrance
 
     def clean_assurance(self):
         # Permettre la valeur vide ('') qui correspond à 'Aucune assurance' même si le champ est requis

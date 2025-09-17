@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load gestion_extras %}
 {% block title %}Suivi de formation - {{ eleve.nom_complet }}{% endblock %}
 {% block content %}
 <div class="container py-4">
@@ -7,6 +8,7 @@
         <span class="badge bg-primary">{{ nb_groupes_valides }}/{{ nb_groupes }} groupes validés</span>
         <span class="badge bg-success">{{ nb_competences_valides }}/{{ nb_competences }} compétences validées</span>
     </div>
+    <button class="btn btn-outline-info mb-3" type="button" onclick="toggleAllHistoriques()" id="btn-toggle-all">Voir tout l'historique</button>
     {% for g in progression %}
     <div class="card mb-4">
         <div class="card-header d-flex align-items-center">
@@ -44,6 +46,28 @@
                             {% if e.commentaire %}
                                 <div class="small text-muted mt-1"><i class="fas fa-comment-dots"></i> {{ e.commentaire }}</div>
                             {% endif %}
+                            <button class="btn btn-sm btn-outline-info mt-2" type="button" onclick="toggleHistorique('hist-{{ e.exercice.id }}')">Voir l'historique</button>
+                            <div id="hist-{{ e.exercice.id }}" class="mt-2" style="display:none;">
+                                {% with hist_list=historiques|dict_get:e.exercice.id %}
+                                    {% if hist_list %}
+                                        <ul class="list-group">
+                                        {% for hist in hist_list %}
+                                            <li class="list-group-item">
+                                                <strong>Date :</strong> {{ hist.palanquee.seance.date|date:'d/m/Y' }}<br>
+                                                <strong>Note :</strong> 
+                                                {% for i in range3 %}
+                                                    {% if i <= hist.note %}<i class="fas fa-star text-warning"></i>{% else %}<i class="far fa-star text-muted"></i>{% endif %}
+                                                {% endfor %}<br>
+                                                <strong>Commentaire :</strong> {{ hist.commentaire|default:'-' }}<br>
+                                                <strong>Moniteur :</strong> {{ hist.encadrant.nom_complet }}
+                                            </li>
+                                        {% endfor %}
+                                        </ul>
+                                    {% else %}
+                                        <div class="text-muted small">Aucun historique pour cet exercice.</div>
+                                    {% endif %}
+                                {% endwith %}
+                            </div>
                         </div>
                     </div>
                     {% endfor %}
@@ -55,4 +79,24 @@
     {% endfor %}
     <a href="{% url 'adherent_detail' eleve.pk %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-2"></i>Retour à la fiche élève</a>
 </div>
+<script>
+function toggleHistorique(id) {
+    var el = document.getElementById(id);
+    if (el.style.display === 'none') {
+        el.style.display = 'block';
+    } else {
+        el.style.display = 'none';
+    }
+}
+
+function toggleAllHistoriques() {
+    var all = document.querySelectorAll('[id^="hist-"]');
+    var btn = document.getElementById('btn-toggle-all');
+    var anyClosed = Array.from(all).some(el => el.style.display === 'none');
+    all.forEach(function(el) {
+        el.style.display = anyClosed ? 'block' : 'none';
+    });
+    btn.textContent = anyClosed ? 'Fermer tout l\'historique' : 'Voir tout l\'historique';
+}
+</script>
 {% endblock %}
