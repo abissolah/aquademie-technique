@@ -311,10 +311,13 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         
         # Liste des inscrits (adhérents et non-adhérents)
         inscrits = seance.inscriptions.select_related('personne').all()
-        context['inscrits_adherents'] = [i for i in inscrits if i.personne.type_personne == 'adherent']
+        # Séparation par statut
+        context['inscrits_encadrants'] = [i for i in inscrits if i.personne.type_personne == 'adherent' and i.personne.statut == 'encadrant']
+        context['inscrits_eleves'] = [i for i in inscrits if i.personne.type_personne == 'adherent' and i.personne.statut == 'eleve']
         context['inscrits_non_adherents'] = [i for i in inscrits if i.personne.type_personne == 'non_adherent']
         context['nb_total_inscrits'] = len(inscrits)
-        context['nb_adherents'] = len(context['inscrits_adherents'])
+        context['nb_encadrants'] = len(context['inscrits_encadrants'])
+        context['nb_eleves'] = len(context['inscrits_eleves'])
         context['nb_non_adherents'] = len(context['inscrits_non_adherents'])
         context['today'] = timezone.now().date()
         # Covoiturage
