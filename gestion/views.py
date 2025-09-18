@@ -507,23 +507,33 @@ def api_membres_app(request):
 def api_recherche_non_membre(request):
     nom = request.GET.get('nom', '').strip()
     prenom = request.GET.get('prenom', '').strip()
-    non_membre = Adherent.objects.filter(type_personne='non_adherent', nom__iexact=nom, prenom__iexact=prenom).first()
-    if non_membre:
-        data = {
-            'id': non_membre.id,
-            'nom': non_membre.nom,
-            'prenom': non_membre.prenom,
-            'email': non_membre.email,
-            'telephone': non_membre.telephone,
-            'niveau': non_membre.niveau,
-            'statut': non_membre.statut,
-            'sections': [s.id for s in non_membre.sections.all()],
-            'date_naissance': non_membre.date_naissance.strftime('%Y-%m-%d') if non_membre.date_naissance else '',
-            'adresse': non_membre.adresse,
-            'date_delivrance_caci': non_membre.date_delivrance_caci.strftime('%Y-%m-%d') if non_membre.date_delivrance_caci else '',
-        }
-        return JsonResponse({'found': True, 'data': data})
-    return JsonResponse({'found': False})
+    non_membres = Adherent.objects.filter(type_personne='non_adherent')
+    if nom:
+        non_membres = non_membres.filter(nom__icontains=nom)
+    if prenom:
+        non_membres = non_membres.filter(prenom__icontains=prenom)
+    non_membres = non_membres.order_by('nom', 'prenom')
+    results = []
+    for nm in non_membres:
+        results.append({
+            'id': nm.id,
+            'nom': nm.nom,
+            'prenom': nm.prenom,
+            'email': nm.email,
+            'telephone': nm.telephone,
+            'niveau': nm.niveau,
+            'statut': nm.statut,
+            'sections': [s.id for s in nm.sections.all()],
+            'date_naissance': nm.date_naissance.strftime('%Y-%m-%d') if nm.date_naissance else '',
+            'adresse': nm.adresse,
+            'code_postal': nm.code_postal,
+            'ville': nm.ville,
+            'numero_licence': nm.numero_licence,
+            'assurance': nm.assurance,
+            'date_delivrance_caci': nm.date_delivrance_caci.strftime('%Y-%m-%d') if nm.date_delivrance_caci else '',
+            'caci_fichier_url': nm.caci_fichier.url if nm.caci_fichier else '',
+        })
+    return JsonResponse({'results': results})
 
 # Vues pour l'import Excel
 @login_required

@@ -311,34 +311,94 @@
     // Supprimer aussi le chargement JS des sections
     // Supprimer aussi le chargement JS des sections
     // Recherche AJAX pour pré-remplir
-    function preRemplirNonAdhérent() {
-        const nom = document.getElementById('nm-nom').value.trim();
-        const prenom = document.getElementById('nm-prenom').value.trim();
-        if (nom && prenom) {
+    let suggestionsDiv = null;
+    function setupNonAdherentAutocomplete() {
+        const nomInput = document.getElementById('nm-nom');
+        const prenomInput = document.getElementById('nm-prenom');
+        if (!suggestionsDiv) {
+            suggestionsDiv = document.createElement('div');
+            suggestionsDiv.id = 'suggestions-non-adherents';
+            suggestionsDiv.className = 'list-group position-absolute w-100';
+            nomInput.parentNode.appendChild(suggestionsDiv);
+            suggestionsDiv.style.zIndex = 1000;
+            suggestionsDiv.style.maxHeight = '200px';
+            suggestionsDiv.style.overflowY = 'auto';
+            suggestionsDiv.style.display = 'none';
+        }
+        function fetchSuggestions() {
+            const nom = nomInput.value.trim();
+            const prenom = prenomInput.value.trim();
+            if (nom.length < 2) {
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
             fetch(`/api/recherche-non-membre/?nom=${encodeURIComponent(nom)}&prenom=${encodeURIComponent(prenom)}`)
                 .then(r => r.json())
                 .then(data => {
-                    if (data.found) {
-                        const d = data.data;
-                        document.getElementById('nm-email').value = d.email;
-                        document.getElementById('nm-telephone').value = d.telephone;
-                        document.getElementById('nm-date-naissance').value = d.date_naissance;
-                        document.getElementById('nm-adresse').value = d.adresse;
-                        document.getElementById('nm-code-postal').value = d.code_postal;
-                        document.getElementById('nm-ville').value = d.ville;
-                        document.getElementById('nm-date-delivrance-caci').value = d.date_fin_validite_caci;
-                        document.getElementById('nm-niveau').value = d.niveau;
-                        document.getElementById('nm-statut').value = d.statut;
-                        // Sections
-                        document.querySelectorAll('#nm-sections-checkboxes input[type=checkbox]').forEach(cb => {
-                            cb.checked = d.sections.includes(parseInt(cb.value));
+                    suggestionsDiv.innerHTML = '';
+                    if (data.results && data.results.length > 0) {
+                        data.results.forEach(d => {
+                            const item = document.createElement('button');
+                            item.type = 'button';
+                            item.className = 'list-group-item list-group-item-action';
+                            item.textContent = d.nom + ' ' + d.prenom + (d.email ? ' (' + d.email + ')' : '');
+                            item.onclick = () => {
+                                // Pré-remplir tous les champs
+                                document.getElementById('nm-nom').value = d.nom;
+                                document.getElementById('nm-prenom').value = d.prenom;
+                                document.getElementById('nm-email').value = d.email;
+                                document.getElementById('nm-telephone').value = d.telephone;
+                                document.getElementById('nm-date-naissance').value = d.date_naissance;
+                                document.getElementById('nm-adresse').value = d.adresse;
+                                document.getElementById('nm-code-postal').value = d.code_postal;
+                                document.getElementById('nm-ville').value = d.ville;
+                                document.getElementById('nm-numero-licence').value = d.numero_licence || '';
+                                document.getElementById('nm-assurance').value = d.assurance || '';
+                                document.getElementById('nm-date-delivrance-caci').value = d.date_delivrance_caci;
+                                document.getElementById('nm-niveau').value = d.niveau;
+                                document.getElementById('nm-statut').value = d.statut;
+                                // Afficher le lien du fichier CACI si présent
+                                const blocCaci = document.getElementById('bloc-caci-fields');
+                                let caciLink = document.getElementById('caci-fichier-link');
+                                const caciInput = document.getElementById('nm-caci-fichier');
+                                if (d.caci_fichier_url) {
+                                    if (!caciLink) {
+                                        caciLink = document.createElement('a');
+                                        caciLink.id = 'caci-fichier-link';
+                                        caciLink.className = 'btn btn-outline-info btn-sm ms-2';
+                                        caciLink.target = '_blank';
+                                        caciInput.parentNode.appendChild(caciLink);
+                                    }
+                                    caciLink.href = d.caci_fichier_url;
+                                    caciLink.textContent = 'Télécharger CACI existant';
+                                    caciLink.style.display = '';
+                                    // Rendre le champ fichier non requis
+                                    caciInput.required = false;
+                                } else {
+                                    if (caciLink) caciLink.style.display = 'none';
+                                    // Rendre le champ fichier requis
+                                    caciInput.required = true;
+                                }
+                                suggestionsDiv.style.display = 'none';
+                            };
+                            suggestionsDiv.appendChild(item);
                         });
+                        suggestionsDiv.style.display = '';
+                    } else {
+                        suggestionsDiv.style.display = 'none';
                     }
                 });
         }
+        nomInput.addEventListener('input', fetchSuggestions);
+        prenomInput.addEventListener('input', fetchSuggestions);
+        // Cacher suggestions si on clique ailleurs
+        document.addEventListener('click', function(e) {
+            if (!suggestionsDiv.contains(e.target) && e.target !== nomInput && e.target !== prenomInput) {
+                suggestionsDiv.style.display = 'none';
+            }
+        });
     }
-    document.getElementById('nm-nom').addEventListener('blur', preRemplirNonAdhérent);
-    document.getElementById('nm-prenom').addEventListener('blur', preRemplirNonAdhérent);
+    setupNonAdherentAutocomplete();
     // Alerte CACI si moins d'un mois
     function checkAlerteCaciNonAdhérent() {
         const val = document.getElementById('nm-date-delivrance-caci').value;
@@ -406,8 +466,10 @@
             alert('Merci de sélectionner votre type d\'inscription.');
             return false;
         }
+        const caciInput = document.getElementById('nm-caci-fichier');
+        const caciLink = document.getElementById('caci-fichier-link');
         if (type.value === 'plongeur') {
-            if (!document.getElementById('nm-date-delivrance-caci').value || !document.getElementById('nm-caci-fichier').value) {
+            if (!document.getElementById('nm-date-delivrance-caci').value || (!caciInput.value && (!caciLink || caciLink.style.display === 'none'))) {
                 alert('Merci de renseigner la date de délivrance et le fichier CACI.');
                 return false;
             }
