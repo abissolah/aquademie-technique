@@ -309,16 +309,17 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         seance = self.get_object()
         context['palanquees'] = seance.palanques.all()
         
-        # Liste des inscrits (adhérents et non-adhérents)
+        # Liste des inscrits (tous types)
         inscrits = seance.inscriptions.select_related('personne').all()
+        # On enrichit chaque inscription avec is_adherent
+        for i in inscrits:
+            i.is_adherent = (i.personne.type_personne == 'adherent')
         # Séparation par statut
-        context['inscrits_encadrants'] = [i for i in inscrits if i.personne.type_personne == 'adherent' and i.personne.statut == 'encadrant']
-        context['inscrits_eleves'] = [i for i in inscrits if i.personne.type_personne == 'adherent' and i.personne.statut == 'eleve']
-        context['inscrits_non_adherents'] = [i for i in inscrits if i.personne.type_personne == 'non_adherent']
+        context['inscrits_encadrants'] = [i for i in inscrits if i.personne.statut == 'encadrant']
+        context['inscrits_eleves'] = [i for i in inscrits if i.personne.statut == 'eleve']
         context['nb_total_inscrits'] = len(inscrits)
         context['nb_encadrants'] = len(context['inscrits_encadrants'])
         context['nb_eleves'] = len(context['inscrits_eleves'])
-        context['nb_non_adherents'] = len(context['inscrits_non_adherents'])
         context['today'] = timezone.now().date()
         # Covoiturage
         context['covoiturage_propose'] = [i for i in inscrits if getattr(i, 'covoiturage', '') == 'propose']

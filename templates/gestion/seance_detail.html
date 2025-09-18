@@ -258,13 +258,14 @@
                         <th>Section(s)</th>
                         <th>Statut</th>
                         <th>Date d'établissement du CACI</th>
+                        <th>Adhérent</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% if inscrits_encadrants %}
                     <tr class="table-secondary">
-                        <td colspan="8"><strong>Encadrants</strong> <span class="badge bg-info ms-2">{{ nb_encadrants }}</span></td>
+                        <td colspan="9"><strong>Encadrants</strong> <span class="badge bg-info ms-2">{{ nb_encadrants }}</span></td>
                     </tr>
                     {% for ins in inscrits_encadrants %}
                     <tr>
@@ -274,11 +275,8 @@
                         <td>{{ ins.personne.get_niveau_display }}</td>
                         <td>{% for s in ins.personne.sections.all %}<span class="badge bg-info me-1">{{ s.get_nom_display }}</span>{% endfor %}</td>
                         <td>{{ ins.personne.get_statut_display }}</td>
-                        <td>
-                            {% if ins.personne.date_delivrance_caci %}
-                                {{ ins.personne.date_delivrance_caci|date:"d/m/Y" }}
-                            {% else %}-{% endif %}
-                        </td>
+                        <td>{% if ins.personne.date_delivrance_caci %}{{ ins.personne.date_delivrance_caci|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+                        <td>{% if ins.is_adherent %}Oui{% else %}Non{% endif %}</td>
                         <td>
                             <form method="post" action="{% url 'supprimer_inscription_seance' ins.id %}" style="display:inline;">
                                 {% csrf_token %}
@@ -290,7 +288,7 @@
                     {% endif %}
                     {% if inscrits_eleves %}
                     <tr class="table-secondary">
-                        <td colspan="8"><strong>Élèves</strong> <span class="badge bg-success ms-2">{{ nb_eleves }}</span></td>
+                        <td colspan="9"><strong>Élèves</strong> <span class="badge bg-success ms-2">{{ nb_eleves }}</span></td>
                     </tr>
                     {% for ins in inscrits_eleves %}
                     <tr>
@@ -300,37 +298,8 @@
                         <td>{{ ins.personne.get_niveau_display }}</td>
                         <td>{% for s in ins.personne.sections.all %}<span class="badge bg-info me-1">{{ s.get_nom_display }}</span>{% endfor %}</td>
                         <td>{{ ins.personne.get_statut_display }}</td>
-                        <td>
-                            {% if ins.personne.date_delivrance_caci %}
-                                {{ ins.personne.date_delivrance_caci|date:"d/m/Y" }}
-                            {% else %}-{% endif %}
-                        </td>
-                        <td>
-                            <form method="post" action="{% url 'supprimer_inscription_seance' ins.id %}" style="display:inline;">
-                                {% csrf_token %}
-                                <button class="btn btn-sm btn-outline-danger" title="Supprimer l'inscription"><i class="fas fa-trash"></i></button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                    {% endif %}
-                    {% if inscrits_non_adherents %}
-                    <tr class="table-secondary">
-                        <td colspan="8"><strong>Non adhérents (invités, renforts...)</strong> <span class="badge bg-warning ms-2">{{ nb_non_adherents }}</span></td>
-                    </tr>
-                    {% for ins in inscrits_non_adherents %}
-                    <tr>
-                        <td>Non adhérent</td>
-                        <td>{{ ins.personne.nom }}</td>
-                        <td>{{ ins.personne.prenom }}</td>
-                        <td>{{ ins.personne.get_niveau_display }}</td>
-                        <td>{% for s in ins.personne.sections.all %}<span class="badge bg-info me-1">{{ s.get_nom_display }}</span>{% endfor %}</td>
-                        <td>{{ ins.personne.get_statut_display }}</td>
-                        <td>
-                            {% if ins.personne.date_delivrance_caci %}
-                                {{ ins.personne.date_delivrance_caci|date:"d/m/Y" }}
-                            {% else %}-{% endif %}
-                        </td>
+                        <td>{% if ins.personne.date_delivrance_caci %}{{ ins.personne.date_delivrance_caci|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+                        <td>{% if ins.is_adherent %}Oui{% else %}Non{% endif %}</td>
                         <td>
                             <form method="post" action="{% url 'supprimer_inscription_seance' ins.id %}" style="display:inline;">
                                 {% csrf_token %}
