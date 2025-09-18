@@ -153,7 +153,7 @@ class EleveListView(LoginRequiredMixin, ListView):
     model = Adherent
     template_name = 'gestion/eleve_list.html'
     context_object_name = 'eleves'
-    paginate_by = 20
+    # paginate_by = 20  # Pagination supprimée pour afficher tous les élèves
     
     def get_queryset(self):
         queryset = Adherent.objects.filter(statut='eleve').order_by('nom', 'prenom')
@@ -164,12 +164,19 @@ class EleveListView(LoginRequiredMixin, ListView):
             )
         return queryset
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Ajouter is_adherent pour chaque élève
+        for eleve in context['eleves']:
+            eleve.is_adherent = (eleve.type_personne == 'adherent')
+        return context
+
 # Vues pour les encadrants
 class EncadrantListView(LoginRequiredMixin, ListView):
     model = Adherent
     template_name = 'gestion/encadrant_list.html'
     context_object_name = 'encadrants'
-    paginate_by = 20
+    # paginate_by = 20  # Pagination supprimée pour afficher tous les encadrants
     
     def get_queryset(self):
         queryset = Adherent.objects.filter(statut='encadrant').order_by('nom', 'prenom')
@@ -179,6 +186,13 @@ class EncadrantListView(LoginRequiredMixin, ListView):
                 Q(nom__icontains=q) | Q(prenom__icontains=q) | Q(email__icontains=q)
             )
         return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Ajouter is_adherent pour chaque encadrant
+        for encadrant in context['encadrants']:
+            encadrant.is_adherent = (encadrant.type_personne == 'adherent')
+        return context
 
 # Vues pour les sections
 class SectionListView(LoginRequiredMixin, ListView):

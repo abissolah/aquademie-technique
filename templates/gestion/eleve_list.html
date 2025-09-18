@@ -62,6 +62,7 @@
                                 <th>Statut</th>
                                 <th>Date de délivrance du CACI</th>
                                 <th>Fichier CACI</th>
+                                <th>Adhérent</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -113,6 +114,7 @@
                                         <span class="text-muted">Aucun fichier</span>
                                     {% endif %}
                                 </td>
+                                <td>{% if eleve.is_adherent %}Oui{% else %}Non{% endif %}</td>
                                 <td>
                                     <div class="btn-group" role="group">
                                         <a href="{% url 'adherent_detail' eleve.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
@@ -136,43 +138,7 @@
                 </div>
                 
                 <!-- Pagination -->
-                {% if is_paginated %}
-                <nav aria-label="Pagination des élèves">
-                    <ul class="pagination justify-content-center">
-                        {% if page_obj.has_previous %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                <i class="fas fa-angle-double-left"></i>
-                            </a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                <i class="fas fa-angle-left"></i>
-                            </a>
-                        </li>
-                        {% endif %}
-                        
-                        <li class="page-item active">
-                            <span class="page-link">
-                                Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}
-                            </span>
-                        </li>
-                        
-                        {% if page_obj.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                <i class="fas fa-angle-right"></i>
-                            </a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
-                                <i class="fas fa-angle-double-right"></i>
-                            </a>
-                        </li>
-                        {% endif %}
-                    </ul>
-                </nav>
-                {% endif %}
+                {# Pagination supprimée #}
                 
                 {% else %}
                 <div class="text-center py-5">
