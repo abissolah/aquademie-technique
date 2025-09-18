@@ -12,7 +12,7 @@
     {% for g in progression %}
     <div class="card mb-4">
         <div class="card-header d-flex align-items-center">
-            <h5 class="mb-0 me-3">{{ g.groupe.intitule }}</h5>
+            <h5 class="mb-0 me-3" style="font-weight: bold; color:blue;">{{ g.groupe.intitule }}</h5>
             {% if g.etoile_groupe %}
                 <span class="badge bg-success"><i class="fas fa-star"></i> Groupe validé</span>
             {% else %}
@@ -22,7 +22,7 @@
         <div class="card-body">
             {% for c in g.competences %}
             <div class="mb-3">
-                <h6 class="mb-1">{{ c.competence.nom }}
+                <h6 class="mb-1" style="font-weight: bold; color:red;font-size:1.2rem;">{{ c.competence.nom }}
                     {% if c.etoile_competence %}
                         <span class="badge bg-success"><i class="fas fa-star"></i> Compétence validée</span>
                     {% else %}

@@ -1,11 +1,13 @@
 from django.contrib import admin
 from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, LienEvaluation, Lieu, PalanqueeEleve
+from django.contrib.auth.models import User
 
 @admin.register(Adherent)
 class AdherentAdmin(admin.ModelAdmin):
-    list_display = ['nom', 'prenom', 'email', 'niveau', 'statut', 'date_delivrance_caci']
-    list_filter = ['niveau', 'statut', 'date_delivrance_caci']
-    search_fields = ['nom', 'prenom', 'email']
+    list_display = ('nom', 'prenom', 'statut', 'type_personne', 'user')
+    search_fields = ('nom', 'prenom', 'email')
+    list_filter = ('statut', 'type_personne')
+    raw_id_fields = ('user',)
     date_hierarchy = 'date_creation'
     readonly_fields = ['date_creation', 'date_modification']
     

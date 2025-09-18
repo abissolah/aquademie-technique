@@ -30,6 +30,7 @@ urlpatterns = [
     path('adherents/<int:adherent_id>/valider-caci/', views.valider_caci, name='valider_caci'),
     path('adherents/<int:adherent_id>/copier-caci/', views.copier_caci, name='copier_caci'),
     path('adherents/copier-tous-caci/', views.copier_tous_caci, name='copier_tous_caci'),
+    path('adherents/<int:adherent_id>/creer-compte/', views.creer_compte_adherent, name='creer_compte_adherent'),
     
     # Élèves
     path('eleves/', views.EleveListView.as_view(), name='eleve_list'),
@@ -126,4 +127,6 @@ urlpatterns = [
     path('inscription/<int:inscription_id>/supprimer/', views.supprimer_inscription_seance, name='supprimer_inscription_seance'),
     path('envoyer-mail-inscription/', views.envoyer_mail_inscription, name='envoyer_mail_inscription'),
     path('adherents/inscription/2025-2026/', views.AdherentPublicCreateView.as_view(), {'inscription_2025_2026': True}, name='adherent_public_create_2025_2026'),
+    # Export Excel des inscrits (admin)
+    path('seances/<int:seance_id>/export-excel/', views.exporter_inscrits_seance_excel, name='exporter_inscrits_seance_excel'),
 ] 

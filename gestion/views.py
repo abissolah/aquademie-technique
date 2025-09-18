@@ -48,6 +48,15 @@ from reportlab.lib.pagesizes import A4
 from gestion.utils import get_signature_html
 from django.core.mail import EmailMultiAlternatives
 from email.mime.image import MIMEImage
+from django.contrib.auth.models import User, Group
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.core.mail import send_mail
+from django.conf import settings
+from django.urls import reverse
+from django.contrib.auth import get_user_model
+from django.contrib.sites.shortcuts import get_current_site
 
 # Vues d'accueil et de navigation
 @login_required
@@ -1975,4 +1984,133 @@ def copier_tous_caci(request):
     if erreurs:
         messages.error(request, "Erreurs : " + ", ".join(erreurs))
     return redirect('adherent_list')
+
+def creer_compte_adherent(request, adherent_id):
+    from gestion.models import Adherent
+    adherent = Adherent.objects.get(pk=adherent_id)
+    if adherent.user:
+        messages.warning(request, "Un compte est déjà associé à cet adhérent.")
+        return redirect('adherent_list')
+    # Créer le User
+    email = adherent.email
+    username = email
+    first_name = adherent.prenom
+    last_name = adherent.nom
+    # S'assurer que le username est unique
+    UserModel = get_user_model()
+    if UserModel.objects.filter(username=username).exists():
+        messages.error(request, "Un utilisateur avec cet email existe déjà.")
+        return redirect('adherent_list')
+    user = UserModel.objects.create_user(
+        username=username,
+        email=email,
+        first_name=first_name,
+        last_name=last_name,
+        is_active=False
+    )
+    # Associer à l'adhérent
+    adherent.user = user
+    adherent.save()
+    # Déterminer le groupe
+    statut = adherent.statut
+    if statut == 'eleve':
+        group_name = 'eleve'
+    elif statut == 'encadrant':
+        group_name = 'encadrant'
+    else:
+        group_name = 'admin'
+    group, created = Group.objects.get_or_create(name=group_name)
+    user.groups.clear()
+    user.groups.add(group)
+    # Générer le lien d'activation
+    current_site = get_current_site(request)
+    subject = "Activation de votre compte Aquadémie Paris Plongée"
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    activation_url = f"https://{current_site.domain}{reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})}"
+    message = render_to_string('registration/account_activation_email.html', {
+        'user': user,
+        'activation_url': activation_url,
+        'site_name': current_site.name,
+        'domain': current_site.domain,
+    })
+    send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email])
+    messages.success(request, f"Compte utilisateur créé et mail d'activation envoyé à {user.email}.")
+    return redirect('adherent_list')
+
+@staff_member_required
+def exporter_inscrits_seance_excel(request, seance_id):
+    import openpyxl
+    from openpyxl.utils import get_column_letter
+    from openpyxl.styles import Alignment
+    from django.http import HttpResponse
+    from gestion.models import Seance, InscriptionSeance
+
+    seance = get_object_or_404(Seance, pk=seance_id)
+    inscriptions = seance.inscriptions.select_related('personne').all()
+
+    # Séparation
+    eleves = [i.personne for i in inscriptions if i.personne.statut == 'eleve']
+    encadrants = [i.personne for i in inscriptions if i.personne.statut == 'encadrant']
+    covoiturage = [i for i in inscriptions if i.covoiturage in ['propose', 'besoin']]
+
+    # Colonnes communes
+    colonnes = [
+        'Nom Prénom', 'Date de naissance', 'Téléphone', 'Email', 'Adresse', 'CP', 'Ville',
+        'Date de délivrance CACI', 'Numéro licence', 'Niveau', 'Statut', 'Adhérent'
+    ]
+
+    wb = openpyxl.Workbook()
+    ws_eleves = wb.active
+    ws_eleves.title = 'Élèves'
+    ws_encadrants = wb.create_sheet('Encadrants')
+    ws_covoit = wb.create_sheet('Covoiturage')
+
+    # Helper pour remplir
+    def ligne_adherent(a):
+        return [
+            f"{a.nom} {a.prenom}",
+            a.date_naissance.strftime('%d/%m/%Y') if a.date_naissance else '',
+            a.telephone,
+            a.email,
+            a.adresse,
+            a.code_postal,
+            a.ville,
+            a.date_delivrance_caci.strftime('%d/%m/%Y') if a.date_delivrance_caci else '',
+            a.numero_licence,
+            a.get_niveau_display() if hasattr(a, 'get_niveau_display') else a.niveau,
+            a.get_statut_display() if hasattr(a, 'get_statut_display') else a.statut,
+            'Oui' if getattr(a, 'type_personne', 'adherent') == 'adherent' else 'Non',
+        ]
+
+    # Élèves
+    ws_eleves.append(colonnes)
+    for a in eleves:
+        ws_eleves.append(ligne_adherent(a))
+
+    # Encadrants
+    ws_encadrants.append(colonnes)
+    for a in encadrants:
+        ws_encadrants.append(ligne_adherent(a))
+
+    # Covoiturage
+    colonnes_covoit = colonnes + ['Type covoiturage', 'Lieu covoiturage']
+    ws_covoit.append(colonnes_covoit)
+    for ins in covoiturage:
+        a = ins.personne
+        row = ligne_adherent(a)
+        row += [dict(InscriptionSeance.COVOITURAGE_CHOICES).get(ins.covoiturage, ''), ins.lieu_covoiturage or '']
+        ws_covoit.append(row)
+
+    # Largeur colonnes
+    for ws in [ws_eleves, ws_encadrants, ws_covoit]:
+        for i, col in enumerate(ws.columns, 1):
+            ws.column_dimensions[get_column_letter(i)].width = 18
+
+    # Réponse HTTP
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    nom_fichier = f"inscrits_seance_{seance.date.strftime('%Y-%m-%d')}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{nom_fichier}"'
+    wb.save(response)
+    return response
 

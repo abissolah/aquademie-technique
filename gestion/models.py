@@ -77,6 +77,7 @@ class Adherent(models.Model):
     sections = models.ManyToManyField(Section, related_name='adherents', blank=True, verbose_name="Sections")
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)
+    user = models.OneToOneField(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='adherent_profile')
     
     class Meta:
         verbose_name = "Adhérent"
@@ -96,6 +97,18 @@ class Adherent(models.Model):
         if self.prenom:
             self.prenom = self.prenom.capitalize()
         super().save(*args, **kwargs)
+        # Synchronisation du groupe utilisateur
+        if self.user:
+            from django.contrib.auth.models import Group
+            if self.statut == 'eleve':
+                group_name = 'eleve'
+            elif self.statut == 'encadrant':
+                group_name = 'encadrant'
+            else:
+                group_name = 'admin'
+            group, _ = Group.objects.get_or_create(name=group_name)
+            self.user.groups.clear()
+            self.user.groups.add(group)
 
 class Exercice(models.Model):
     nom = models.CharField(max_length=200)
