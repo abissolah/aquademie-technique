@@ -314,9 +314,15 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         # On enrichit chaque inscription avec is_adherent
         for i in inscrits:
             i.is_adherent = (i.personne.type_personne == 'adherent')
-        # Séparation par statut
-        context['inscrits_encadrants'] = [i for i in inscrits if i.personne.statut == 'encadrant']
-        context['inscrits_eleves'] = [i for i in inscrits if i.personne.statut == 'eleve']
+        # Séparation par statut et tri alphabétique
+        context['inscrits_encadrants'] = sorted(
+            [i for i in inscrits if i.personne.statut == 'encadrant'],
+            key=lambda ins: (ins.personne.nom.upper(), ins.personne.prenom.upper())
+        )
+        context['inscrits_eleves'] = sorted(
+            [i for i in inscrits if i.personne.statut == 'eleve'],
+            key=lambda ins: (ins.personne.nom.upper(), ins.personne.prenom.upper())
+        )
         context['nb_total_inscrits'] = len(inscrits)
         context['nb_encadrants'] = len(context['inscrits_encadrants'])
         context['nb_eleves'] = len(context['inscrits_eleves'])
