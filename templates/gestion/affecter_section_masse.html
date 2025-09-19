@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Affectation de section en masse{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4"><i class="fas fa-layer-group me-2"></i>Affecter une section en masse</h1>
+    <form method="post" class="card p-4 shadow-sm">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="id_section" class="form-label">{{ form.section.label }}</label>
+            <select name="section" id="id_section" class="form-select">
+                {% for option in form.section.field.choices %}
+                    <option value="{{ option.0 }}" {% if option.0 == form.section.value %}selected{% endif %}>{{ option.1 }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Adhérents sans section :</label>
+            <div class="border rounded p-2 bg-light" style="max-height: 400px; overflow-y: auto;">
+                {% for checkbox in form.adherents %}
+                    <div class="form-check mb-2">
+                        <input type="checkbox" name="adherents" value="{{ checkbox.data.value }}" id="{{ checkbox.id_for_label }}" class="form-check-input" {% if checkbox.data.selected %}checked{% endif %}>
+                        <label class="form-check-label ms-2" for="{{ checkbox.id_for_label }}">
+                            {{ checkbox.choice_label }}
+                        </label>
+                    </div>
+                {% empty %}
+                    <div class="text-muted">Aucun adhérent sans section à affecter.</div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="d-flex align-items-center mt-3">
+            <button type="submit" class="btn btn-warning me-2"><i class="fas fa-check me-2"></i>Affecter la section sélectionnée</button>
+            <a href="{% url 'adherent_list' %}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

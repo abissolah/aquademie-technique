@@ -462,4 +462,18 @@ class PublicNonAdherentInscriptionForm(forms.ModelForm):
                 raise forms.ValidationError("Votre CACI doit être valide.")
         return date_delivrance
 
+class AffectationSectionMasseForm(forms.Form):
+    section = forms.ModelChoiceField(queryset=Section.objects.all(), label="Section à affecter", required=True)
+    adherents = forms.ModelMultipleChoiceField(
+        queryset=Adherent.objects.none(),
+        widget=forms.CheckboxSelectMultiple,
+        label="Adhérents sans section",
+        required=True
+    )
+    def __init__(self, *args, **kwargs):
+        adherents_queryset = kwargs.pop('adherents_queryset', None)
+        super().__init__(*args, **kwargs)
+        if adherents_queryset is not None:
+            self.fields['adherents'].queryset = adherents_queryset
+
  

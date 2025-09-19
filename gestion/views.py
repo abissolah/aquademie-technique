@@ -31,9 +31,10 @@ from django.views.decorators.csrf import csrf_protect
 from django.conf import settings
 import os
 import shutil
+import logging
 
 from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation, Palanquee, Lieu, LienInscriptionSeance, InscriptionSeance, Exercice
-from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm, ExerciceForm, AdminInscriptionSeanceForm
+from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm, ExerciceForm, AdminInscriptionSeanceForm, AffectationSectionMasseForm
 from .utils import envoyer_lien_evaluation, envoyer_lien_evaluation_avec_cc
 from .models import PalanqueeEleve
 from gestion.models import EvaluationExercice, GroupeCompetence, Competence, Exercice, Adherent
@@ -2189,4 +2190,22 @@ def exporter_inscrits_seance_excel(request, seance_id):
     response['Content-Disposition'] = f'attachment; filename="{nom_fichier}"'
     wb.save(response)
     return response
+
+def affecter_section_masse(request):
+    from django.contrib import messages
+    from django.shortcuts import redirect
+    # On propose tous les adhérents (club ou non), statut élève, sans section
+    adherents_sans_section = Adherent.objects.filter(statut='eleve').filter(sections=None)
+    if request.method == 'POST':
+        form = AffectationSectionMasseForm(request.POST, adherents_queryset=adherents_sans_section)
+        if form.is_valid():
+            section = form.cleaned_data['section']
+            adherents = form.cleaned_data['adherents']
+            for adherent in adherents:
+                adherent.sections.add(section)
+            messages.success(request, f"Section '{section}' affectée à {adherents.count()} adhérent(s).")
+            return redirect('adherent_list')
+    else:
+        form = AffectationSectionMasseForm(adherents_queryset=adherents_sans_section)
+    return render(request, 'gestion/affecter_section_masse.html', {'form': form, 'adherents': adherents_sans_section})
 

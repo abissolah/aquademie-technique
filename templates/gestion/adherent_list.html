@@ -25,6 +25,9 @@
                 <a href="{% url 'copier_tous_caci' %}" class="btn btn-secondary">
                     <i class="fas fa-copy me-2"></i>Copier tous les CACI
                 </a>
+                <a href="{% url 'affecter_section_masse' %}" class="btn btn-warning">
+                    <i class="fas fa-layer-group me-2"></i>Affecter une section en masse
+                </a>
             </div>
         </div>
     </div>
@@ -118,6 +121,7 @@
                         </th>
                         <th>Fichier CACI</th>
                         <th>Compte</th>
+                        <th>Section(s)</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -171,6 +175,17 @@
                                         <span class="badge bg-success">Compte créé</span>
                                     {% else %}
                                         <span class="badge bg-secondary">Non créé</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if adherent.sections.all %}
+                                        {% for section in adherent.sections.all %}
+                                            <span class="badge bg-secondary">{{ section }}</span>{% if not forloop.last %} {% endif %}
+                                        {% empty %}
+                                            <span class="text-muted">Aucune</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-muted">Aucune</span>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -228,6 +243,7 @@
                         <th>Statut</th>
                         <th>Date de délivrance du CACI</th>
                         <th>Fichier CACI</th>
+                        <th>Section(s)</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -273,6 +289,17 @@
                                     <a href="{{ adherent.caci_fichier.url }}" target="_blank">Télécharger</a>
                                 {% else %}
                                     <span class="text-muted">Aucun fichier</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if adherent.sections.all %}
+                                    {% for section in adherent.sections.all %}
+                                        <span class="badge bg-secondary">{{ section }}</span>{% if not forloop.last %} {% endif %}
+                                    {% empty %}
+                                        <span class="text-muted">Aucune</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">Aucune</span>
                                 {% endif %}
                             </td>
                             <td>

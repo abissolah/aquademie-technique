@@ -31,6 +31,7 @@ urlpatterns = [
     path('adherents/<int:adherent_id>/copier-caci/', views.copier_caci, name='copier_caci'),
     path('adherents/copier-tous-caci/', views.copier_tous_caci, name='copier_tous_caci'),
     path('adherents/<int:adherent_id>/creer-compte/', views.creer_compte_adherent, name='creer_compte_adherent'),
+    path('adherents/affecter-section-masse/', views.affecter_section_masse, name='affecter_section_masse'),
     
     # Élèves
     path('eleves/', views.EleveListView.as_view(), name='eleve_list'),
