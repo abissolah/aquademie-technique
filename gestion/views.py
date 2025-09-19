@@ -76,7 +76,7 @@ def dashboard(request):
     # Ajout des alertes CACI
     from datetime import timedelta
     today = timezone.now().date()
-    adherents_caci = Adherent.objects.exclude(statut='debutant')
+    adherents_caci = Adherent.objects.exclude(niveau='debutant')
     context['adherents_sans_caci'] = adherents_caci.filter(caci_fichier__isnull=True) | adherents_caci.filter(caci_fichier='')
     context['adherents_caci_expire'] = adherents_caci.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__lt=today - timedelta(days=365))
     context['adherents_caci_bientot'] = adherents_caci.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__gte=today - timedelta(days=365), date_delivrance_caci__lte=today - timedelta(days=335))
