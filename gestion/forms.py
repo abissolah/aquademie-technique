@@ -474,6 +474,10 @@ class AffectationSectionMasseForm(forms.Form):
         adherents_queryset = kwargs.pop('adherents_queryset', None)
         super().__init__(*args, **kwargs)
         if adherents_queryset is not None:
+            # Ordonner par nom, prénom
+            adherents_queryset = adherents_queryset.order_by('nom', 'prenom')
             self.fields['adherents'].queryset = adherents_queryset
+            # Afficher Nom Prénom comme label
+            self.fields['adherents'].label_from_instance = lambda obj: f"{obj.nom.upper()} {obj.prenom.capitalize()} ({obj.email})"
 
  
