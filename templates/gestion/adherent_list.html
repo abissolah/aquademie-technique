@@ -3,148 +3,270 @@
 {% block title %}Adhérents - Aquadémie Paris Plongée{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>
-                <i class="fas fa-users me-2"></i>Adhérents
-            </h1>
-            <div class="d-flex gap-2">
-                <a href="{% url 'download_excel_template' %}" class="btn btn-success">
-                    <i class="fas fa-download me-2"></i>Télécharger modèle d'import
-                </a>
-                <a href="{% url 'import_adherents_excel' %}" class="btn btn-info">
-                    <i class="fas fa-file-excel me-2"></i>Import Excel
-                </a>
-                <a href="{% url 'export_adherents_excel' %}" class="btn btn-success">
-                    <i class="fas fa-file-excel me-2"></i>Exporter La liste des adhérents
-                </a>
-                <a href="{% url 'adherent_create' %}" class="btn btn-primary">
-                    <i class="fas fa-plus me-2"></i>Nouvel adhérent
-                </a>
-                <a href="{% url 'copier_tous_caci' %}" class="btn btn-secondary">
-                    <i class="fas fa-copy me-2"></i>Copier tous les CACI
-                </a>
-                <a href="{% url 'affecter_section_masse' %}" class="btn btn-warning">
-                    <i class="fas fa-layer-group me-2"></i>Affecter une section en masse
-                </a>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>
+                    <i class="fas fa-users me-2"></i>Adhérents
+                </h1>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'download_excel_template' %}" class="btn btn-success">
+                        <i class="fas fa-download me-2"></i>Télécharger modèle d'import
+                    </a>
+                    <a href="{% url 'import_adherents_excel' %}" class="btn btn-info">
+                        <i class="fas fa-file-excel me-2"></i>Import Excel
+                    </a>
+                    <a href="{% url 'export_adherents_excel' %}" class="btn btn-success">
+                        <i class="fas fa-file-excel me-2"></i>Exporter La liste des adhérents
+                    </a>
+                    <a href="{% url 'adherent_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Nouvel adhérent
+                    </a>
+                    <a href="{% url 'copier_tous_caci' %}" class="btn btn-secondary">
+                        <i class="fas fa-copy me-2"></i>Copier tous les CACI
+                    </a>
+                    <a href="{% url 'affecter_section_masse' %}" class="btn btn-warning">
+                        <i class="fas fa-layer-group me-2"></i>Affecter une section en masse
+                    </a>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Recherche -->
-<div class="row mb-4">
-    <div class="col-md-6">
-        <form method="get" class="d-flex">
-            <input type="text" name="q" class="form-control me-2" placeholder="Rechercher un adhérent..." value="{{ request.GET.q }}">
-            <button type="submit" class="btn btn-outline-primary">
-                <i class="fas fa-search"></i>
-            </button>
-        </form>
+    <!-- Recherche -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <form method="get" class="d-flex">
+                <input type="text" name="q" class="form-control me-2" placeholder="Rechercher un adhérent..." value="{{ request.GET.q }}">
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="fas fa-search"></i>
+                </button>
+            </form>
+        </div>
     </div>
-</div>
 
-<h2 class="mt-4 mb-3"><i class="fas fa-users me-2"></i>Adhérents du club <span class="badge bg-success ms-2">{{ adherents_adherents|length }}</span></h2>
-<div class="card mb-5">
-    <div class="card-body">
-        <!-- Ancien dictsort supprimé, tri géré côté backend -->
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Photo</th>
-                        <th>
-                            <a href="?sort=nom&order={% if request.GET.sort == 'nom' and request.GET.order != 'desc' %}desc{% else %}asc{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
-                                Nom
-                                {% if request.GET.sort == 'nom' %}
-                                    {% if request.GET.order == 'desc' %}
-                                        <i class="fas fa-sort-down"></i>
-                                    {% else %}
-                                        <i class="fas fa-sort-up"></i>
-                                    {% endif %}
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th>
-                            <a href="?sort=email&order={% if request.GET.sort == 'email' and request.GET.order != 'desc' %}desc{% else %}asc{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
-                                Email
-                                {% if request.GET.sort == 'email' %}
-                                    {% if request.GET.order == 'desc' %}
-                                        <i class="fas fa-sort-down"></i>
-                                    {% else %}
-                                        <i class="fas fa-sort-up"></i>
-                                    {% endif %}
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th>
-                            <a href="?sort=telephone&order={% if request.GET.sort == 'telephone' and request.GET.order != 'desc' %}desc{% else %}asc{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
-                                Téléphone
-                            </a>
-                        </th>
-                        <th>
-                            <a href="?sort=niveau&order={% if request.GET.sort == 'niveau' and request.GET.order != 'desc' %}desc{% else %}asc{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
-                                Niveau
-                                {% if request.GET.sort == 'niveau' %}
-                                    {% if request.GET.order == 'desc' %}
-                                        <i class="fas fa-sort-down"></i>
-                                    {% else %}
-                                        <i class="fas fa-sort-up"></i>
-                                    {% endif %}
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th>
-                            <a href="?sort=statut&order={% if request.GET.sort == 'statut' and request.GET.order != 'desc' %}desc{% else %}asc{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
-                                Statut
-                                {% if request.GET.sort == 'statut' %}
-                                    {% if request.GET.order == 'desc' %}
-                                        <i class="fas fa-sort-down"></i>
-                                    {% else %}
-                                        <i class="fas fa-sort-up"></i>
-                                    {% endif %}
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th>
-                            <a href="?sort=date_delivrance_caci&order={% if request.GET.sort == 'date_delivrance_caci' and request.GET.order != 'desc' %}desc{% else %}asc{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
-                                Date de délivrance du CACI
-                                {% if request.GET.sort == 'date_delivrance_caci' %}
-                                    {% if request.GET.order == 'desc' %}
-                                        <i class="fas fa-sort-down"></i>
-                                    {% else %}
-                                        <i class="fas fa-sort-up"></i>
-                                    {% endif %}
-                                {% endif %}
-                            </a>
-                        </th>
-                        <th>Fichier CACI</th>
-                        <th>Compte</th>
-                        <th>Section(s)</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for adherent in adherents %}
-                        {% if adherent.type_personne == 'adherent' %}
+    <h2 class="mt-4 mb-3"><i class="fas fa-users me-2"></i>Adhérents du club <span class="badge bg-success ms-2">{{ adherents_adherents|length }}</span></h2>
+    <div class="card mb-5">
+        <div class="card-body">
+            <!-- Ancien dictsort supprimé, tri géré côté backend -->
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
                         <tr>
+                            <th>Photo</th>
+                            <th>
+                                <a href="?sort=nom&order={% if request.GET.sort == 'nom' and request.GET.order != 'desc' %}desc{% else %}asc{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                                    Nom
+                                    {% if request.GET.sort == 'nom' %}
+                                        {% if request.GET.order == 'desc' %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% endif %}
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <!--<th>
+                                <a href="?sort=email&order={% if request.GET.sort == 'email' and request.GET.order != 'desc' %}desc{% else %}asc{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                                    Email
+                                    {% if request.GET.sort == 'email' %}
+                                        {% if request.GET.order == 'desc' %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% endif %}
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?sort=telephone&order={% if request.GET.sort == 'telephone' and request.GET.order != 'desc' %}desc{% else %}asc{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                                    Téléphone
+                                </a>
+                            </th>-->
+                            <th>
+                                <a href="?sort=niveau&order={% if request.GET.sort == 'niveau' and request.GET.order != 'desc' %}desc{% else %}asc{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                                    Niveau
+                                    {% if request.GET.sort == 'niveau' %}
+                                        {% if request.GET.order == 'desc' %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% endif %}
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?sort=statut&order={% if request.GET.sort == 'statut' and request.GET.order != 'desc' %}desc{% else %}asc{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                                    Statut
+                                    {% if request.GET.sort == 'statut' %}
+                                        {% if request.GET.order == 'desc' %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% endif %}
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?sort=date_delivrance_caci&order={% if request.GET.sort == 'date_delivrance_caci' and request.GET.order != 'desc' %}desc{% else %}asc{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
+                                    Date de délivrance du CACI
+                                    {% if request.GET.sort == 'date_delivrance_caci' %}
+                                        {% if request.GET.order == 'desc' %}
+                                            <i class="fas fa-sort-down"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort-up"></i>
+                                        {% endif %}
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>Fichier CACI</th>
+                            <th>Compte</th>
+                            <th>Section(s)</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for adherent in adherents %}
+                            {% if adherent.type_personne == 'adherent' %}
+                            <tr>
+                                    <td>
+                                        {% if adherent.photo %}
+                                        <img src="{{ adherent.photo.url }}" alt="Photo de {{ adherent.nom_complet }}" 
+                                             class="rounded-circle" width="40" height="40" style="object-fit: cover;">
+                                        {% else %}
+                                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" 
+                                             style="width: 40px; height: 40px;">
+                                            <i class="fas fa-user text-white"></i>
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong>{{ adherent.nom|upper }} {{ adherent.prenom|capfirst }}</strong>
+                                    </td>
+                                    <!--
+                                    <td>{{ adherent.email }}</td>
+                                    <td>{{ adherent.telephone }}</td>
+                                    -->
+                                    <td>
+                                        <span class="badge bg-info">{{ adherent.get_niveau_display }}</span>
+                                    </td>
+                                    <td>
+                                        {% if adherent.statut == 'eleve' %}
+                                        <span class="badge bg-success">Élève</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">Encadrant</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ adherent.date_delivrance_caci|date:"d/m/Y" }}
+                                        {% if adherent.caci_status == 'expired' %}
+                                            <div class="text-danger fw-bold">CACI expiré</div>
+                                        {% elif adherent.caci_status == 'soon' %}
+                                            <div class="text-warning fw-bold">Attention, CACI expire bientôt</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if adherent.caci_fichier %}
+                                            <a href="{{ adherent.caci_fichier.url }}" target="_blank">Télécharger</a>
+                                        {% else %}
+                                            <span class="text-muted">Aucun fichier</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if adherent.user %}
+                                            <span class="badge bg-success">Compte créé</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Non créé</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if adherent.sections.all %}
+                                            {% for section in adherent.sections.all %}
+                                                <span class="badge bg-secondary">{{ section }}</span>{% if not forloop.last %} {% endif %}
+                                            {% empty %}
+                                                <span class="text-muted">Aucune</span>
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted">Aucune</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'adherent_detail' adherent.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'adherent_update' adherent.pk %}" class="btn btn-sm btn-outline-warning" title="Modifier">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'adherent_delete' adherent.pk %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                            {% if adherent.caci_fichier %}
+                                            <a href="{% url 'copier_caci' adherent.pk %}" class="btn btn-sm btn-outline-secondary" title="Copier CACI">
+                                                <i class="fas fa-copy"></i>
+                                            </a>
+                                            {% endif %}
+                                            {% if adherent.statut == 'eleve' %}
+                                            <a href="{% url 'suivi_formation_eleve' adherent.pk %}" class="btn btn-sm btn-outline-success" title="Suivi formation">
+                                                <i class="fas fa-graduation-cap"></i>
+                                            </a>
+                                            {% endif %}
+                                            {% if not adherent.user %}
+                                            <a href="{% url 'creer_compte_adherent' adherent.pk %}" class="btn btn-sm btn-outline-info" title="Créer compte"
+                                               onclick="return confirm('Créer un compte pour {{ adherent.nom|upper }} {{ adherent.prenom|capfirst }} ({{ adherent.get_statut_display }}) ?');">
+                                                <i class="fas fa-user-plus"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <!-- Fin du bloc dictsort -->
+        </div>
+    </div>
+
+    <h2 class="mt-4 mb-3"><i class="fas fa-user-friends me-2"></i>Non adhérents (invités, renforts...) <span class="badge bg-warning ms-2">{{ adherents_non_adherents|length }}</span></h2>
+    <div class="card">
+        <div class="card-body">
+            <!-- Ancien dictsort supprimé, tri géré côté backend -->
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Photo</th>
+                            <th>Nom</th>
+                            
+                            <th>Niveau</th>
+                            <th>Statut</th>
+                            <th>Date de délivrance du CACI</th>
+                            <th>Fichier CACI</th>
+                            <th>Section(s)</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for adherent in adherents %}
+                            {% if adherent.type_personne == 'non_adherent' %}
+                            <tr>
                                 <td>
                                     {% if adherent.photo %}
-                                    <img src="{{ adherent.photo.url }}" alt="Photo de {{ adherent.nom_complet }}" 
-                                         class="rounded-circle" width="40" height="40" style="object-fit: cover;">
+                                        <img src="{{ adherent.photo.url }}" alt="Photo de {{ adherent.nom_complet }}" 
+                                             class="rounded-circle" width="40" height="40" style="object-fit: cover;">
                                     {% else %}
-                                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" 
-                                         style="width: 40px; height: 40px;">
-                                        <i class="fas fa-user text-white"></i>
-                                    </div>
+                                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" 
+                                             style="width: 40px; height: 40px;">
+                                            <i class="fas fa-user text-white"></i>
+                                        </div>
                                     {% endif %}
                                 </td>
                                 <td>
                                     <strong>{{ adherent.nom|upper }} {{ adherent.prenom|capfirst }}</strong>
                                 </td>
-                                <td>{{ adherent.email }}</td>
-                                <td>{{ adherent.telephone }}</td>
                                 <td>
                                     <span class="badge bg-info">{{ adherent.get_niveau_display }}</span>
                                 </td>
@@ -156,11 +278,10 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {{ adherent.date_delivrance_caci|date:"d/m/Y" }}
-                                    {% if adherent.caci_status == 'expired' %}
-                                        <div class="text-danger fw-bold">CACI expiré</div>
-                                    {% elif adherent.caci_status == 'soon' %}
-                                        <div class="text-warning fw-bold">Attention, CACI expire bientôt</div>
+                                    {% if adherent.date_delivrance_caci %}
+                                    <span>
+                                        {{ adherent.date_delivrance_caci|date:"d/m/Y" }}
+                                    </span>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -168,13 +289,6 @@
                                         <a href="{{ adherent.caci_fichier.url }}" target="_blank">Télécharger</a>
                                     {% else %}
                                         <span class="text-muted">Aucun fichier</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if adherent.user %}
-                                        <span class="badge bg-success">Compte créé</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">Non créé</span>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -199,130 +313,16 @@
                                         <a href="{% url 'adherent_delete' adherent.pk %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
                                             <i class="fas fa-trash"></i>
                                         </a>
-                                        {% if adherent.caci_fichier %}
-                                        <a href="{% url 'copier_caci' adherent.pk %}" class="btn btn-sm btn-outline-secondary" title="Copier CACI">
-                                            <i class="fas fa-copy"></i>
-                                        </a>
-                                        {% endif %}
-                                        {% if adherent.statut == 'eleve' %}
-                                        <a href="{% url 'suivi_formation_eleve' adherent.pk %}" class="btn btn-sm btn-outline-success" title="Suivi formation">
-                                            <i class="fas fa-graduation-cap"></i>
-                                        </a>
-                                        {% endif %}
-                                        {% if not adherent.user %}
-                                        <a href="{% url 'creer_compte_adherent' adherent.pk %}" class="btn btn-sm btn-outline-info" title="Créer compte"
-                                           onclick="return confirm('Créer un compte pour {{ adherent.nom|upper }} {{ adherent.prenom|capfirst }} ({{ adherent.get_statut_display }}) ?');">
-                                            <i class="fas fa-user-plus"></i>
-                                        </a>
-                                        {% endif %}
                                     </div>
                                 </td>
                             </tr>
-                        {% endif %}
-                    {% endfor %}
-                </tbody>
-            </table>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <!-- Fin du bloc dictsort -->
         </div>
-        <!-- Fin du bloc dictsort -->
     </div>
 </div>
-
-<h2 class="mt-4 mb-3"><i class="fas fa-user-friends me-2"></i>Non adhérents (invités, renforts...) <span class="badge bg-warning ms-2">{{ adherents_non_adherents|length }}</span></h2>
-<div class="card">
-    <div class="card-body">
-        <!-- Ancien dictsort supprimé, tri géré côté backend -->
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Photo</th>
-                        <th>Nom</th>
-                        <th>Email</th>
-                        <th>Téléphone</th>
-                        <th>Niveau</th>
-                        <th>Statut</th>
-                        <th>Date de délivrance du CACI</th>
-                        <th>Fichier CACI</th>
-                        <th>Section(s)</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for adherent in adherents %}
-                        {% if adherent.type_personne == 'non_adherent' %}
-                        <tr>
-                            <td>
-                                {% if adherent.photo %}
-                                    <img src="{{ adherent.photo.url }}" alt="Photo de {{ adherent.nom_complet }}" 
-                                         class="rounded-circle" width="40" height="40" style="object-fit: cover;">
-                                {% else %}
-                                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" 
-                                         style="width: 40px; height: 40px;">
-                                        <i class="fas fa-user text-white"></i>
-                                    </div>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <strong>{{ adherent.nom|upper }} {{ adherent.prenom|capfirst }}</strong>
-                            </td>
-                            <td>{{ adherent.email }}</td>
-                            <td>{{ adherent.telephone }}</td>
-                            <td>
-                                <span class="badge bg-info">{{ adherent.get_niveau_display }}</span>
-                            </td>
-                            <td>
-                                {% if adherent.statut == 'eleve' %}
-                                <span class="badge bg-success">Élève</span>
-                                {% else %}
-                                <span class="badge bg-warning">Encadrant</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if adherent.date_delivrance_caci %}
-                                <span>
-                                    {{ adherent.date_delivrance_caci|date:"d/m/Y" }}
-                                </span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if adherent.caci_fichier %}
-                                    <a href="{{ adherent.caci_fichier.url }}" target="_blank">Télécharger</a>
-                                {% else %}
-                                    <span class="text-muted">Aucun fichier</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if adherent.sections.all %}
-                                    {% for section in adherent.sections.all %}
-                                        <span class="badge bg-secondary">{{ section }}</span>{% if not forloop.last %} {% endif %}
-                                    {% empty %}
-                                        <span class="text-muted">Aucune</span>
-                                    {% endfor %}
-                                {% else %}
-                                    <span class="text-muted">Aucune</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <div class="btn-group" role="group">
-                                    <a href="{% url 'adherent_detail' adherent.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="{% url 'adherent_update' adherent.pk %}" class="btn btn-sm btn-outline-warning" title="Modifier">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <a href="{% url 'adherent_delete' adherent.pk %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endif %}
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        <!-- Fin du bloc dictsort -->
-    </div>
-</div>
-
 {% endblock %} 
