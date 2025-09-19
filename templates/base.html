@@ -21,10 +21,31 @@
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="{% url 'dashboard' %}">
-                <img src="{% static 'logo.jpeg' %}" alt="Logo" style="height: 48px; width: auto; margin-right: 0.5rem;">
-                Aquadémie Paris Plongée
-            </a>
+            {% if user.is_authenticated %}
+                {% with is_eleve=False %}
+                    {% for group in user.groups.all %}
+                        {% if group.name == 'eleve' %}
+                            {% with True as is_eleve %}
+                                <span class="navbar-brand d-flex align-items-center" style="pointer-events: none; cursor: default;">
+                                    <img src="{% static 'logo.jpeg' %}" alt="Logo" style="height: 48px; width: auto; margin-right: 0.5rem;">
+                                    Aquadémie Paris Plongée
+                                </span>
+                            {% endwith %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if not is_eleve %}
+                        <a class="navbar-brand d-flex align-items-center" href="{% url 'dashboard' %}">
+                            <img src="{% static 'logo.jpeg' %}" alt="Logo" style="height: 48px; width: auto; margin-right: 0.5rem;">
+                            Aquadémie Paris Plongée
+                        </a>
+                    {% endif %}
+                {% endwith %}
+            {% else %}
+                <a class="navbar-brand d-flex align-items-center" href="{% url 'dashboard' %}">
+                    <img src="{% static 'logo.jpeg' %}" alt="Logo" style="height: 48px; width: auto; margin-right: 0.5rem;">
+                    Aquadémie Paris Plongée
+                </a>
+            {% endif %}
             
             {% if user.is_authenticated %}
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -33,42 +54,58 @@
             
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard' %}">
-                            <i class="fas fa-tachometer-alt me-1"></i>Tableau de bord
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'seance_list' %}">
-                            <i class="fas fa-calendar-alt me-1"></i>Séances
-                        </a>
-                    </li>
-                    
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'adherent_list' %}">
-                            <i class="fas fa-user-friends me-1"></i>Adhérents
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'section_list' %}">
-                            <i class="fas fa-layer-group me-1"></i>Sections
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'lieu_list' %}">
-                            <i class="fas fa-map-marker-alt me-1"></i>Lieux
-                        </a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="competenceDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-star me-1"></i>Compétences
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="competenceDropdown">
-                            <li><a class="dropdown-item" href="{% url 'competence_list' %}"><i class="fas fa-star me-1"></i>Liste des compétences</a></li>
-                            <li><a class="dropdown-item" href="{% url 'exercice_list' %}"><i class="fas fa-dumbbell me-1"></i>Liste des exercices</a></li>
-                            <li><a class="dropdown-item" href="{% url 'groupe_competence_list' %}"><i class="fas fa-object-group me-1"></i>Groupes de compétences</a></li>
-                        </ul>
-                    </li>
+                    {% with is_admin=False is_encadrant=False %}
+                        {% for group in user.groups.all %}
+                            {% if group.name == 'admin' %}
+                                {% with True as is_admin %}{% endwith %}
+                            {% elif group.name == 'encadrant' %}
+                                {% with True as is_encadrant %}{% endwith %}
+                            {% endif %}
+                        {% endfor %}
+                        {% if is_admin or user.is_superuser %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'dashboard' %}">
+                                    <i class="fas fa-tachometer-alt me-1"></i>Tableau de bord
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'seance_list' %}">
+                                    <i class="fas fa-calendar-alt me-1"></i>Séances
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'adherent_list' %}">
+                                    <i class="fas fa-user-friends me-1"></i>Adhérents
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'section_list' %}">
+                                    <i class="fas fa-layer-group me-1"></i>Sections
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'lieu_list' %}">
+                                    <i class="fas fa-map-marker-alt me-1"></i>Lieux
+                                </a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="competenceDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fas fa-star me-1"></i>Compétences
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="competenceDropdown">
+                                    <li><a class="dropdown-item" href="{% url 'competence_list' %}"><i class="fas fa-star me-1"></i>Liste des compétences</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'exercice_list' %}"><i class="fas fa-dumbbell me-1"></i>Liste des exercices</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'groupe_competence_list' %}"><i class="fas fa-object-group me-1"></i>Groupes de compétences</a></li>
+                                </ul>
+                            </li>
+                        {% elif is_encadrant %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'eleve_list' %}">
+                                    <i class="fas fa-user-graduate me-1"></i>Liste des élèves
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endwith %}
                 </ul>
                 
                 <ul class="navbar-nav">

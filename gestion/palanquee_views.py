@@ -272,18 +272,14 @@ def evaluation_publique(request, token):
                     note = form.cleaned_data.get(f'eval_{eleve.id}_{exercice.id}')
                     commentaire = form.cleaned_data.get(f'comment_{eleve.id}_{exercice.id}')
                     if note:
-                        eval_obj, created = EvaluationExercice.objects.get_or_create(
+                        EvaluationExercice.objects.create(
                             eleve=eleve,
                             exercice=exercice,
-                            defaults={'palanquee': palanquee, 'encadrant': encadrant, 'note': note, 'commentaire': commentaire}
+                            palanquee=palanquee,
+                            encadrant=encadrant,
+                            note=note,
+                            commentaire=commentaire
                         )
-                        if not created:
-                            # On garde la meilleure note
-                            eval_obj.note = max(int(note), eval_obj.note)
-                            eval_obj.commentaire = commentaire
-                            eval_obj.palanquee = palanquee
-                            eval_obj.encadrant = encadrant
-                            eval_obj.save()
                         evaluations_sauvegardees += 1
             if evaluations_sauvegardees == total_evaluations_attendues:
                 lien.est_valide = False

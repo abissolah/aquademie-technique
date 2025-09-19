@@ -46,9 +46,12 @@
 <!-- Liste des encadrants -->
 <div class="row">
     <div class="col-12">
-        <div class="card">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-user-check me-2"></i>Encadrants adhérents <span class="badge bg-light text-success ms-2">{{ encadrants_adherents|length }}</span></h5>
+            </div>
             <div class="card-body">
-                {% if encadrants %}
+                {% if encadrants_adherents %}
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
@@ -59,12 +62,11 @@
                                 <th>Email</th>
                                 <th>Téléphone</th>
                                 <th>Niveau</th>
-                                <th>Adhérent</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for encadrant in encadrants %}
+                            {% for encadrant in encadrants_adherents %}
                             <tr>
                                 <td>
                                     {% if encadrant.photo %}
@@ -96,7 +98,6 @@
                                 <td>
                                     <span class="badge bg-success">{{ encadrant.get_niveau_display }}</span>
                                 </td>
-                                <td>{% if encadrant.is_adherent %}Oui{% else %}Non{% endif %}</td>
                                 <td>
                                     <div class="btn-group" role="group">
                                         <a href="{% url 'adherent_detail' encadrant.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
@@ -115,24 +116,88 @@
                         </tbody>
                     </table>
                 </div>
-                
-                <!-- Pagination -->
-                {# Pagination supprimée #}
-                
                 {% else %}
-                <div class="text-center py-5">
-                    <i class="fas fa-user-tie fa-3x text-muted mb-3"></i>
-                    <h4 class="text-muted">Aucun encadrant trouvé</h4>
-                    <p class="text-muted">
-                        {% if request.GET.q %}
-                        Aucun encadrant ne correspond à votre recherche.
-                        {% else %}
-                        Commencez par ajouter votre premier encadrant.
-                        {% endif %}
-                    </p>
-                    <a href="{% url 'adherent_create' %}" class="btn btn-primary">
-                        <i class="fas fa-plus me-2"></i>Ajouter un encadrant
-                    </a>
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-user-friends fa-2x mb-2"></i>
+                    <p>Aucun encadrant adhérent.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0"><i class="fas fa-user me-2"></i>Encadrants non adhérents <span class="badge bg-light text-warning ms-2">{{ encadrants_non_adherents|length }}</span></h5>
+            </div>
+            <div class="card-body">
+                {% if encadrants_non_adherents %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Photo</th>
+                                <th>Nom</th>
+                                <th>Prénom</th>
+                                <th>Email</th>
+                                <th>Téléphone</th>
+                                <th>Niveau</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for encadrant in encadrants_non_adherents %}
+                            <tr>
+                                <td>
+                                    {% if encadrant.photo %}
+                                    <img src="{{ encadrant.photo.url }}" alt="Photo de {{ encadrant.nom_complet }}" 
+                                         class="rounded-circle" width="40" height="40" style="object-fit: cover;">
+                                    {% else %}
+                                    <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center" 
+                                         style="width: 40px; height: 40px;">
+                                        <i class="fas fa-user text-white"></i>
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                <td><strong>{{ encadrant.nom }}</strong></td>
+                                <td>{{ encadrant.prenom }}</td>
+                                <td>
+                                    {% if encadrant.email %}
+                                    <a href="mailto:{{ encadrant.email }}">{{ encadrant.email }}</a>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if encadrant.telephone %}
+                                    <a href="tel:{{ encadrant.telephone }}">{{ encadrant.telephone }}</a>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-success">{{ encadrant.get_niveau_display }}</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'adherent_detail' encadrant.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{% url 'adherent_update' encadrant.pk %}" class="btn btn-sm btn-outline-warning" title="Modifier">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'adherent_delete' encadrant.pk %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-user-friends fa-2x mb-2"></i>
+                    <p>Aucun encadrant non adhérent.</p>
                 </div>
                 {% endif %}
             </div>

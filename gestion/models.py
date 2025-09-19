@@ -310,7 +310,6 @@ class EvaluationExercice(models.Model):
     class Meta:
         verbose_name = "Évaluation exercice"
         verbose_name_plural = "Évaluations exercices"
-        unique_together = ['eleve', 'exercice']
     
     def __str__(self):
         return f"{self.eleve.nom_complet} - {self.exercice.nom} : {self.note} étoiles"

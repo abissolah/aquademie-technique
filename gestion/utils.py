@@ -5,6 +5,9 @@ from django.conf import settings
 from django.urls import reverse
 from .models import LienEvaluation
 from django.templatetags.static import static
+from django.contrib.auth.decorators import user_passes_test
+from django.shortcuts import redirect
+from functools import wraps
 
 
 def envoyer_lien_evaluation(lien_evaluation, request=None):
@@ -126,3 +129,33 @@ def get_signature_html():
       <img src="cid:signature_mouss2" alt="Signature Mouss" style="min-width:420px; width:420px; max-width:100%;">
     </div>
     ''' 
+
+
+def group_required(group_name):
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped_view(request, *args, **kwargs):
+            if not request.user.is_authenticated:
+                return redirect('login')
+            if request.user.groups.filter(name=group_name).exists() or request.user.is_superuser:
+                return view_func(request, *args, **kwargs)
+            # Redirection selon le groupe
+            if request.user.groups.filter(name='eleve').exists():
+                adherent = getattr(request.user, 'adherent_profile', None)
+                if adherent:
+                    return redirect('suivi_formation_eleve', eleve_id=adherent.id)
+            elif request.user.groups.filter(name='encadrant').exists():
+                return redirect('eleve_list')
+            else:
+                return redirect('dashboard')
+        return _wrapped_view
+    return decorator
+
+def eleve_only(view_func):
+    return group_required('eleve')(view_func)
+
+def encadrant_only(view_func):
+    return group_required('encadrant')(view_func)
+
+def admin_only(view_func):
+    return group_required('admin')(view_func) 

@@ -250,6 +250,11 @@
                     {% csrf_token %}
                     <button class="btn btn-success btn-sm" title="Valider le CACI"><i class="fas fa-check"></i> Valider le CACI</button>
                   </form>
+                  {% if a.caci_fichier %}
+                    <a href="{% url 'copier_caci' a.pk %}?from=dashboard" class="btn btn-outline-secondary btn-sm ms-1" title="Copier CACI">
+                      <i class="fas fa-copy"></i> Copier CACI
+                    </a>
+                  {% endif %}
                 </td>
               </tr>
               {% endfor %}

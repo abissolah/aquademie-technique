@@ -8,7 +8,9 @@
         <span class="badge bg-primary">{{ nb_groupes_valides }}/{{ nb_groupes }} groupes validés</span>
         <span class="badge bg-success">{{ nb_competences_valides }}/{{ nb_competences }} compétences validées</span>
     </div>
-    <button class="btn btn-outline-info mb-3" type="button" onclick="toggleAllHistoriques()" id="btn-toggle-all">Voir tout l'historique</button>
+    {% if user.is_superuser or user.groups.all.0.name == 'admin' or user.groups.all.0.name == 'encadrant' %}
+        <button class="btn btn-outline-info mb-3" type="button" onclick="toggleAllHistoriques()" id="btn-toggle-all">Voir tout l'historique</button>
+    {% endif %}
     {% for g in progression %}
     <div class="card mb-4">
         <div class="card-header d-flex align-items-center">
@@ -43,31 +45,39 @@
                                     {% endif %}
                                 {% endfor %}
                             </span>
-                            {% if e.commentaire %}
-                                <div class="small text-muted mt-1"><i class="fas fa-comment-dots"></i> {{ e.commentaire }}</div>
+                            {% if user.is_superuser or user.groups.all.0.name == 'admin' or user.groups.all.0.name == 'encadrant' %}
+                                {% if e.commentaire %}
+                                    <div class="small text-muted mt-1"><i class="fas fa-comment-dots"></i> {{ e.commentaire }}</div>
+                                {% endif %}
+                                <button class="btn btn-sm btn-outline-info mt-2" type="button" onclick="toggleHistorique('hist-{{ e.exercice.id }}')">Voir l'historique</button>
+                                <div id="hist-{{ e.exercice.id }}" class="mt-2" style="display:none;">
+                                    {% with hist_list=historiques|dict_get:e.exercice.id %}
+                                        <div class="small text-info">{{ hist_list|length }} évaluation(s) trouvée(s)
+                                            {% if hist_list %}
+                                                [IDs: {% for hist in hist_list %}{{ hist.id }}{% if not forloop.last %}, {% endif %}{% endfor %}]
+                                                [Dates: {% for hist in hist_list %}{{ hist.palanquee.seance.date|date:'d/m/Y' }}{% if not forloop.last %}, {% endif %}{% endfor %}]
+                                            {% endif %}
+                                        </div>
+                                        {% if hist_list %}
+                                            <ul class="list-group">
+                                            {% for hist in hist_list %}
+                                                <li class="list-group-item">
+                                                    <strong>Date :</strong> {{ hist.palanquee.seance.date|date:'d/m/Y' }}<br>
+                                                    <strong>Note :</strong> 
+                                                    {% for i in range3 %}
+                                                        {% if i <= hist.note %}<i class="fas fa-star text-warning"></i>{% else %}<i class="far fa-star text-muted"></i>{% endif %}
+                                                    {% endfor %}<br>
+                                                    <strong>Commentaire :</strong> {{ hist.commentaire|default:'-' }}<br>
+                                                    <strong>Moniteur :</strong> {{ hist.encadrant.nom_complet }}
+                                                </li>
+                                            {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <div class="text-muted small">Aucun historique pour cet exercice.</div>
+                                        {% endif %}
+                                    {% endwith %}
+                                </div>
                             {% endif %}
-                            <button class="btn btn-sm btn-outline-info mt-2" type="button" onclick="toggleHistorique('hist-{{ e.exercice.id }}')">Voir l'historique</button>
-                            <div id="hist-{{ e.exercice.id }}" class="mt-2" style="display:none;">
-                                {% with hist_list=historiques|dict_get:e.exercice.id %}
-                                    {% if hist_list %}
-                                        <ul class="list-group">
-                                        {% for hist in hist_list %}
-                                            <li class="list-group-item">
-                                                <strong>Date :</strong> {{ hist.palanquee.seance.date|date:'d/m/Y' }}<br>
-                                                <strong>Note :</strong> 
-                                                {% for i in range3 %}
-                                                    {% if i <= hist.note %}<i class="fas fa-star text-warning"></i>{% else %}<i class="far fa-star text-muted"></i>{% endif %}
-                                                {% endfor %}<br>
-                                                <strong>Commentaire :</strong> {{ hist.commentaire|default:'-' }}<br>
-                                                <strong>Moniteur :</strong> {{ hist.encadrant.nom_complet }}
-                                            </li>
-                                        {% endfor %}
-                                        </ul>
-                                    {% else %}
-                                        <div class="text-muted small">Aucun historique pour cet exercice.</div>
-                                    {% endif %}
-                                {% endwith %}
-                            </div>
                         </div>
                     </div>
                     {% endfor %}

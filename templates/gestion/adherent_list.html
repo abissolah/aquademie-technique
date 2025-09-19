@@ -42,7 +42,7 @@
     </div>
 </div>
 
-<h2 class="mt-4 mb-3"><i class="fas fa-users me-2"></i>Adhérents du club</h2>
+<h2 class="mt-4 mb-3"><i class="fas fa-users me-2"></i>Adhérents du club <span class="badge bg-success ms-2">{{ adherents_adherents|length }}</span></h2>
 <div class="card mb-5">
     <div class="card-body">
         <!-- Ancien dictsort supprimé, tri géré côté backend -->
@@ -194,11 +194,12 @@
                                             <i class="fas fa-graduation-cap"></i>
                                         </a>
                                         {% endif %}
-                                        <!--{% if not adherent.user %}
-                                        <a href="{% url 'creer_compte_adherent' adherent.pk %}" class="btn btn-sm btn-outline-info" title="Créer compte">
+                                        {% if not adherent.user %}
+                                        <a href="{% url 'creer_compte_adherent' adherent.pk %}" class="btn btn-sm btn-outline-info" title="Créer compte"
+                                           onclick="return confirm('Créer un compte pour {{ adherent.nom|upper }} {{ adherent.prenom|capfirst }} ({{ adherent.get_statut_display }}) ?');">
                                             <i class="fas fa-user-plus"></i>
                                         </a>
-                                        {% endif %}-->
+                                        {% endif %}
                                     </div>
                                 </td>
                             </tr>
@@ -211,7 +212,7 @@
     </div>
 </div>
 
-<h2 class="mt-4 mb-3"><i class="fas fa-user-friends me-2"></i>Non adhérents (invités, renforts...)</h2>
+<h2 class="mt-4 mb-3"><i class="fas fa-user-friends me-2"></i>Non adhérents (invités, renforts...) <span class="badge bg-warning ms-2">{{ adherents_non_adherents|length }}</span></h2>
 <div class="card">
     <div class="card-body">
         <!-- Ancien dictsort supprimé, tri géré côté backend -->

@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
@@ -57,31 +57,34 @@ from django.conf import settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.contrib.sites.shortcuts import get_current_site
+from .utils import eleve_only, encadrant_only, admin_only, group_required
+from django.utils.decorators import method_decorator
 
 # Vues d'accueil et de navigation
-@login_required
+@group_required('admin')
 def dashboard(request):
     """Tableau de bord principal"""
     context = {
-        'total_adherents': Adherent.objects.count(),
+        'total_adherents': Adherent.objects.filter(type_personne='adherent').count(),
         'total_seances': Seance.objects.count(),
         'total_palanquees': Palanquee.objects.count(),
         'seances_recentes': Seance.objects.all()[:5],
         'palanquees_recentes': Palanquee.objects.select_related('seance', 'section').prefetch_related('eleves')[:5],
-        'adherents_eleves': Adherent.objects.filter(statut='eleve').count(),
-        'adherents_encadrants': Adherent.objects.filter(statut='encadrant').count(),
+        'adherents_eleves': Adherent.objects.filter(type_personne='adherent', statut='eleve').count(),
+        'adherents_encadrants': Adherent.objects.filter(type_personne='adherent', statut='encadrant').count(),
     }
     # Ajout des alertes CACI
     from datetime import timedelta
     today = timezone.now().date()
-    adherents = Adherent.objects.filter(type_personne='adherent')
-    context['adherents_sans_caci'] = adherents.filter(caci_fichier__isnull=True) | adherents.filter(caci_fichier='')
-    context['adherents_caci_expire'] = adherents.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__lt=today - timedelta(days=365))
-    context['adherents_caci_bientot'] = adherents.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__gte=today - timedelta(days=365), date_delivrance_caci__lte=today - timedelta(days=335))
-    context['adherents_caci_non_valide'] = Adherent.objects.filter(caci_valide=False)
+    adherents_caci = Adherent.objects.exclude(statut='debutant')
+    context['adherents_sans_caci'] = adherents_caci.filter(caci_fichier__isnull=True) | adherents_caci.filter(caci_fichier='')
+    context['adherents_caci_expire'] = adherents_caci.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__lt=today - timedelta(days=365))
+    context['adherents_caci_bientot'] = adherents_caci.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__gte=today - timedelta(days=365), date_delivrance_caci__lte=today - timedelta(days=335))
+    context['adherents_caci_non_valide'] = adherents_caci.filter(caci_valide=False)
     return render(request, 'gestion/dashboard.html', context)
 
 # Vues pour les adhérents
+@method_decorator(group_required('admin'), name='dispatch')
 class AdherentListView(LoginRequiredMixin, ListView):
     model = Adherent
     template_name = 'gestion/adherent_list.html'
@@ -121,6 +124,14 @@ class AdherentListView(LoginRequiredMixin, ListView):
                 a.caci_status = ''
         return adherents
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        adherents = context['adherents']
+        context['adherents_adherents'] = [a for a in adherents if a.type_personne == 'adherent']
+        context['adherents_non_adherents'] = [a for a in adherents if a.type_personne == 'non_adherent']
+        return context
+
+@method_decorator(group_required('admin'), name='dispatch')
 class AdherentDetailView(LoginRequiredMixin, DetailView):
     model = Adherent
     template_name = 'gestion/adherent_detail.html'
@@ -140,24 +151,28 @@ class AdherentDetailView(LoginRequiredMixin, DetailView):
         context['seances_inscrit'] = [ins.seance for ins in seances_inscrit]
         return context
 
+@method_decorator(group_required('admin'), name='dispatch')
 class AdherentCreateView(LoginRequiredMixin, CreateView):
     model = Adherent
     form_class = AdherentForm
     template_name = 'gestion/adherent_form.html'
     success_url = reverse_lazy('adherent_list')
 
+@method_decorator(group_required('admin'), name='dispatch')
 class AdherentUpdateView(LoginRequiredMixin, UpdateView):
     model = Adherent
     form_class = AdherentForm
     template_name = 'gestion/adherent_form.html'
     success_url = reverse_lazy('adherent_list')
 
+@method_decorator(group_required('admin'), name='dispatch')
 class AdherentDeleteView(LoginRequiredMixin, DeleteView):
     model = Adherent
     template_name = 'gestion/adherent_confirm_delete.html'
     success_url = reverse_lazy('adherent_list')
 
 # Vues pour les élèves
+@method_decorator(group_required('encadrant'), name='dispatch')
 class EleveListView(LoginRequiredMixin, ListView):
     model = Adherent
     template_name = 'gestion/eleve_list.html'
@@ -175,12 +190,12 @@ class EleveListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Ajouter is_adherent pour chaque élève
-        for eleve in context['eleves']:
-            eleve.is_adherent = (eleve.type_personne == 'adherent')
+        eleves = context['eleves']
+        context['eleves_adherents'] = [e for e in eleves if e.type_personne == 'adherent']
+        context['eleves_non_adherents'] = [e for e in eleves if e.type_personne == 'non_adherent']
         return context
 
-# Vues pour les encadrants
+@method_decorator(group_required('admin'), name='dispatch')
 class EncadrantListView(LoginRequiredMixin, ListView):
     model = Adherent
     template_name = 'gestion/encadrant_list.html'
@@ -198,40 +213,46 @@ class EncadrantListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Ajouter is_adherent pour chaque encadrant
-        for encadrant in context['encadrants']:
-            encadrant.is_adherent = (encadrant.type_personne == 'adherent')
+        encadrants = context['encadrants']
+        context['encadrants_adherents'] = [e for e in encadrants if e.type_personne == 'adherent']
+        context['encadrants_non_adherents'] = [e for e in encadrants if e.type_personne == 'non_adherent']
         return context
 
 # Vues pour les sections
+@method_decorator(group_required('admin'), name='dispatch')
 class SectionListView(LoginRequiredMixin, ListView):
     model = Section
     template_name = 'gestion/section_list.html'
     context_object_name = 'sections'
 
+@method_decorator(group_required('admin'), name='dispatch')
 class SectionDetailView(LoginRequiredMixin, DetailView):
     model = Section
     template_name = 'gestion/section_detail.html'
     context_object_name = 'section'
 
+@method_decorator(group_required('admin'), name='dispatch')
 class SectionCreateView(LoginRequiredMixin, CreateView):
     model = Section
     form_class = SectionForm
     template_name = 'gestion/section_form.html'
     success_url = reverse_lazy('section_list')
 
+@method_decorator(group_required('admin'), name='dispatch')
 class SectionUpdateView(LoginRequiredMixin, UpdateView):
     model = Section
     form_class = SectionForm
     template_name = 'gestion/section_form.html'
     success_url = reverse_lazy('section_list')
 
+@method_decorator(group_required('admin'), name='dispatch')
 class SectionDeleteView(LoginRequiredMixin, DeleteView):
     model = Section
     template_name = 'gestion/section_confirm_delete.html'
     success_url = reverse_lazy('section_list')
 
 # Vues pour les compétences
+@method_decorator(group_required('admin'), name='dispatch')
 class CompetenceListView(LoginRequiredMixin, ListView):
     model = Competence
     template_name = 'gestion/competence_list.html'
@@ -249,57 +270,67 @@ class CompetenceListView(LoginRequiredMixin, ListView):
         context['sections'] = Section.objects.all()
         return context
 
+@method_decorator(group_required('admin'), name='dispatch')
 class CompetenceCreateView(LoginRequiredMixin, CreateView):
     model = Competence
     form_class = CompetenceForm
     template_name = 'gestion/competence_form.html'
     success_url = reverse_lazy('competence_list')
 
+@method_decorator(group_required('admin'), name='dispatch')
 class CompetenceUpdateView(LoginRequiredMixin, UpdateView):
     model = Competence
     form_class = CompetenceForm
     template_name = 'gestion/competence_form.html'
     success_url = reverse_lazy('competence_list')
 
+@method_decorator(group_required('admin'), name='dispatch')
 class CompetenceDeleteView(LoginRequiredMixin, DeleteView):
     model = Competence
     template_name = 'gestion/competence_confirm_delete.html'
     success_url = reverse_lazy('competence_list')
 
+@method_decorator(group_required('admin'), name='dispatch')
 class CompetenceDetailView(LoginRequiredMixin, DetailView):
     model = Competence
     template_name = 'gestion/competence_detail.html'
     context_object_name = 'competence'
 
 # Vues pour les groupes de compétences
+@method_decorator(group_required('admin'), name='dispatch')
 class GroupeCompetenceListView(LoginRequiredMixin, ListView):
     model = GroupeCompetence
     template_name = 'gestion/groupe_competence_list.html'
     context_object_name = 'groupes'
 
+@method_decorator(group_required('admin'), name='dispatch')
 class GroupeCompetenceCreateView(LoginRequiredMixin, CreateView):
     model = GroupeCompetence
     form_class = GroupeCompetenceForm
     template_name = 'gestion/groupe_competence_form.html'
     success_url = reverse_lazy('groupe_competence_list')
 
+@method_decorator(group_required('admin'), name='dispatch')
 class GroupeCompetenceUpdateView(LoginRequiredMixin, UpdateView):
     model = GroupeCompetence
     form_class = GroupeCompetenceForm
     template_name = 'gestion/groupe_competence_form.html'
     success_url = reverse_lazy('groupe_competence_list')
 
+@method_decorator(group_required('admin'), name='dispatch')
 class GroupeCompetenceDeleteView(LoginRequiredMixin, DeleteView):
     model = GroupeCompetence
     template_name = 'gestion/groupe_competence_confirm_delete.html'
     success_url = reverse_lazy('groupe_competence_list')
 
+@method_decorator(group_required('admin'), name='dispatch')
 class GroupeCompetenceDetailView(LoginRequiredMixin, DetailView):
     model = GroupeCompetence
     template_name = 'gestion/groupe_competence_detail.html'
     context_object_name = 'groupe'
 
 # Vues pour les séances
+@method_decorator(group_required('admin'), name='dispatch')
 class SeanceListView(LoginRequiredMixin, ListView):
     model = Seance
     template_name = 'gestion/seance_list.html'
@@ -322,6 +353,7 @@ class SeanceListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         return context
 
+@method_decorator(group_required('admin'), name='dispatch')
 class SeanceDetailView(LoginRequiredMixin, DetailView):
     model = Seance
     template_name = 'gestion/seance_detail.html'
@@ -330,7 +362,7 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         seance = self.get_object()
-        context['palanquees'] = seance.palanques.all()
+        context['palanques'] = seance.palanques.all()
         
         # Liste des inscrits (tous types)
         inscrits = seance.inscriptions.select_related('personne').all()
@@ -355,18 +387,21 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         context['covoiturage_besoin'] = [i for i in inscrits if getattr(i, 'covoiturage', '') == 'besoin']
         return context
 
+@method_decorator(group_required('admin'), name='dispatch')
 class SeanceCreateView(LoginRequiredMixin, CreateView):
     model = Seance
     form_class = SeanceForm
     template_name = 'gestion/seance_form.html'
     success_url = reverse_lazy('seance_list')
 
+@method_decorator(group_required('admin'), name='dispatch')
 class SeanceUpdateView(LoginRequiredMixin, UpdateView):
     model = Seance
     form_class = SeanceForm
     template_name = 'gestion/seance_form.html'
     success_url = reverse_lazy('seance_list')
 
+@method_decorator(group_required('admin'), name='dispatch')
 class SeanceDeleteView(LoginRequiredMixin, DeleteView):
     model = Seance
     template_name = 'gestion/seance_confirm_delete.html'
@@ -837,38 +872,45 @@ class CustomLoginView(LoginView):
     template_name = 'registration/login.html'
     redirect_authenticated_user = True
 
+    def get_success_url(self):
+        user = self.request.user
+        if hasattr(user, 'adherent_profile') and getattr(user.adherent_profile, 'statut', None) == 'eleve':
+            return reverse_lazy('suivi_formation_eleve', kwargs={'eleve_id': user.adherent_profile.pk})
+        return super().get_success_url()
+
 class CustomLogoutView(LogoutView):
     next_page = 'login'
 
 # Vues pour les lieux
+@method_decorator(group_required('admin'), name='dispatch')
 class LieuListView(LoginRequiredMixin, ListView):
     model = Lieu
     template_name = 'gestion/lieu_list.html'
     context_object_name = 'lieux'
 
+@method_decorator(group_required('admin'), name='dispatch')
 class LieuCreateView(LoginRequiredMixin, CreateView):
     model = Lieu
-    fields = ['nom', 'adresse', 'code_postal', 'ville']  # Nom, adresse, CP, ville
+    fields = ['nom', 'adresse', 'code_postal', 'ville']
     template_name = 'gestion/lieu_form.html'
     success_url = reverse_lazy('lieu_list')
-
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
-        # Réordonne les champs : nom, adresse, code_postal, ville
         form.order_fields(['nom', 'adresse', 'code_postal', 'ville'])
         return form
 
+@method_decorator(group_required('admin'), name='dispatch')
 class LieuUpdateView(LoginRequiredMixin, UpdateView):
     model = Lieu
     fields = ['nom', 'adresse', 'code_postal', 'ville']
     template_name = 'gestion/lieu_form.html'
     success_url = reverse_lazy('lieu_list')
-
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
         form.order_fields(['nom', 'adresse', 'code_postal', 'ville'])
         return form
 
+@method_decorator(group_required('admin'), name='dispatch')
 class LieuDeleteView(LoginRequiredMixin, DeleteView):
     model = Lieu
     template_name = 'gestion/lieu_confirm_delete.html'
@@ -1143,23 +1185,27 @@ class AdherentPublicCreateView(CreateView):
     def form_invalid(self, form):
         return self.render_to_response(self.get_context_data(form=form, inscription_success=False))
 
+@method_decorator(group_required('admin'), name='dispatch')
 class ExerciceListView(LoginRequiredMixin, ListView):
     model = Exercice
     template_name = 'gestion/exercice_list.html'
     context_object_name = 'exercices'
 
+@method_decorator(group_required('admin'), name='dispatch')
 class ExerciceCreateView(LoginRequiredMixin, CreateView):
     model = Exercice
     form_class = ExerciceForm
     template_name = 'gestion/exercice_form.html'
     success_url = reverse_lazy('exercice_list')
 
+@method_decorator(group_required('admin'), name='dispatch')
 class ExerciceUpdateView(LoginRequiredMixin, UpdateView):
     model = Exercice
     form_class = ExerciceForm
     template_name = 'gestion/exercice_form.html'
     success_url = reverse_lazy('exercice_list')
 
+@method_decorator(group_required('admin'), name='dispatch')
 class ExerciceDeleteView(LoginRequiredMixin, DeleteView):
     model = Exercice
     template_name = 'gestion/exercice_confirm_delete.html'
@@ -1581,8 +1627,32 @@ def generer_fiche_securite_excel(request, seance_id):
     response['Content-Disposition'] = f'attachment; filename="APP_Fiche-secu_{seance.date.strftime('%Y-%m-%d')}.xlsx"'
     return response
 
-@staff_member_required
+def peut_voir_suivi(user, eleve_id):
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    if user.groups.filter(name='admin').exists():
+        return True
+    if user.groups.filter(name='encadrant').exists():
+        return True
+    adherent = getattr(user, 'adherent_profile', None)
+    return user.groups.filter(name='eleve').exists() and adherent and adherent.id == eleve_id
+
 def suivi_formation_eleve(request, eleve_id):
+    if not peut_voir_suivi(request.user, int(eleve_id)):
+        # Redirige l'élève vers sa propre fiche, les autres vers la liste des élèves
+        if request.user.groups.filter(name='eleve').exists():
+            adherent = getattr(request.user, 'adherent_profile', None)
+            if adherent:
+                return redirect('suivi_formation_eleve', eleve_id=adherent.id)
+        elif request.user.groups.filter(name='encadrant').exists():
+            return redirect('eleve_list')
+        else:
+            return redirect('dashboard')
+    return _suivi_formation_eleve(request, eleve_id)
+
+def _suivi_formation_eleve(request, eleve_id):
     eleve = get_object_or_404(Adherent, pk=eleve_id)
     # Récupérer toutes les sections de l'élève
     sections = eleve.sections.all()
@@ -1930,10 +2000,14 @@ def copier_caci(request, adherent_id):
     adherent = get_object_or_404(Adherent, pk=adherent_id)
     if not adherent.caci_fichier:
         messages.error(request, "Aucun fichier CACI à copier pour cet adhérent.")
+        if request.GET.get('from') == 'dashboard':
+            return redirect('dashboard')
         return redirect('adherent_list')
     chemin_sftp = getattr(settings, 'CHEMIN_SFTP', None)
     if not chemin_sftp:
         messages.error(request, "CHEMIN_SFTP non configuré dans les settings.")
+        if request.GET.get('from') == 'dashboard':
+            return redirect('dashboard')
         return redirect('adherent_list')
     nom = adherent.nom.strip().replace(' ', '_')
     prenom = adherent.prenom.strip().replace(' ', '_')
@@ -1951,6 +2025,8 @@ def copier_caci(request, adherent_id):
         messages.success(request, f"Fichier CACI copié sous {nouveau_nom}.")
     except Exception as e:
         messages.error(request, f"Erreur lors de la copie : {e}")
+    if request.GET.get('from') == 'dashboard':
+        return redirect('dashboard')
     return redirect('adherent_list')
 
 def copier_tous_caci(request):
@@ -2006,7 +2082,7 @@ def creer_compte_adherent(request, adherent_id):
         email=email,
         first_name=first_name,
         last_name=last_name,
-        is_active=False
+        is_active=True  # Compte activé dès la création
     )
     # Associer à l'adhérent
     adherent.user = user
