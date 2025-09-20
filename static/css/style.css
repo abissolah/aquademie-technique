@@ -344,29 +344,23 @@ footer {
 } 
 
 /* Colonnes sticky pour le tableau de création des palanquées */
-#table-palanquees {
-    table-layout: fixed;
-    min-width: 1200px;
-}
 #table-palanquees th.sticky-col,
 #table-palanquees td.sticky-col {
     position: sticky;
     left: 0;
     background: #fff;
-    z-index: 10;
+    z-index: 2;
     box-shadow: 2px 0 2px -1px rgba(0,0,0,0.05);
 }
-#table-palanquees th.sticky-col-1, #table-palanquees td.sticky-col-1 { left: 0; z-index: 11; background: #f8f9fa; }
-#table-palanquees th.sticky-col-2, #table-palanquees td.sticky-col-2 { left: 150px; z-index: 11; background: #f8f9fa; }
-#table-palanquees th.sticky-col-3, #table-palanquees td.sticky-col-3 { left: 270px; z-index: 11; background: #f8f9fa; }
-#table-palanquees th.sticky-col-4, #table-palanquees td.sticky-col-4 { left: 420px; z-index: 11; background: #f8f9fa; }
+#table-palanquees th.sticky-col-1, #table-palanquees td.sticky-col-1 { left: 0; z-index: 3; }
+#table-palanquees th.sticky-col-2, #table-palanquees td.sticky-col-2 { left: 150px; z-index: 3; }
+#table-palanquees th.sticky-col-3, #table-palanquees td.sticky-col-3 { left: 270px; z-index: 3; }
+#table-palanquees th.sticky-col-4, #table-palanquees td.sticky-col-4 { left: 420px; z-index: 3; }
 
 #table-palanquees th,
 #table-palanquees td {
     min-width: 120px;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 #table-palanquees th.sticky-col-1, #table-palanquees td.sticky-col-1 { min-width: 150px; }
 #table-palanquees th.sticky-col-2, #table-palanquees td.sticky-col-2 { min-width: 120px; }
@@ -375,5 +369,4 @@ footer {
 
 .table-responsive {
     overflow-x: auto;
-    width: 100%;
 } 
