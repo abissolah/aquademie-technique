@@ -1611,7 +1611,8 @@ def generer_fiche_securite_excel(request, seance_id):
         if bloc_idx == 0:
             adultes = 0
             enfants = 0
-            for palanquee in palanquees[:9]:
+            for palanquee in palanquees:
+                # Compter les élèves
                 for eleve in palanquee.eleves.all():
                     if hasattr(eleve, 'date_naissance') and eleve.date_naissance:
                         from datetime import date
@@ -1622,6 +1623,16 @@ def generer_fiche_securite_excel(request, seance_id):
                             adultes += 1
                     else:
                         adultes += 1
+                # Compter l'encadrant s'il existe
+                if palanquee.encadrant and hasattr(palanquee.encadrant, 'date_naissance') and palanquee.encadrant.date_naissance:
+                    from datetime import date
+                    age = (date.today() - palanquee.encadrant.date_naissance).days // 365
+                    if age < 18:
+                        enfants += 1
+                    else:
+                        adultes += 1
+                elif palanquee.encadrant:
+                    adultes += 1
             total = adultes + enfants
             ws['AH57'] = adultes
             ws['AH58'] = enfants
