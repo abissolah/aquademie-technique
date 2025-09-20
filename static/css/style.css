@@ -368,5 +368,8 @@ footer {
 #table-palanquees th.sticky-col-4, #table-palanquees td.sticky-col-4 { min-width: 150px; }
 
 .table-responsive {
-    overflow-x: auto;
+    overflow-x: unset;
 } 
+.table-responsive table#table-palanquees {
+    overflow-x: auto;
+}
