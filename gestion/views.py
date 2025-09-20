@@ -365,6 +365,19 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         seance = self.get_object()
         palanquees_qs = seance.palanques.select_related('section', 'encadrant').prefetch_related('eleves', 'competences')
         context['palanquees'] = palanquees_qs
+        # Ajout pour affichage des inscrits et du covoiturage
+        inscriptions = seance.inscriptions.select_related('personne').all()
+        inscrits_encadrants = [i for i in inscriptions if i.personne.statut == 'encadrant']
+        inscrits_eleves = [i for i in inscriptions if i.personne.statut == 'eleve']
+        inscrits_non_adherents = [i for i in inscriptions if i.personne.type_personne == 'non_adherent']
+        context['inscrits_encadrants'] = inscrits_encadrants
+        context['inscrits_eleves'] = inscrits_eleves
+        context['inscrits_non_adherents'] = inscrits_non_adherents
+        context['nb_total_inscrits'] = len(inscriptions)
+        context['nb_encadrants'] = len(inscrits_encadrants)
+        context['nb_eleves'] = len(inscrits_eleves)
+        context['covoiturage_propose'] = [i for i in inscriptions if i.covoiturage == 'propose']
+        context['covoiturage_besoin'] = [i for i in inscriptions if i.covoiturage == 'besoin']
         return context
 
 @method_decorator(group_required('admin'), name='dispatch')
@@ -1594,6 +1607,25 @@ def generer_fiche_securite_excel(request, seance_id):
                     ws[niv_cell] = ""
             ws[f'{prof_col[base_col]}{base_row+7}'] = palanquee.profondeur_max if palanquee.profondeur_max else "-"
             ws[f'{duree_col[base_col]}{base_row+7}'] = palanquee.duree if palanquee.duree else "-"
+        # Comptage adultes/enfants/total (sur la première feuille uniquement)
+        if bloc_idx == 0:
+            adultes = 0
+            enfants = 0
+            for palanquee in palanquees[:9]:
+                for eleve in palanquee.eleves.all():
+                    if hasattr(eleve, 'date_naissance') and eleve.date_naissance:
+                        from datetime import date
+                        age = (date.today() - eleve.date_naissance).days // 365
+                        if age < 18:
+                            enfants += 1
+                        else:
+                            adultes += 1
+                    else:
+                        adultes += 1
+            total = adultes + enfants
+            ws['AH57'] = adultes
+            ws['AH58'] = enfants
+            ws['AH59'] = total
 
     # Export
     output = BytesIO()
