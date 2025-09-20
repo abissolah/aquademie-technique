@@ -363,29 +363,8 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         seance = self.get_object()
-        context['palanques'] = seance.palanques.all()
-        
-        # Liste des inscrits (tous types)
-        inscrits = seance.inscriptions.select_related('personne').all()
-        # On enrichit chaque inscription avec is_adherent
-        for i in inscrits:
-            i.is_adherent = (i.personne.type_personne == 'adherent')
-        # Séparation par statut et tri alphabétique
-        context['inscrits_encadrants'] = sorted(
-            [i for i in inscrits if i.personne.statut == 'encadrant'],
-            key=lambda ins: (ins.personne.nom.upper(), ins.personne.prenom.upper())
-        )
-        context['inscrits_eleves'] = sorted(
-            [i for i in inscrits if i.personne.statut == 'eleve'],
-            key=lambda ins: (ins.personne.nom.upper(), ins.personne.prenom.upper())
-        )
-        context['nb_total_inscrits'] = len(inscrits)
-        context['nb_encadrants'] = len(context['inscrits_encadrants'])
-        context['nb_eleves'] = len(context['inscrits_eleves'])
-        context['today'] = timezone.now().date()
-        # Covoiturage
-        context['covoiturage_propose'] = [i for i in inscrits if getattr(i, 'covoiturage', '') == 'propose']
-        context['covoiturage_besoin'] = [i for i in inscrits if getattr(i, 'covoiturage', '') == 'besoin']
+        palanquees_qs = seance.palanques.select_related('section', 'encadrant').prefetch_related('eleves', 'competences')
+        context['palanquees'] = palanquees_qs
         return context
 
 @method_decorator(group_required('admin'), name='dispatch')

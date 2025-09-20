@@ -183,7 +183,7 @@
                                     <td>
                                         {% if adherent.sections.all %}
                                             {% for section in adherent.sections.all %}
-                                                <span class="badge bg-secondary">{{ section }}</span>{% if not forloop.last %} {% endif %}
+                                                <span class="badge bg-primary">{{ section }}</span>{% if not forloop.last %} {% endif %}
                                             {% empty %}
                                                 <span class="text-muted">Aucune</span>
                                             {% endfor %}
@@ -294,7 +294,7 @@
                                 <td>
                                     {% if adherent.sections.all %}
                                         {% for section in adherent.sections.all %}
-                                            <span class="badge bg-secondary">{{ section }}</span>{% if not forloop.last %} {% endif %}
+                                            <span class="badge bg-primary">{{ section }}</span>{% if not forloop.last %} {% endif %}
                                         {% empty %}
                                             <span class="text-muted">Aucune</span>
                                         {% endfor %}

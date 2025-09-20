@@ -6,6 +6,7 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from django.urls import reverse_lazy
 from .models import Seance, Section, LienEvaluation
 from .forms import SeanceForm
+import logging
 
 # Vues pour les séances
 class SeanceListView(LoginRequiredMixin, ListView):
@@ -15,7 +16,7 @@ class SeanceListView(LoginRequiredMixin, ListView):
     paginate_by = 10
     
     def get_queryset(self):
-        queryset = Seance.objects.prefetch_related('palanquees')
+        queryset = Seance.objects.prefetch_related('palanques')
         date_debut = self.request.GET.get('date_debut')
         date_fin = self.request.GET.get('date_fin')
         
@@ -39,10 +40,8 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         seance = self.get_object()
-        
-        # Récupérer les palanquées associées
-        context['palanquees'] = seance.palanquees.select_related('section', 'encadrant').prefetch_related('eleves', 'competences')
-        
+        palanquees_qs = seance.palanques.select_related('section', 'encadrant').prefetch_related('eleves', 'competences')
+        context['palanques'] = palanquees_qs
         return context
 
 class SeanceCreateView(LoginRequiredMixin, CreateView):
