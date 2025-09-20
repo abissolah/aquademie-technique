@@ -14,10 +14,10 @@
             <table class="table table-bordered align-middle" id="table-palanquees">
                 <thead>
                     <tr>
-                        <th>Nom Prénom</th>
-                        <th>Niveau</th>
-                        <th>Section</th>
-                        <th>Aptitude</th>
+                        <th class="sticky-col sticky-col-1">Nom Prénom</th>
+                        <th class="sticky-col sticky-col-2">Niveau</th>
+                        <th class="sticky-col sticky-col-3">Section</th>
+                        <th class="sticky-col sticky-col-4">Aptitude</th>
                         {% for moniteur in encadrants %}
                             <th class="text-center">
                                 {{ moniteur.nom }} {{ moniteur.prenom }}<br>
@@ -34,12 +34,13 @@
                 <tbody>
                     {% for eleve in eleves %}
                     <tr>
-                        <td>{{ eleve.nom }} {{ eleve.prenom }}</td>
-                        <td>{{ eleve.get_niveau_display }}</td>
-                        <td>{% for s in eleve.sections.all %}<span class="badge bg-info me-1">{{ s.get_nom_display }}</span>{% endfor %}</td>
-                        <td>
+                        <td class="sticky-col sticky-col-1">{{ eleve.nom }} {{ eleve.prenom }}</td>
+                        <td class="sticky-col sticky-col-2">{{ eleve.get_niveau_display }}</td>
+                        <td class="sticky-col sticky-col-3">{% for s in eleve.sections.all %}<span class="badge bg-info me-1">{{ s.get_nom_display }}</span>{% endfor %}</td>
+                        <td class="sticky-col sticky-col-4">
                             <select name="aptitude_{{ eleve.id }}" class="form-select form-select-sm">
                                 <option value="">---</option>
+                                <option value="bapteme">Baptême</option>
                                 <option value="PE12">PE12</option>
                                 <option value="PE20">PE20</option>
                                 <option value="PA20">PA20</option>
@@ -51,6 +52,7 @@
                                 <option value="E2">E2</option>
                                 <option value="E3">E3</option>
                                 <option value="E4">E4</option>
+                                
                             </select>
                         </td>
                         {% for moniteur in encadrants %}

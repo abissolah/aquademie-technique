@@ -1548,6 +1548,18 @@ def generer_fiche_securite_excel(request, seance_id):
             ws_new = wb.copy_worksheet(ws)
             ws_new.title = f"Fiche {bloc_idx+1}"
             ws = ws_new
+            # Vider les cellules des blocs palanquées (9 blocs max)
+            for idx in range(9):
+                if idx < len(bloc_map):
+                    base_row, base_col = bloc_map[idx]
+                    # Efface encadrant, niveau, profondeur, durée
+                    ws[f'{base_col}{base_row}'] = ""
+                    ws[f'{niveau_col[base_col]}{base_row}'] = ""
+                    for i in range(4):
+                        ws[f'{base_col}{base_row+2+i}'] = ""
+                        ws[f'{niveau_col[base_col]}{base_row+2+i}'] = ""
+                    ws[f'{prof_col[base_col]}{base_row+7}'] = ""
+                    ws[f'{duree_col[base_col]}{base_row+7}'] = ""
         # Remplir les infos fixes à chaque feuille/bloc
         ws['D2'] = seance.date.strftime('%d/%m/%Y')
         ws['P2'] = seance.heure_debut.strftime('%Hh%M') if seance.heure_debut else "-"
@@ -1579,25 +1591,6 @@ def generer_fiche_securite_excel(request, seance_id):
                     ws[niv_cell] = ""
             ws[f'{prof_col[base_col]}{base_row+7}'] = palanquee.profondeur_max if palanquee.profondeur_max else "-"
             ws[f'{duree_col[base_col]}{base_row+7}'] = palanquee.duree if palanquee.duree else "-"
-        # Comptage adultes/enfants/total (sur la première feuille uniquement)
-        if bloc_idx == 0:
-            adultes = 0
-            enfants = 0
-            for palanquee in palanquees:
-                for eleve in palanquee.eleves.all():
-                    if hasattr(eleve, 'date_naissance') and eleve.date_naissance:
-                        from datetime import date
-                        age = (date.today() - eleve.date_naissance).days // 365
-                        if age < 18:
-                            enfants += 1
-                        else:
-                            adultes += 1
-                    else:
-                        adultes += 1
-            total = adultes + enfants
-            ws['AH57'] = adultes
-            ws['AH58'] = enfants
-            ws['AH59'] = total
 
     # Export
     output = BytesIO()

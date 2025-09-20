@@ -342,3 +342,31 @@ footer {
         background: white !important;
     }
 } 
+
+/* Colonnes sticky pour le tableau de création des palanquées */
+#table-palanquees th.sticky-col,
+#table-palanquees td.sticky-col {
+    position: sticky;
+    left: 0;
+    background: #fff;
+    z-index: 2;
+    box-shadow: 2px 0 2px -1px rgba(0,0,0,0.05);
+}
+#table-palanquees th.sticky-col-1, #table-palanquees td.sticky-col-1 { left: 0; z-index: 3; }
+#table-palanquees th.sticky-col-2, #table-palanquees td.sticky-col-2 { left: 150px; z-index: 3; }
+#table-palanquees th.sticky-col-3, #table-palanquees td.sticky-col-3 { left: 270px; z-index: 3; }
+#table-palanquees th.sticky-col-4, #table-palanquees td.sticky-col-4 { left: 420px; z-index: 3; }
+
+#table-palanquees th,
+#table-palanquees td {
+    min-width: 120px;
+    white-space: nowrap;
+}
+#table-palanquees th.sticky-col-1, #table-palanquees td.sticky-col-1 { min-width: 150px; }
+#table-palanquees th.sticky-col-2, #table-palanquees td.sticky-col-2 { min-width: 120px; }
+#table-palanquees th.sticky-col-3, #table-palanquees td.sticky-col-3 { min-width: 150px; }
+#table-palanquees th.sticky-col-4, #table-palanquees td.sticky-col-4 { min-width: 150px; }
+
+.table-responsive {
+    overflow-x: auto;
+} 
