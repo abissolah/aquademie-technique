@@ -1354,13 +1354,13 @@ def creer_palanquees(request, seance_id):
         # Vérification : tous les moniteurs doivent avoir au moins un élève
         moniteurs_utilises = set([mid for mid in affectations.values() if mid])
         moniteurs_sans = [m for m in encadrants if m.id not in moniteurs_utilises]
-        # On ne bloque plus si des élèves sont affectés à des autonomes
-        if moniteurs_sans and not autonome_cols:
-            from django.contrib import messages
-            messages.error(request, "Tous les moniteurs doivent avoir au moins une palanquée (un élève affecté), ou il doit y avoir au moins une palanquée d'autonomes.")
-            return render(request, 'gestion/creer_palanquees.html', {
-                'seance': seance, 'eleves': eleves, 'encadrants': encadrants
-            })
+        # Suppression du blocage : on autorise la création même si certains moniteurs n'ont pas d'élève et qu'il n'y a pas de colonne autonome
+        # if moniteurs_sans and not autonome_cols:
+        #     from django.contrib import messages
+        #     messages.error(request, "Tous les moniteurs doivent avoir au moins une palanquée (un élève affecté), ou il doit y avoir au moins une palanquée d'autonomes.")
+        #     return render(request, 'gestion/creer_palanquees.html', {
+        #         'seance': seance, 'eleves': eleves, 'encadrants': encadrants
+        #     })
         # Vérification : élèves non affectés
         eleves_non_aff = [e for e, m in affectations.items() if not m]
         # Retirer les élèves affectés à une palanquée autonome
@@ -1368,13 +1368,14 @@ def creer_palanquees(request, seance_id):
             for eid in eids:
                 if eid in eleves_non_aff:
                     eleves_non_aff.remove(eid)
-        if eleves_non_aff and not request.POST.get('confirm_non_affectes'):
-            from django.contrib import messages
-            messages.warning(request, "Certains élèves ne sont pas affectés à une palanquée. Confirmez pour continuer.")
-            return render(request, 'gestion/creer_palanquees.html', {
-                'seance': seance, 'eleves': eleves, 'encadrants': encadrants,
-                'eleves_non_aff': eleves_non_aff, 'demande_confirmation': True
-            })
+        # Suppression de l'avertissement et de la confirmation : on ne bloque plus la création
+        # if eleves_non_aff and not request.POST.get('confirm_non_affectes'):
+        #     from django.contrib import messages
+        #     messages.warning(request, "Certains élèves ne sont pas affectés à une palanquée. Confirmez pour continuer.")
+        #     return render(request, 'gestion/creer_palanquees.html', {
+        #         'seance': seance, 'eleves': eleves, 'encadrants': encadrants,
+        #         'eleves_non_aff': eleves_non_aff, 'demande_confirmation': True
+        #     })
         # Création des palanquées (on ajoute, on ne supprime pas les existantes)
         try:
             with transaction.atomic():

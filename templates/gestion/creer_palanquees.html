@@ -138,6 +138,22 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+
+    // Validation côté client : au moins une case cochée dans une colonne moniteur ou autonome
+    document.getElementById('form-palanquees').addEventListener('submit', function(e) {
+        // Sélectionne toutes les cases à cocher d'affectation (moniteur ou autonome)
+        const checkboxes = document.querySelectorAll('.affectation-checkbox, .affectation-autonome-checkbox');
+        let auMoinsUneCochee = false;
+        checkboxes.forEach(function(cb) {
+            if (cb.checked) {
+                auMoinsUneCochee = true;
+            }
+        });
+        if (!auMoinsUneCochee) {
+            e.preventDefault();
+            alert('Veuillez cocher au moins une case dans une colonne moniteur ou autonome pour créer au moins une palanquée.');
+        }
+    });
 });
 </script>
 {% endblock %}
