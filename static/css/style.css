@@ -357,6 +357,13 @@ footer {
 #table-palanquees th.sticky-col-3, #table-palanquees td.sticky-col-3 { left: 270px; z-index: 3; }
 #table-palanquees th.sticky-col-4, #table-palanquees td.sticky-col-4 { left: 420px; z-index: 3; }
 
+#table-palanquees thead th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: #f8f9fa;
+}
+
 #table-palanquees th,
 #table-palanquees td {
     min-width: 120px;
