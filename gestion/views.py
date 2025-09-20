@@ -1436,11 +1436,14 @@ def creer_palanquees(request, seance_id):
             return render(request, 'gestion/creer_palanquees.html', {
                 'seance': seance, 'eleves': eleves, 'encadrants': encadrants
             })
-    return render(request, 'gestion/creer_palanquees.html', {
-        'seance': seance,
-        'eleves': eleves,
-        'encadrants': encadrants,
-    })
+    else:
+        eleves = sorted(eleves, key=lambda e: (e.nom.upper(), e.prenom.upper()))
+        encadrants = sorted(encadrants, key=lambda e: (e.nom.upper(), e.prenom.upper()))
+        return render(request, 'gestion/creer_palanquees.html', {
+            'seance': seance,
+            'eleves': eleves,
+            'encadrants': encadrants,
+        })
 
 class PalanqueeDeleteView(LoginRequiredMixin, DeleteView):
     model = Palanquee
