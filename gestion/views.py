@@ -82,6 +82,21 @@ def dashboard(request):
     context['adherents_caci_expire'] = adherents_caci.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__lt=today - timedelta(days=365))
     context['adherents_caci_bientot'] = adherents_caci.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__gte=today - timedelta(days=365), date_delivrance_caci__lte=today - timedelta(days=335))
     context['adherents_caci_non_valide'] = adherents_caci.filter(caci_valide=False)
+    # Bloc dernières palanquées évaluées (par encadrant)
+    # On récupère les palanquées qui ont au moins une évaluation_exercice
+    palanquees_evaluees_ids = (
+        EvaluationExercice.objects.values_list('palanquee_id', flat=True).distinct()
+    )
+    palanquees_evaluees = (
+        Palanquee.objects.filter(id__in=palanquees_evaluees_ids, encadrant__isnull=False)
+        .select_related('seance', 'encadrant')
+        .prefetch_related('eleves')
+        .order_by('-seance__date', '-id')
+        .distinct()
+    )[:10]
+    context['dernieres_palanquees_evaluees'] = palanquees_evaluees
+    # Lien vers la page toutes les évaluations (à créer)
+    context['url_toutes_evaluations'] = '/evaluations/'
     return render(request, 'gestion/dashboard.html', context)
 
 # Vues pour les adhérents
@@ -2227,4 +2242,38 @@ def affecter_section_masse(request):
     else:
         form = AffectationSectionMasseForm(adherents_queryset=adherents_sans_section)
     return render(request, 'gestion/affecter_section_masse.html', {'form': form, 'adherents': adherents_sans_section})
+
+@login_required
+@group_required('admin')
+def evaluations_list(request):
+    from gestion.models import Palanquee, EvaluationExercice, Adherent
+    palanquees_evaluees_ids = (
+        EvaluationExercice.objects.values_list('palanquee_id', flat=True).distinct()
+    )
+    palanquees = Palanquee.objects.filter(id__in=palanquees_evaluees_ids, encadrant__isnull=False)
+
+    # Filtres
+    date_seance = request.GET.get('date_seance')
+    encadrant_id = request.GET.get('encadrant')
+    eleve_id = request.GET.get('eleve')
+    if date_seance:
+        palanquees = palanquees.filter(seance__date=date_seance)
+    if encadrant_id:
+        palanquees = palanquees.filter(encadrant_id=encadrant_id)
+    if eleve_id:
+        palanquees = palanquees.filter(eleves__id=eleve_id)
+    palanquees = palanquees.select_related('seance', 'encadrant').prefetch_related('eleves').order_by('-seance__date', 'encadrant__nom').distinct()
+
+    # Pour les filtres dropdown
+    encadrants = Adherent.objects.filter(statut='encadrant').order_by('nom', 'prenom')
+    eleves = Adherent.objects.filter(statut='eleve').order_by('nom', 'prenom')
+    dates = Palanquee.objects.filter(id__in=palanquees_evaluees_ids).values_list('seance__date', flat=True).distinct().order_by('-seance__date')
+
+    context = {
+        'palanquees': palanquees,
+        'encadrants': encadrants,
+        'eleves': eleves,
+        'dates': dates,
+    }
+    return render(request, 'gestion/evaluations_list.html', context)
 

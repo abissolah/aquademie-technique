@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}Toutes les évaluations émises{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h1 class="mb-4"><i class="fas fa-list me-2"></i>Toutes les évaluations émises</h1>
+  <form method="get" class="row g-3 mb-4">
+    <div class="col-md-3">
+      <label for="date_seance" class="form-label">Date de séance</label>
+      <select name="date_seance" id="date_seance" class="form-select">
+        <option value="">Toutes</option>
+        {% for d in dates %}
+          <option value="{{ d|date:'Y-m-d' }}" {% if request.GET.date_seance == d|stringformat:'Y-m-d' %}selected{% endif %}>{{ d|date:'d/m/Y' }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="encadrant" class="form-label">Encadrant</label>
+      <select name="encadrant" id="encadrant" class="form-select">
+        <option value="">Tous</option>
+        {% for e in encadrants %}
+          <option value="{{ e.id }}" {% if request.GET.encadrant == e.id|stringformat:'s' %}selected{% endif %}>{{ e.nom|upper }} {{ e.prenom|capfirst }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="eleve" class="form-label">Élève</label>
+      <select name="eleve" id="eleve" class="form-select">
+        <option value="">Tous</option>
+        {% for e in eleves %}
+          <option value="{{ e.id }}" {% if request.GET.eleve == e.id|stringformat:'s' %}selected{% endif %}>{{ e.nom|upper }} {{ e.prenom|capfirst }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3 align-self-end">
+      <button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-2"></i>Filtrer</button>
+    </div>
+  </form>
+  <div class="card">
+    <div class="card-body">
+      {% if palanquees %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th>Date séance</th>
+              <th>Moniteur</th>
+              <th>Élèves</th>
+              <th>Voir</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for palanquee in palanquees %}
+            <tr>
+              <td>{{ palanquee.seance.date|date:'d/m/Y' }}</td>
+              <td>{{ palanquee.encadrant.nom_complet }}</td>
+              <td>
+                {% for eleve in palanquee.eleves.all %}
+                  <span class="badge bg-primary">{{ eleve.nom|upper }} {{ eleve.prenom|capfirst }}</span>{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+              </td>
+              <td>
+                <a href="/palanquees/{{ palanquee.id }}/evaluation/voir/" class="btn btn-outline-info btn-sm" title="Voir l'évaluation">
+                  <i class="fas fa-eye"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted">Aucune palanquée évaluée trouvée pour ces critères.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

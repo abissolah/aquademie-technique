@@ -7,6 +7,7 @@ from .palanquee_views import (
     generer_lien_evaluation, evaluation_publique,
     generer_fiche_palanquee_pdf, envoyer_lien_par_email
 )
+from .views import evaluations_list
 
 urlpatterns = [
     # URLs d'authentification
@@ -130,4 +131,7 @@ urlpatterns = [
     path('adherents/inscription/2025-2026/', views.AdherentPublicCreateView.as_view(), {'inscription_2025_2026': True}, name='adherent_public_create_2025_2026'),
     # Export Excel des inscrits (admin)
     path('seances/<int:seance_id>/export-excel/', views.exporter_inscrits_seance_excel, name='exporter_inscrits_seance_excel'),
+]
+urlpatterns += [
+    path('evaluations/', evaluations_list, name='evaluations_list'),
 ] 

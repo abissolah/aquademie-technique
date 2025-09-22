@@ -347,6 +347,58 @@
         </div>
     </div>
 </div>
+
+<!-- Dernières évaluations émises par les encadrants -->
+<div class="row mb-4">
+  <div class="col-md-12">
+    <div class="card border-info">
+      <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Dernières évaluations émises</h5>
+      </div>
+      <div class="card-body">
+        {% if dernieres_palanquees_evaluees %}
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th>Date séance</th>
+                <th>Moniteur</th>
+                <th>Élèves</th>
+                <th>Voir</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for palanquee in dernieres_palanquees_evaluees %}
+              <tr>
+                <td>{{ palanquee.seance.date|date:'d/m/Y' }}</td>
+                <td>{{ palanquee.encadrant.nom_complet }}</td>
+                <td>
+                  {% for eleve in palanquee.eleves.all %}
+                    <span class="badge bg-primary">{{ eleve.nom|upper }} {{ eleve.prenom|capfirst }}</span>{% if not forloop.last %}, {% endif %}
+                  {% endfor %}
+                </td>
+                <td>
+                  <a href="/palanquees/{{ palanquee.id }}/evaluation/voir/" class="btn btn-outline-info btn-sm" title="Voir l'évaluation">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-3 text-end">
+          <a href="{{ url_toutes_evaluations }}" class="btn btn-info">
+            <i class="fas fa-list me-2"></i>Voir toutes les évaluations
+          </a>
+        </div>
+        {% else %}
+        <p class="text-muted">Aucune évaluation saisie par les encadrants pour l'instant.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %} 
 
 {% block extra_js %}
