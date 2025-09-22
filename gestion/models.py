@@ -85,11 +85,11 @@ class Adherent(models.Model):
         ordering = ['nom', 'prenom']
     
     def __str__(self):
-        return f"{self.prenom} {self.nom}"
+        return f"{self.nom} {self.prenom}"
     
     @property
     def nom_complet(self):
-        return f"{self.prenom} {self.nom}"
+        return f"{self.nom} {self.prenom}"
 
     def save(self, *args, **kwargs):
         if self.nom:
