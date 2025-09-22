@@ -5,15 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Connexion - Aquadémie Paris Plongée</title>
-    
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
     <style>
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0896AA 0%, #43e97b 100%);
             min-height: 100vh;
         }
         .login-card {
@@ -28,11 +26,11 @@
             padding: 0.75rem 1rem;
         }
         .form-control:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+            border-color: #0896AA;
+            box-shadow: 0 0 0 0.2rem rgba(8, 150, 170, 0.15);
         }
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0896AA 0%, #43e97b 100%);
             border: none;
             border-radius: 0.5rem;
             padding: 0.75rem 2rem;
@@ -40,7 +38,12 @@
         }
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 5px 15px rgba(8, 150, 170, 0.25);
+        }
+        .login-logo {
+            height: 64px;
+            width: auto;
+            margin-bottom: 1rem;
         }
     </style>
 </head>
@@ -51,7 +54,7 @@
                 <div class="login-card p-4 p-md-5">
                     <div class="text-center mb-4">
                         <div class="mb-3">
-                            <i class="fas fa-water fa-3x text-primary"></i>
+                            <img src="{% static 'logo.jpeg' %}" alt="Logo Aquadémie Paris Plongée" class="login-logo">
                         </div>
                         <h2 class="h3 mb-2">Aquadémie Paris Plongée</h2>
                         <p class="text-muted">Connectez-vous à votre compte</p>
@@ -66,21 +69,18 @@
 
                     <form method="post">
                         {% csrf_token %}
-                        
                         <div class="mb-3">
                             <label for="id_username" class="form-label">
                                 <i class="fas fa-user me-2"></i>Nom d'utilisateur
                             </label>
                             <input type="text" name="username" class="form-control" id="id_username" required>
                         </div>
-                        
                         <div class="mb-4">
                             <label for="id_password" class="form-label">
                                 <i class="fas fa-lock me-2"></i>Mot de passe
                             </label>
                             <input type="password" name="password" class="form-control" id="id_password" required>
                         </div>
-                        
                         <div class="d-grid">
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-sign-in-alt me-2"></i>Se connecter
@@ -88,12 +88,10 @@
                         </div>
                     </form>
 
-
                 </div>
             </div>
         </div>
     </div>
-
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
