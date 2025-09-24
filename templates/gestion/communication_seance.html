@@ -68,6 +68,26 @@
         </div>
     </div>
 </div>
+{% if form.fields.modele.queryset %}
+<div class="container mb-4">
+    <div class="mb-3">
+        <label>Supprimer un modèle :</label>
+        <ul class="list-group">
+            {% for modele in form.fields.modele.queryset %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ modele.nom }}
+                    <form method="post" action="{% url 'supprimer_modele_mail' modele.id %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer ce modèle ?');">
+                            <i class="fas fa-trash"></i> Supprimer
+                        </button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}

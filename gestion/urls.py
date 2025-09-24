@@ -10,6 +10,8 @@ from .palanquee_views import (
 from .views import evaluations_list
 from .seance_views import CommunicationSeanceView
 from .views import api_modele_mail
+from .views import supprimer_modele_mail
+from .views import envoyer_pdf_palanquee_encadrant
 
 urlpatterns = [
     # URLs d'authentification
@@ -90,6 +92,7 @@ urlpatterns = [
     path('palanquees/nouvelle/', PalanqueeCreateView.as_view(), name='palanquee_create'),
     path('palanquees/<int:pk>/modifier/', PalanqueeUpdateView.as_view(), name='palanquee_update'),
     path('palanquees/<int:pk>/supprimer/', PalanqueeDeleteView.as_view(), name='palanquee_delete'),
+    path('palanquees/<int:palanquee_id>/envoyer-fiche/', envoyer_pdf_palanquee_encadrant, name='envoyer_pdf_palanquee_encadrant'),
     
     # Évaluations des palanquées
     path('palanquees/<int:pk>/evaluation/', palanquee_evaluation, name='palanquee_evaluation'),
@@ -135,6 +138,7 @@ urlpatterns = [
     # Export Excel des inscrits (admin)
     path('seances/<int:seance_id>/export-excel/', views.exporter_inscrits_seance_excel, name='exporter_inscrits_seance_excel'),
     path('api/modele-mail/<int:modele_id>/', api_modele_mail, name='api_modele_mail'),
+    path('modele-mail/<int:modele_id>/supprimer/', supprimer_modele_mail, name='supprimer_modele_mail'),
 ]
 urlpatterns += [
     path('evaluations/', evaluations_list, name='evaluations_list'),

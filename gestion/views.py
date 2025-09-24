@@ -2287,3 +2287,88 @@ def api_modele_mail(request, modele_id):
         'contenu': modele.contenu,
     })
 
+@staff_member_required
+def supprimer_modele_mail(request, modele_id):
+    modele = get_object_or_404(ModeleMailSeance, pk=modele_id)
+    modele.delete()
+    from django.contrib import messages
+    messages.success(request, "Modèle supprimé avec succès.")
+    return redirect(request.META.get('HTTP_REFERER', 'seance_list'))
+
+@staff_member_required
+def envoyer_pdf_palanquee_encadrant(request, palanquee_id):
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.pagesizes import A4
+    from io import BytesIO
+    import os
+    from django.conf import settings
+    from .utils import get_signature_html
+    from django.core.mail import EmailMultiAlternatives
+    from django.template.loader import render_to_string
+    from .models import Palanquee
+
+    palanquee = get_object_or_404(Palanquee, pk=palanquee_id)
+    encadrant = palanquee.encadrant
+    seance = palanquee.seance
+    if not encadrant or not encadrant.email:
+        messages.error(request, "Aucun encadrant ou email pour cette palanquée.")
+        return redirect('seance_detail', pk=seance.pk)
+    # Générer le PDF en mémoire
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    elements = []
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle', parent=styles['Heading1'], fontSize=16, spaceAfter=30, alignment=TA_CENTER
+    )
+    heading_style = ParagraphStyle(
+        'CustomHeading', parent=styles['Heading2'], fontSize=14, spaceAfter=12, spaceBefore=20
+    )
+    normal_style = styles['Normal']
+    encadrant_nom = palanquee.encadrant.nom_complet if palanquee.encadrant else "-"
+    elements.append(Paragraph(f"Palanquée : {encadrant_nom}", title_style))
+    elements.append(Spacer(1, 20))
+    elements.append(Paragraph("Informations générales", heading_style))
+    elements.append(Paragraph(f"<b>Date :</b> {palanquee.seance.date.strftime('%d/%m/%Y')}", normal_style))
+    elements.append(Paragraph(f"<b>Lieu :</b> {palanquee.seance.lieu}", normal_style))
+    elements.append(Paragraph(f"<b>Encadrant :</b> {encadrant_nom}", normal_style))
+    elements.append(Paragraph(f"<b>Section :</b> {palanquee.section.get_nom_display()}", normal_style))
+    elements.append(Spacer(1, 12))
+    elements.append(Paragraph("Élèves", heading_style))
+    eleves_list = [eleve.nom_complet for eleve in palanquee.eleves.all()]
+    elements.append(Paragraph(f"<b>Participants :</b> {', '.join(eleves_list)}", normal_style))
+    elements.append(Spacer(1, 12))
+    elements.append(Paragraph("Exercices prévus", heading_style))
+    exercices_list = [ex.nom for ex in palanquee.exercices_prevus.all()]
+    for i, exercice in enumerate(exercices_list, 1):
+        elements.append(Paragraph(f"{i}. {exercice}", normal_style))
+    elements.append(Spacer(1, 12))
+    if palanquee.precision_exercices:
+        elements.append(Paragraph("Nota", heading_style))
+        elements.append(Paragraph(palanquee.precision_exercices, normal_style))
+    doc.build(elements)
+    buffer.seek(0)
+    # Préparer et envoyer le mail
+    signature_html = get_signature_html()
+    signature_img_path = os.path.join(settings.BASE_DIR, 'static', 'Signature_mouss.png')
+    subject = f"Fiche palanquée - {palanquee.nom} ({seance.date})"
+    body = render_to_string('gestion/email_pdf_palanquee.txt', {'palanquee': palanquee, 'seance': seance})
+    body_html = f"<p>{body.replace(chr(10), '<br>')}</p>{signature_html}"
+    email = EmailMultiAlternatives(subject, body, to=[encadrant.email])
+    email.attach(f"fiche_palanquee_{palanquee.seance.date}_{palanquee.encadrant.nom_complet}.pdf", buffer.read(), 'application/pdf')
+    email.attach_alternative(body_html, "text/html")
+    if os.path.exists(signature_img_path):
+        with open(signature_img_path, 'rb') as img:
+            mime_img = MIMEImage(img.read(), _subtype='png')
+            mime_img.add_header('Content-ID', '<signature_mouss2>')
+            mime_img.add_header('Content-Disposition', 'inline', filename='Signature_mouss2.png')
+            email.attach(mime_img)
+    try:
+        email.send()
+        messages.success(request, f"PDF envoyé à l'encadrant {encadrant.nom_complet}.")
+    except Exception as e:
+        messages.error(request, f"Erreur lors de l'envoi : {str(e)}")
+    return redirect('seance_detail', pk=seance.pk)
+
