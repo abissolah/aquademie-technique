@@ -16,6 +16,11 @@
                 <a href="{% url 'seance_delete' seance.pk %}" class="btn btn-danger">
                     <i class="fas fa-trash me-2"></i>Supprimer
                 </a>
+                {% if user.is_staff %}
+                <a href="{% url 'seance_communiquer' seance.pk %}" class="btn btn-info">
+                    <i class="fas fa-envelope me-2"></i>Communiquer avec les inscrits
+                </a>
+                {% endif %}
             </div>
         </div>
         <p class="text-muted">
@@ -45,6 +50,14 @@
                         </p>
                         <p><strong>Directeur de plongée :</strong> {% if seance.directeur_plongee %}{{ seance.directeur_plongee.nom_complet }} ({{ seance.directeur_plongee.get_niveau_display }}){% else %}<span class="text-muted">Non défini</span>{% endif %}</p>
                         <p><strong>Nombre de palanquées :</strong> {{ palanquees.count }}</p>
+                        {% if seance.fiche_securite_validee %}
+                        <p>
+                            <strong>Fiche de sécu validée :</strong>
+                            <a href="{{ seance.fiche_securite_validee.url }}" target="_blank" class="btn btn-outline-success btn-sm ms-2">
+                                <i class="fas fa-file-download"></i> Télécharger
+                            </a>
+                        </p>
+                        {% endif %}
                     </div>
                     <div class="col-md-6">
                         <p><strong>Créée le :</strong> {{ seance.date_creation|date:"d/m/Y à H:i" }}</p>

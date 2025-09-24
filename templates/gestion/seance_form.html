@@ -29,7 +29,7 @@
                 </h5>
             </div>
             <div class="card-body">
-                <form method="post" novalidate>
+                <form method="post" enctype="multipart/form-data" novalidate>
                     {% csrf_token %}
                     
                     <div class="row">
@@ -56,6 +56,11 @@
                     <div class="row">
                         <div class="col-md-12">
                             {{ form.presence_president|as_crispy_field }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            {{ form.fiche_securite_validee|as_crispy_field }}
                         </div>
                     </div>
                     

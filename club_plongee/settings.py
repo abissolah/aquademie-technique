@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     'crispy_forms',
     'crispy_bootstrap5',
     'gestion',
+    'ckeditor',
+    'ckeditor_uploader',
 ]
 
 MIDDLEWARE = [
@@ -166,3 +168,22 @@ CHEMIN_SFTP = 'c:\mine\work'
 # Configuration du site
 SITE_NAME = 'Aquadémie Paris Plongée'
 SITE_URL = 'http://127.0.0.1:8000'  # À configurer en production
+
+# CKEditor config
+CKEDITOR_UPLOAD_PATH = "uploads/"
+CKEDITOR_IMAGE_BACKEND = "pillow"
+CKEDITOR_ALLOW_NONIMAGE_FILES = False
+CKEDITOR_CONFIGS = {
+    'default': {
+        'toolbar': 'Full',
+        'height': 300,
+        'width': '100%',
+        'extraPlugins': ','.join([
+            'uploadimage',
+        ]),
+        'removePlugins': 'stylesheetparser',
+        'allowedContent': True,
+        'filebrowserUploadUrl': '/ckeditor/upload/',
+        'filebrowserBrowseUrl': '/ckeditor/browse/',
+    },
+}

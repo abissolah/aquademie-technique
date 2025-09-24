@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 import uuid
+from django.contrib.auth import get_user_model
 
 class Section(models.Model):
     SECTIONS_CHOICES = [
@@ -185,6 +186,12 @@ class Seance(models.Model):
     presence_president = models.BooleanField("Présence du président", default=False)
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)
+    fiche_securite_validee = models.FileField(
+        upload_to='fiches_securite_validees/',
+        blank=True,
+        null=True,
+        verbose_name="Fiche de sécu validée"
+    )
     
     class Meta:
         verbose_name = "Séance"
@@ -313,3 +320,35 @@ class EvaluationExercice(models.Model):
     
     def __str__(self):
         return f"{self.eleve.nom_complet} - {self.exercice.nom} : {self.note} étoiles"
+
+class ModeleMailSeance(models.Model):
+    nom = models.CharField(max_length=100, unique=True)
+    objet = models.CharField(max_length=255)
+    contenu = models.TextField()
+    date_creation = models.DateTimeField(auto_now_add=True)
+    auteur = models.ForeignKey(get_user_model(), on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Modèle de mail séance"
+        verbose_name_plural = "Modèles de mail séance"
+        ordering = ["-date_creation"]
+
+    def __str__(self):
+        return self.nom
+
+class HistoriqueMailSeance(models.Model):
+    seance = models.ForeignKey('Seance', on_delete=models.CASCADE, related_name='mails_envoyes')
+    objet = models.CharField(max_length=255)
+    contenu = models.TextField()
+    destinataires = models.TextField(help_text="Liste des emails séparés par des virgules")
+    fichiers = models.TextField(blank=True, help_text="Noms des fichiers joints, séparés par des virgules")
+    date_envoi = models.DateTimeField(auto_now_add=True)
+    auteur = models.ForeignKey(get_user_model(), on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Historique mail séance"
+        verbose_name_plural = "Historique mails séance"
+        ordering = ["-date_envoi"]
+
+    def __str__(self):
+        return f"{self.objet} ({self.date_envoi:%d/%m/%Y %H:%M})"

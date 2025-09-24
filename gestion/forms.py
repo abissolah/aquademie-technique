@@ -1,5 +1,52 @@
 from django import forms
-from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, Lieu, Exercice
+from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, Lieu, Exercice, ModeleMailSeance
+from ckeditor_uploader.widgets import CKEditorUploadingWidget
+
+DESTINATAIRES_CHOICES = [
+    ("encadrants", "Les encadrants de la séance"),
+    ("eleves", "Les élèves de la séance"),
+    ("tous", "Tous les inscrits à la séance"),
+    ("choix", "Choisir parmi les inscrits"),
+]
+
+class CommunicationSeanceForm(forms.Form):
+    destinataires = forms.ChoiceField(
+        choices=DESTINATAIRES_CHOICES,
+        label="Destinataires",
+        widget=forms.Select(attrs={"class": "form-select"})
+    )
+    inscrits_choisis = forms.MultipleChoiceField(
+        required=False,
+        label="Inscrits à sélectionner",
+        widget=forms.CheckboxSelectMultiple,
+        choices=[]  # sera défini dynamiquement
+    )
+    objet = forms.CharField(
+        max_length=255,
+        label="Objet du mail",
+        widget=forms.TextInput(attrs={"class": "form-control"})
+    )
+    contenu = forms.CharField(
+        label="Contenu du mail",
+        widget=CKEditorUploadingWidget()
+    )
+    fichiers = forms.FileField(
+        label="Pièces jointes",
+        required=False,
+        widget=forms.FileInput(),
+        help_text="Jusqu'à 5 fichiers, 5Mo max chacun."
+    )
+    modele = forms.ModelChoiceField(
+        queryset=ModeleMailSeance.objects.all(),
+        required=False,
+        label="Charger un modèle",
+        widget=forms.Select(attrs={"class": "form-select"})
+    )
+
+    def __init__(self, *args, inscrits_choices=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if inscrits_choices is not None:
+            self.fields['inscrits_choisis'].choices = inscrits_choices
 
 class AdherentForm(forms.ModelForm):
     caci_valide = forms.BooleanField(label="CACI validé", required=False)
@@ -73,7 +120,7 @@ class SeanceForm(forms.ModelForm):
     presence_president = forms.BooleanField(label="Présence du président", required=False)
     class Meta:
         model = Seance
-        fields = ['date', 'heure_debut', 'heure_fin', 'lieu', 'directeur_plongee', 'presence_president']
+        fields = ['date', 'heure_debut', 'heure_fin', 'lieu', 'directeur_plongee', 'presence_president', 'fiche_securite_validee']
         widgets = {
             'date': forms.DateInput(
                 attrs={'type': 'date'},

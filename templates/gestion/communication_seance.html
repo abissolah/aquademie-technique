@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}Communiquer avec les inscrits - Séance du {{ seance.date|date:'d/m/Y' }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4"><i class="fas fa-envelope me-2"></i>Communiquer avec les inscrits</h1>
+    <div class="card mb-4">
+        <div class="card-body">
+            {{ form.media }}
+            <form method="post" enctype="multipart/form-data" novalidate id="comm-form">
+                {% csrf_token %}
+                <div class="mb-3">
+                    {{ form.modele|as_crispy_field }}
+                </div>
+                <div class="mb-3">
+                    {{ form.destinataires|as_crispy_field }}
+                </div>
+                <div id="inscrits-choix-block" class="mb-3" style="display:none;">
+                    <label class="form-label">Sélectionner les inscrits :</label>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>Nom</th>
+                                    <th>Prénom</th>
+                                    <th>Email</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ins in inscrits %}
+                                <tr>
+                                    <td><input type="checkbox" name="inscrits_choisis" value="{{ ins.id }}"></td>
+                                    <td>{{ ins.personne__nom }}</td>
+                                    <td>{{ ins.personne__prenom }}</td>
+                                    <td>{{ ins.personne__email }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    {{ form.objet|as_crispy_field }}
+                </div>
+                <div class="mb-3">
+                    {{ form.contenu|as_crispy_field }}
+                </div>
+                <div class="mb-3">
+                    <label for="id_fichiers" class="form-label">Pièces jointes</label>
+                    <input type="file" name="fichiers" id="id_fichiers" class="form-control" multiple>
+                    <div class="form-text">Jusqu'à 5 fichiers, 5Mo max chacun.</div>
+                </div>
+                <div class="mb-3 d-flex align-items-center">
+                    <input type="text" name="nom_modele" class="form-control me-2" placeholder="Nom du modèle à enregistrer">
+                    <button type="submit" name="enregistrer_modele" class="btn btn-secondary">Enregistrer comme modèle</button>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'seance_detail' seance.pk %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Retour à la séance
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane me-2"></i>Envoyer le mail
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Affichage dynamique du bloc de choix des inscrits
+    document.addEventListener('DOMContentLoaded', function() {
+        const select = document.getElementById('id_destinataires');
+        const block = document.getElementById('inscrits-choix-block');
+        function updateBlock() {
+            if (select.value === 'choix') {
+                block.style.display = '';
+            } else {
+                block.style.display = 'none';
+                // décocher toutes les cases si on change
+                block.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+            }
+        }
+        select.addEventListener('change', updateBlock);
+        updateBlock();
+    });
+    // Chargement d'un modèle : remplit objet et contenu
+    document.getElementById('id_modele')?.addEventListener('change', function() {
+        const modeleId = this.value;
+        if (!modeleId) return;
+        fetch(`/api/modele-mail/${modeleId}/`)
+            .then(resp => resp.json())
+            .then(data => {
+                document.getElementById('id_objet').value = data.objet;
+                if (window.CKEDITOR && CKEDITOR.instances['id_contenu']) {
+                    CKEDITOR.instances['id_contenu'].setData(data.contenu);
+                } else {
+                    document.getElementById('id_contenu').value = data.contenu;
+                }
+            });
+    });
+</script>
+{% endblock %}

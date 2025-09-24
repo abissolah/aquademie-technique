@@ -60,6 +60,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.sites.shortcuts import get_current_site
 from .utils import eleve_only, encadrant_only, admin_only, group_required
 from django.utils.decorators import method_decorator
+from .models import ModeleMailSeance
 
 # Vues d'accueil et de navigation
 @group_required('admin')
@@ -2276,4 +2277,13 @@ def evaluations_list(request):
         'dates': dates,
     }
     return render(request, 'gestion/evaluations_list.html', context)
+
+@require_GET
+@staff_member_required
+def api_modele_mail(request, modele_id):
+    modele = get_object_or_404(ModeleMailSeance, pk=modele_id)
+    return JsonResponse({
+        'objet': modele.objet,
+        'contenu': modele.contenu,
+    })
 

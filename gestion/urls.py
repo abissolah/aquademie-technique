@@ -8,6 +8,8 @@ from .palanquee_views import (
     generer_fiche_palanquee_pdf, envoyer_lien_par_email
 )
 from .views import evaluations_list
+from .seance_views import CommunicationSeanceView
+from .views import api_modele_mail
 
 urlpatterns = [
     # URLs d'authentification
@@ -80,6 +82,7 @@ urlpatterns = [
     path('seances/<int:seance_id>/envoyer-pdf-palanquees/', views.envoyer_pdf_palanquees_encadrants, name='envoyer_pdf_palanquees_encadrants'),
     path('seances/<int:seance_id>/envoyer-mail-covoiturage/', views.envoyer_mail_covoiturage, name='envoyer_mail_covoiturage'),
     path('seances/<int:seance_id>/envoyer-liens-evaluation/', views.envoyer_liens_evaluation_encadrants, name='envoyer_liens_evaluation_encadrants'),
+    path('seances/<int:pk>/communiquer/', CommunicationSeanceView.as_view(), name='seance_communiquer'),
     
     # Palanquées
     path('palanquees/', PalanqueeListView.as_view(), name='palanquee_list'),
@@ -131,6 +134,7 @@ urlpatterns = [
     path('adherents/inscription/2025-2026/', views.AdherentPublicCreateView.as_view(), {'inscription_2025_2026': True}, name='adherent_public_create_2025_2026'),
     # Export Excel des inscrits (admin)
     path('seances/<int:seance_id>/export-excel/', views.exporter_inscrits_seance_excel, name='exporter_inscrits_seance_excel'),
+    path('api/modele-mail/<int:modele_id>/', api_modele_mail, name='api_modele_mail'),
 ]
 urlpatterns += [
     path('evaluations/', evaluations_list, name='evaluations_list'),
