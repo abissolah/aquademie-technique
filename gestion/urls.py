@@ -12,6 +12,8 @@ from .seance_views import CommunicationSeanceView
 from .views import api_modele_mail
 from .views import supprimer_modele_mail
 from .views import envoyer_pdf_palanquee_encadrant
+from .views import CommunicationAdherentsView
+from .views import supprimer_modele_mail_adherents
 
 urlpatterns = [
     # URLs d'authentification
@@ -27,6 +29,7 @@ urlpatterns = [
     path('adherents/nouveau/', views.AdherentCreateView.as_view(), name='adherent_create'),
     path('adherents/<int:pk>/modifier/', views.AdherentUpdateView.as_view(), name='adherent_update'),
     path('adherents/<int:pk>/supprimer/', views.AdherentDeleteView.as_view(), name='adherent_delete'),
+    path('adherents/<int:pk>/desactiver/', views.adherent_desactiver, name='adherent_desactiver'),
     path('adherents/import-excel/', views.import_adherents_excel, name='import_adherents_excel'),
     path('adherents/telecharger-modele/', views.download_excel_template, name='download_excel_template'),
     path('adherents/export-excel/', views.export_adherents_excel, name='export_adherents_excel'),
@@ -37,6 +40,8 @@ urlpatterns = [
     path('adherents/copier-tous-caci/', views.copier_tous_caci, name='copier_tous_caci'),
     path('adherents/<int:adherent_id>/creer-compte/', views.creer_compte_adherent, name='creer_compte_adherent'),
     path('adherents/affecter-section-masse/', views.affecter_section_masse, name='affecter_section_masse'),
+    path('adherents/communiquer/', CommunicationAdherentsView.as_view(), name='adherents_communiquer'),
+    path('adherents/communiquer/historique/<int:mail_id>/supprimer/', views.supprimer_historique_mail_adherents, name='supprimer_historique_mail_adherents'),
     
     # Élèves
     path('eleves/', views.EleveListView.as_view(), name='eleve_list'),
@@ -139,6 +144,8 @@ urlpatterns = [
     path('seances/<int:seance_id>/export-excel/', views.exporter_inscrits_seance_excel, name='exporter_inscrits_seance_excel'),
     path('api/modele-mail/<int:modele_id>/', api_modele_mail, name='api_modele_mail'),
     path('modele-mail/<int:modele_id>/supprimer/', supprimer_modele_mail, name='supprimer_modele_mail'),
+    path('modele-mail-adherents/<int:modele_id>/supprimer/', supprimer_modele_mail_adherents, name='supprimer_modele_mail_adherents'),
+    path('api/modele-mail-adherents/<int:modele_id>/', views.api_modele_mail_adherents, name='api_modele_mail_adherents'),
 ]
 urlpatterns += [
     path('evaluations/', evaluations_list, name='evaluations_list'),

@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}Communiquer avec les adhérents{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4"><i class="fas fa-envelope me-2"></i>Communiquer avec les adhérents</h1>
+    <div class="card mb-4">
+        <div class="card-body">
+            {{ form.media }}
+            <form method="post" enctype="multipart/form-data" novalidate id="comm-form">
+                {% csrf_token %}
+                <div class="mb-3">
+                    {{ form.modele|as_crispy_field }}
+                </div>
+                <div class="mb-3">
+                    {{ form.destinataires|as_crispy_field }}
+                </div>
+                <div id="inscrits-choix-block" class="mb-3">
+                    <label class="form-label">Sélectionner parmi les adhérents :</label>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>Nom</th>
+                                    <th>Prénom</th>
+                                    <th>Email</th>
+                                    <th>Section(s)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ins in adherents %}
+                                <tr>
+                                    <td><input type="checkbox" name="inscrits_choisis" value="{{ ins.id }}" statut="{{ ins.statut }}" sections="{{ ins.sections.all.0.nom }}"></td>
+                                    <td>{{ ins.nom }}</td>
+                                    <td>{{ ins.prenom }}</td>
+                                    <td>{{ ins.email }}</td>
+                                    <td>
+                                        {% for section in ins.sections.all %}
+                                            <span class="badge bg-primary">{{ section }}</span>{% if not forloop.last %}, {% endif %}
+                                        {% empty %}
+                                            <span class="text-muted">Aucune</span>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    {{ form.objet|as_crispy_field }}
+                </div>
+                <div class="mb-3">
+                    {{ form.contenu|as_crispy_field }}
+                </div>
+                <div class="mb-3">
+                    <label for="id_fichiers" class="form-label">Pièces jointes</label>
+                    <input type="file" name="fichiers" id="id_fichiers" class="form-control" multiple>
+                    <div class="form-text">Jusqu'à 5 fichiers, 5Mo max chacun.</div>
+                </div>
+                <div class="mb-3 d-flex align-items-center">
+                    <input type="text" name="nom_modele" class="form-control me-2" placeholder="Nom du modèle à enregistrer">
+                    <button type="submit" name="enregistrer_modele" class="btn btn-secondary">Enregistrer comme modèle</button>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'adherent_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Retour à la liste des adhérents
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane me-2"></i>Envoyer le mail
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% if form.fields.modele.queryset %}
+<div class="container mb-4">
+    <div class="mb-3">
+        <label>Supprimer un modèle :</label>
+        <ul class="list-group">
+            {% for modele in form.fields.modele.queryset %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ modele.nom }}
+                    <form method="post" action="{% url 'supprimer_modele_mail_adherents' modele.id %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer ce modèle ?');">
+                            <i class="fas fa-trash"></i> Supprimer
+                        </button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+{% if historique %}
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Historique des envois</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Objet</th>
+                        <th>Date</th>
+                        <th>Auteur</th>
+                        <th>Destinataires</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mail in historique %}
+                    <tr>
+                        <td>{{ mail.objet }}</td>
+                        <td>{{ mail.date_envoi|date:"d/m/Y H:i" }}</td>
+                        <td>{% if mail.auteur %}{{ mail.auteur.get_full_name|default:mail.auteur.username }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
+                        <td>{{ mail.destinataires }}</td>
+                        <td>
+                            <form method="post" action="{% url 'supprimer_historique_mail_adherents' mail.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer cet envoi ?');">
+                                    <i class="fas fa-trash"></i> Supprimer
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Affichage dynamique du bloc de choix des inscrits
+    document.addEventListener('DOMContentLoaded', function() {
+        const select = document.getElementById('id_destinataires');
+        const block = document.getElementById('inscrits-choix-block');
+        
+        function updateBlock() {
+            
+            block.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+            if (select.value === 'tous') {
+                
+                block.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = true);
+            } else {
+                const type = select.value.split('_')[0];
+                const filtre = select.value.replace(type + '_', '');
+                if(type === 'statut') {
+                    block.querySelectorAll('input[type=checkbox]').forEach(cb=> {
+                        debugger;
+                        console.log(cb.getAttribute('statut'));
+                        cb.getAttribute('statut') === filtre ? cb.checked = true : cb.checked = false
+                    });
+                } else {
+                    block.querySelectorAll('input[type=checkbox]').forEach(cb => {
+                        debugger;
+                        console.log(cb.sections); 
+                        cb.getAttribute('sections') === filtre ? cb.checked = true : cb.checked = false
+                    });
+                }
+                
+            }
+        }
+        select.addEventListener('change', updateBlock);
+        updateBlock();
+    });
+    // Chargement d'un modèle : remplit objet et contenu
+    document.getElementById('id_modele')?.addEventListener('change', function() {
+        const modeleId = this.value;
+        if (!modeleId) return;
+        fetch(`/api/modele-mail-adherents/${modeleId}/`)
+            .then(resp => resp.json())
+            .then(data => {
+                document.getElementById('id_objet').value = data.objet;
+                if (window.CKEDITOR && CKEDITOR.instances['id_contenu']) {
+                    CKEDITOR.instances['id_contenu'].setData(data.contenu);
+                } else {
+                    document.getElementById('id_contenu').value = data.contenu;
+                }
+            });
+    });
+</script>
+{% endblock %}

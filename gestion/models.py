@@ -79,6 +79,7 @@ class Adherent(models.Model):
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)
     user = models.OneToOneField(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='adherent_profile')
+    actif = models.BooleanField(default=True, verbose_name="Actif")
     
     class Meta:
         verbose_name = "Adhérent"
@@ -348,6 +349,37 @@ class HistoriqueMailSeance(models.Model):
     class Meta:
         verbose_name = "Historique mail séance"
         verbose_name_plural = "Historique mails séance"
+        ordering = ["-date_envoi"]
+
+    def __str__(self):
+        return f"{self.objet} ({self.date_envoi:%d/%m/%Y %H:%M})"
+
+class ModeleMailAdherents(models.Model):
+    nom = models.CharField(max_length=100, unique=True)
+    objet = models.CharField(max_length=255)
+    contenu = models.TextField()
+    date_creation = models.DateTimeField(auto_now_add=True)
+    auteur = models.ForeignKey(get_user_model(), on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Modèle de mail adhérents"
+        verbose_name_plural = "Modèles de mail adhérents"
+        ordering = ["-date_creation"]
+
+    def __str__(self):
+        return self.nom
+
+class HistoriqueMailAdherents(models.Model):
+    objet = models.CharField(max_length=255)
+    contenu = models.TextField()
+    destinataires = models.TextField(help_text="Liste des emails séparés par des virgules")
+    fichiers = models.TextField(blank=True, help_text="Noms des fichiers joints, séparés par des virgules")
+    date_envoi = models.DateTimeField(auto_now_add=True)
+    auteur = models.ForeignKey(get_user_model(), on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Historique mail adhérents"
+        verbose_name_plural = "Historique mails adhérents"
         ordering = ["-date_envoi"]
 
     def __str__(self):

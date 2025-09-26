@@ -1,5 +1,5 @@
 from django import forms
-from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, Lieu, Exercice, ModeleMailSeance
+from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, Lieu, Exercice, ModeleMailSeance, ModeleMailAdherents
 from ckeditor_uploader.widgets import CKEditorUploadingWidget
 
 DESTINATAIRES_CHOICES = [
@@ -50,12 +50,13 @@ class CommunicationSeanceForm(forms.Form):
 
 class AdherentForm(forms.ModelForm):
     caci_valide = forms.BooleanField(label="CACI validé", required=False)
+    actif = forms.BooleanField(label="Actif", required=False)
     class Meta:
         model = Adherent
         fields = [
             'nom', 'prenom', 'date_naissance', 'adresse', 'code_postal', 'ville', 'email', 
             'telephone', 'photo', 'numero_licence', 'assurance', 'date_delivrance_caci', 'niveau', 'statut', 'sections',
-            'type_personne', 'caci_fichier', 'caci_valide'
+            'type_personne', 'caci_fichier', 'caci_valide', 'actif'
         ]
         widgets = {
             'date_naissance': forms.DateInput(
@@ -526,5 +527,55 @@ class AffectationSectionMasseForm(forms.Form):
             self.fields['adherents'].queryset = adherents_queryset
             # Afficher Nom Prénom comme label
             self.fields['adherents'].label_from_instance = lambda obj: f"{obj.nom.upper()} {obj.prenom.capitalize()} ({obj.email})"
+
+ADHERENTS_DESTINATAIRES_CHOICES = [
+    ("tous", "Tous les adhérents"),
+    ("statut_encadrant", "Tous les encadrants"),
+    ("statut_eleve", "Tous les élèves"),
+    ("section_prepa_niveau1", "Les élèves de la section PN1 (prépa niveau 1)"),
+    ("section_prepa_niveau2", "Les élèves de la section PN2 (prépa niveau 2)"),
+    ("section_prepa_niveau3", "Les élèves de la section PN3 (prépa niveau 3)"),
+    ("section_niveau3", "Les élèves de la section niveau 3"),
+    ("section_encadrants", "Les élèves de la section encadrants"),
+]
+
+class CommunicationAdherentsForm(forms.Form):
+    destinataires = forms.ChoiceField(
+        choices=ADHERENTS_DESTINATAIRES_CHOICES,
+        label="Destinataires",
+        widget=forms.Select(attrs={"class": "form-select"})
+    )
+    inscrits_choisis = forms.MultipleChoiceField(
+        required=False,
+        label="Adhérents à sélectionner",
+        widget=forms.CheckboxSelectMultiple,
+        choices=[]  # sera défini dynamiquement
+    )
+    objet = forms.CharField(
+        max_length=255,
+        label="Objet du mail",
+        widget=forms.TextInput(attrs={"class": "form-control"})
+    )
+    contenu = forms.CharField(
+        label="Contenu du mail",
+        widget=CKEditorUploadingWidget()
+    )
+    fichiers = forms.FileField(
+        label="Pièces jointes",
+        required=False,
+        widget=forms.FileInput(),
+        help_text="Jusqu'à 5 fichiers, 5Mo max chacun."
+    )
+    modele = forms.ModelChoiceField(
+        queryset=ModeleMailAdherents.objects.all(),
+        required=False,
+        label="Charger un modèle",
+        widget=forms.Select(attrs={"class": "form-select"})
+    )
+
+    def __init__(self, *args, inscrits_choices=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if inscrits_choices is not None:
+            self.fields['inscrits_choisis'].choices = inscrits_choices
 
  

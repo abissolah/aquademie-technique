@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, View
 from django.urls import reverse_lazy
 from django.db.models import Q
 from django.utils import timezone
@@ -32,9 +32,10 @@ from django.conf import settings
 import os
 import shutil
 import logging
+import time
 
 from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation, Palanquee, Lieu, LienInscriptionSeance, InscriptionSeance, Exercice
-from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm, ExerciceForm, AdminInscriptionSeanceForm, AffectationSectionMasseForm
+from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm, ExerciceForm, AdminInscriptionSeanceForm, AffectationSectionMasseForm, CommunicationSeanceForm, CommunicationAdherentsForm
 from .utils import envoyer_lien_evaluation, envoyer_lien_evaluation_avec_cc
 from .models import PalanqueeEleve
 from gestion.models import EvaluationExercice, GroupeCompetence, Competence, Exercice, Adherent
@@ -61,6 +62,7 @@ from django.contrib.sites.shortcuts import get_current_site
 from .utils import eleve_only, encadrant_only, admin_only, group_required
 from django.utils.decorators import method_decorator
 from .models import ModeleMailSeance
+from .models import Adherent, Section, ModeleMailAdherents, HistoriqueMailAdherents
 
 # Vues d'accueil et de navigation
 @group_required('admin')
@@ -144,8 +146,9 @@ class AdherentListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         adherents = context['adherents']
-        context['adherents_adherents'] = [a for a in adherents if a.type_personne == 'adherent']
-        context['adherents_non_adherents'] = [a for a in adherents if a.type_personne == 'non_adherent']
+        context['adherents_adherents'] = [a for a in adherents if a.type_personne == 'adherent' and a.actif]
+        context['adherents_non_adherents'] = [a for a in adherents if a.type_personne == 'non_adherent' and a.actif]
+        context['adherents_non_adherents_desactives'] = [a for a in adherents if a.type_personne == 'non_adherent' and not a.actif]
         return context
 
 @method_decorator(group_required('admin'), name='dispatch')
@@ -2287,6 +2290,15 @@ def api_modele_mail(request, modele_id):
         'contenu': modele.contenu,
     })
 
+
+@staff_member_required
+def supprimer_modele_mail_adherents(request, modele_id):
+    modele = get_object_or_404(ModeleMailAdherents, pk=modele_id)
+    modele.delete()
+    from django.contrib import messages
+    messages.success(request, "Modèle supprimé avec succès.")
+    return redirect(request.META.get('HTTP_REFERER', 'adherents_communiquer'))
+
 @staff_member_required
 def supprimer_modele_mail(request, modele_id):
     modele = get_object_or_404(ModeleMailSeance, pk=modele_id)
@@ -2371,4 +2383,155 @@ def envoyer_pdf_palanquee_encadrant(request, palanquee_id):
     except Exception as e:
         messages.error(request, f"Erreur lors de l'envoi : {str(e)}")
     return redirect('seance_detail', pk=seance.pk)
+
+@method_decorator(staff_member_required, name='dispatch')
+class CommunicationAdherentsView(LoginRequiredMixin, View):
+    def get(self, request):
+        adherents_qs = Adherent.objects.filter(actif=True).order_by('nom', 'prenom')
+        adherents_choices = [
+            (str(a.id), f"{a.nom.upper()} {a.prenom.capitalize()} ({a.email})")
+            for a in adherents_qs
+        ]
+        form = CommunicationAdherentsForm(inscrits_choices=adherents_choices)
+        modeles = ModeleMailAdherents.objects.all()
+        historique = HistoriqueMailAdherents.objects.order_by('-date_envoi')[:20]
+        return render(request, 'gestion/communication_adherents.html', {
+            'form': form,
+            'adherents': adherents_qs,
+            'modeles': modeles,
+            'historique': historique,
+        })
+
+    def post(self, request):
+        adherents_qs = Adherent.objects.filter(type_personne='adherent').order_by('nom', 'prenom')
+        adherents_choices = [
+            (str(a.id), f"{a.nom.upper()} {a.prenom.capitalize()} ({a.email})")
+            for a in adherents_qs
+        ]
+        form = CommunicationAdherentsForm(request.POST, request.FILES, inscrits_choices=adherents_choices)
+        modeles = ModeleMailAdherents.objects.all()
+        historique = HistoriqueMailAdherents.objects.all()[:20]
+
+        # Suppression d'un modèle
+        if 'supprimer_modele' in request.POST:
+            modele_id = request.POST.get('modele')
+            if modele_id:
+                ModeleMailAdherents.objects.filter(id=modele_id).delete()
+                messages.success(request, "Modèle supprimé avec succès.")
+                return redirect('adherents_communiquer')
+
+        # Enregistrement d'un modèle
+        if 'enregistrer_modele' in request.POST:
+            nom = request.POST.get('nom_modele', '').strip()
+            objet = request.POST.get('objet', '').strip()
+            contenu = request.POST.get('contenu', '').strip()
+            if nom:
+                ModeleMailAdherents.objects.create(
+                    nom=nom,
+                    objet=objet,
+                    contenu=contenu,
+                    auteur=request.user
+                )
+                messages.success(request, "Modèle enregistré avec succès.")
+                return redirect('adherents_communiquer')
+            else:
+                messages.error(request, "Veuillez donner un nom au modèle.")
+                return render(request, 'gestion/communication_adherents.html', {
+                    'form': form,
+                    'adherents': adherents_qs,
+                    'modeles': modeles,
+                    'historique': historique,
+                })
+
+        # Envoi du mail
+        if form.is_valid():
+            destinataires = []
+            
+            ids = form.cleaned_data['inscrits_choisis']
+            destinataires = list(adherents_qs.filter(id__in=ids).values_list('email', flat=True))
+            destinataires = [email.strip() for email in destinataires if email and email.strip()]
+            destinataires = list(set(destinataires))
+            if not destinataires:
+                messages.error(request, "Aucun destinataire sélectionné.")
+                return render(request, 'gestion/communication_adherents.html', {
+                    'form': form,
+                    'adherents': adherents_qs,
+                    'modeles': modeles,
+                    'historique': historique,
+                })
+            fichiers = request.FILES.getlist('fichiers')
+            if len(fichiers) > 5:
+                messages.error(request, "Vous ne pouvez joindre que 5 fichiers maximum.")
+                return render(request, 'gestion/communication_adherents.html', {
+                    'form': form,
+                    'adherents': adherents_qs,
+                    'modeles': modeles,
+                    'historique': historique,
+                })
+            for f in fichiers:
+                if f.size > 5*1024*1024:
+                    messages.error(request, f"Le fichier {f.name} dépasse la taille maximale de 5Mo.")
+                    return render(request, 'gestion/communication_adherents.html', {
+                        'form': form,
+                        'adherents': adherents_qs,
+                        'modeles': modeles,
+                        'historique': historique,
+                    })
+            from django.core.mail import EmailMessage
+            from django.conf import settings
+            # Envoi par lots de 10 avec pause
+            batch_size = 10
+            for i in range(0, len(destinataires), batch_size):
+                batch = destinataires[i:i+batch_size]
+                email = EmailMessage(
+                    subject=form.cleaned_data['objet'],
+                    body=form.cleaned_data['contenu'],
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    bcc=batch,
+                )
+                email.content_subtype = "html"
+                for f in fichiers:
+                    email.attach(f.name, f.read(), f.content_type)
+                email.send()
+                if (i + batch_size) < len(destinataires):
+                    time.sleep(3)
+            # Historique
+            HistoriqueMailAdherents.objects.create(
+                objet=form.cleaned_data['objet'],
+                contenu=form.cleaned_data['contenu'],
+                destinataires=",".join(destinataires),
+                fichiers=",".join([f.name for f in fichiers]),
+                auteur=request.user
+            )
+            messages.success(request, "Mail envoyé avec succès à :<br>" + "<br>".join(destinataires))
+            return redirect('adherents_communiquer')
+        else:
+            return render(request, 'gestion/communication_adherents.html', {
+                'form': form,
+                'adherents': adherents_qs,
+                'modeles': modeles,
+                'historique': historique,
+            })
+
+def api_modele_mail_adherents(request, modele_id):
+    modele = ModeleMailAdherents.objects.filter(id=modele_id).first()
+    if not modele:
+        return JsonResponse({'error': 'Modèle introuvable'}, status=404)
+    return JsonResponse({
+        'objet': modele.objet,
+        'contenu': modele.contenu,
+    })
+
+@require_POST
+def adherent_desactiver(request, pk):
+    adherent = get_object_or_404(Adherent, pk=pk)
+    adherent.actif = False
+    adherent.save()
+    return redirect('adherent_list')
+
+@require_POST
+def supprimer_historique_mail_adherents(request, mail_id):
+    HistoriqueMailAdherents.objects.filter(id=mail_id).delete()
+    messages.success(request, "Entrée d'historique supprimée.")
+    return redirect('adherents_communiquer')
 

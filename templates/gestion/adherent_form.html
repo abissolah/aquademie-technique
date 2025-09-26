@@ -89,7 +89,7 @@
                     {% endif %}
                     
                     {{ form.type_personne|as_crispy_field }}
-                    
+                    {{ form.actif|as_crispy_field }}
                     <div class="d-flex justify-content-between">
                         <a href="{% url 'adherent_list' %}" class="btn btn-outline-secondary">
                             <i class="fas fa-times me-2"></i>Annuler
