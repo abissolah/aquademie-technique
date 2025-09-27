@@ -80,7 +80,7 @@ def dashboard(request):
     # Ajout des alertes CACI
     from datetime import timedelta
     today = timezone.now().date()
-    adherents_caci = Adherent.objects.exclude(niveau='debutant')
+    adherents_caci = Adherent.objects.exclude(type_personne='non_adherent').exclude(niveau='debutant')
     context['adherents_sans_caci'] = adherents_caci.filter(caci_fichier__isnull=True) | adherents_caci.filter(caci_fichier='')
     context['adherents_caci_expire'] = adherents_caci.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__lt=today - timedelta(days=365))
     context['adherents_caci_bientot'] = adherents_caci.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__gte=today - timedelta(days=365), date_delivrance_caci__lte=today - timedelta(days=335))
@@ -146,8 +146,8 @@ class AdherentListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         adherents = context['adherents']
-        context['adherents_adherents'] = [a for a in adherents if a.type_personne == 'adherent' and a.actif]
-        context['adherents_non_adherents'] = [a for a in adherents if a.type_personne == 'non_adherent' and a.actif]
+        context['adherents_adherents'] = [a for a in adherents if a.type_personne == 'adherent' and a.actif==True]
+        context['adherents_non_adherents'] = [a for a in adherents if a.type_personne == 'non_adherent' and a.actif==True]
         context['adherents_non_adherents_desactives'] = [a for a in adherents if a.type_personne == 'non_adherent' and not a.actif]
         return context
 
