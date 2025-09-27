@@ -84,9 +84,9 @@ def dashboard(request):
         Q(type_personne='adherent') |
         (Q(type_personne='non_adherent') & ~Q(niveau='debutant'))
     )
-    context['adherents_sans_caci'] = adherents_caci.filter(caci_fichier__isnull=True) | adherents_caci.filter(caci_fichier='')
-    context['adherents_caci_expire'] = adherents_caci.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__lt=today - timedelta(days=365))
-    context['adherents_caci_bientot'] = adherents_caci.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__gte=today - timedelta(days=365), date_delivrance_caci__lte=today - timedelta(days=335))
+    context['adherents_sans_caci'] = adherents_caci.filter(caci_fichier__isnull=True) | adherents_caci.filter(caci_fichier='',actif=True)
+    context['adherents_caci_expire'] = adherents_caci.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__lt=today - timedelta(days=365),actif=True)
+    context['adherents_caci_bientot'] = adherents_caci.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__gte=today - timedelta(days=365), date_delivrance_caci__lte=today - timedelta(days=335),actif=True)
     context['adherents_caci_non_valide'] = adherents_caci.filter(caci_valide=False)
     # Bloc dernières palanquées évaluées (par encadrant)
     # On récupère les palanquées qui ont au moins une évaluation_exercice
