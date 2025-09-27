@@ -32,7 +32,7 @@
                             <tbody>
                                 {% for ins in adherents %}
                                 <tr>
-                                    <td><input type="checkbox" name="inscrits_choisis" value="{{ ins.id }}" statut="{{ ins.statut }}" sections="{{ ins.sections.all.0.nom }}" type="{{ ins.type_personne }}"></td>
+                                    <td><input type="checkbox" name="inscrits_choisis" value="{{ ins.id }}" statut="{{ ins.statut }}" sections="{{ ins.sections.all.0.nom }}" personne="{{ ins.type_personne }}"></td>
                                     <td>{{ ins.nom }}</td>
                                     <td>{{ ins.prenom }}</td>
                                     <td>{{ ins.email }}</td>
@@ -158,9 +158,9 @@
                     block.querySelectorAll('input[type=checkbox]').forEach(cb=> {
                         cb.getAttribute('statut') === filtre ? cb.checked = true : cb.checked = false
                     });
-                } else if (type === 'type') {
+                } else if (type === 'personne') {
                     block.querySelectorAll('input[type=checkbox]').forEach(cb => {
-                        cb.getAttribute('type') === filtre ? cb.checked = true : cb.checked = false
+                        cb.getAttribute('personne') === filtre ? cb.checked = true : cb.checked = false
                     });
                 } else {
                     block.querySelectorAll('input[type=checkbox]').forEach(cb => {

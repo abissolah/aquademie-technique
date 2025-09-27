@@ -529,7 +529,7 @@ class AffectationSectionMasseForm(forms.Form):
             self.fields['adherents'].label_from_instance = lambda obj: f"{obj.nom.upper()} {obj.prenom.capitalize()} ({obj.email})"
 
 ADHERENTS_DESTINATAIRES_CHOICES = [
-    ("type_adherent", "Tous les adhérents"),
+    ("personne_adherent", "Tous les adhérents"),
     ("statut_encadrant", "Tous les encadrants"),
     ("statut_eleve", "Tous les élèves"),
     ("section_prepa_niveau1", "Les élèves de la section PN1 (prépa niveau 1)"),
