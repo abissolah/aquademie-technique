@@ -32,7 +32,7 @@
                             <tbody>
                                 {% for ins in adherents %}
                                 <tr>
-                                    <td><input type="checkbox" name="inscrits_choisis" value="{{ ins.id }}" statut="{{ ins.statut }}" sections="{{ ins.sections.all.0.nom }}"></td>
+                                    <td><input type="checkbox" name="inscrits_choisis" value="{{ ins.id }}" statut="{{ ins.statut }}" sections="{{ ins.sections.all.0.nom }}" type="{{ ins.type_personne }}"></td>
                                     <td>{{ ins.nom }}</td>
                                     <td>{{ ins.prenom }}</td>
                                     <td>{{ ins.email }}</td>
@@ -156,14 +156,14 @@
                 const filtre = select.value.replace(type + '_', '');
                 if(type === 'statut') {
                     block.querySelectorAll('input[type=checkbox]').forEach(cb=> {
-                        debugger;
-                        console.log(cb.getAttribute('statut'));
                         cb.getAttribute('statut') === filtre ? cb.checked = true : cb.checked = false
+                    });
+                } else if (type === 'type') {
+                    block.querySelectorAll('input[type=checkbox]').forEach(cb => {
+                        cb.getAttribute('type') === filtre ? cb.checked = true : cb.checked = false
                     });
                 } else {
                     block.querySelectorAll('input[type=checkbox]').forEach(cb => {
-                        debugger;
-                        console.log(cb.sections); 
                         cb.getAttribute('sections') === filtre ? cb.checked = true : cb.checked = false
                     });
                 }
