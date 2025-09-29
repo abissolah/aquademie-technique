@@ -315,8 +315,8 @@ class AdherentPublicForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['photo'].required = True
-        self.fields['caci_fichier'].required = False
-        self.fields['date_delivrance_caci'].required = False
+        self.fields['caci_fichier'].required = True
+        self.fields['date_delivrance_caci'].required = True
         self.fields['code_postal'].required = True
         self.fields['ville'].required = True
         self.fields['assurance'].required = False

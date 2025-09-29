@@ -178,7 +178,9 @@ Group=www-data
 WorkingDirectory=/var/www/aquademie
 Environment="PATH=/var/www/aquademie/venv/bin"
 Environment="DJANGO_SETTINGS_MODULE=club_plongee.settings_local"
-ExecStart=/var/www/aquademie/venv/bin/gunicorn --workers 3 --bind unix:/var/www/aquademie/aquademie.sock club_plongee.wsgi:application
+ExecStart=/var/www/aquademie/venv/bin/gunicorn --workers 3 --bind unix:/var/www/aquademie/aquademie.sock club_plongee.
+ExecStart=/var/www/aquademie/venv/bin/gunicorn --workers 3 --timeout 120 --bind unix:/var/www/aquademie/aquademie.sock club_plongee.wsgi:application
+wsgi:application
 
 [Install]
 WantedBy=multi-user.target
