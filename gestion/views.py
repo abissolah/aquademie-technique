@@ -1229,10 +1229,21 @@ class ExerciceDeleteView(LoginRequiredMixin, DeleteView):
 @login_required
 def export_adherents_excel(request):
     import pandas as pd
-    adherents = Adherent.objects.all().order_by('nom', 'prenom')
-    data = []
-    for a in adherents:
-        data.append({
+    from django.http import HttpResponse
+
+    # Récupération des 3 groupes
+    adherents = Adherent.objects.filter(type_personne='adherent').order_by('nom', 'prenom')
+    non_adh_actifs = Adherent.objects.filter(type_personne='non_adherent', actif=True).order_by('nom', 'prenom')
+    non_adh_inactifs = Adherent.objects.filter(type_personne='non_adherent', actif=False).order_by('nom', 'prenom')
+
+    # Colonnes de base + section
+    colonnes = [
+        'Nom', 'Prénom', 'Email', 'Téléphone', 'Adresse', 'Code postal', 'Ville',
+        'Numéro de licence', 'Assurance', 'Date délivrance CACI', 'Niveau', 'Statut', 'Section'
+    ]
+
+    def adherent_to_dict(a):
+        return {
             'Nom': a.nom.upper(),
             'Prénom': a.prenom.capitalize(),
             'Email': a.email,
@@ -1243,14 +1254,26 @@ def export_adherents_excel(request):
             'Numéro de licence': a.numero_licence,
             'Assurance': a.assurance,
             'Date délivrance CACI': a.date_delivrance_caci,
-            'Niveau': a.get_niveau_display(),
-            'Statut': a.get_statut_display(),
-        })
-    df = pd.DataFrame(data)
+            'Niveau': a.get_niveau_display() if hasattr(a, 'get_niveau_display') else a.niveau,
+            'Statut': a.get_statut_display() if hasattr(a, 'get_statut_display') else a.statut,
+            'Section': ', '.join([s.get_nom_display() for s in a.sections.all()]),
+        }
+
+    # Création des DataFrames
+    data_adh = [adherent_to_dict(a) for a in adherents]
+    data_non_adh_actifs = [adherent_to_dict(a) for a in non_adh_actifs]
+    data_non_adh_inactifs = [adherent_to_dict(a) for a in non_adh_inactifs]
+
+    df_adh = pd.DataFrame(data_adh, columns=colonnes)
+    df_non_adh_actifs = pd.DataFrame(data_non_adh_actifs, columns=colonnes)
+    df_non_adh_inactifs = pd.DataFrame(data_non_adh_inactifs, columns=colonnes)
+
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = 'attachment; filename="adherents.xlsx"'
     with pd.ExcelWriter(response, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False)
+        df_adh.to_excel(writer, sheet_name='Adhérents', index=False)
+        df_non_adh_actifs.to_excel(writer, sheet_name='Non adhérents actifs', index=False)
+        df_non_adh_inactifs.to_excel(writer, sheet_name='Non adhérents désactivés', index=False)
     return response
 
 @login_required
