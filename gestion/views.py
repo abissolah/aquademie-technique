@@ -389,6 +389,9 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         context['palanquees'] = palanquees_qs
         # Ajout pour affichage des inscrits et du covoiturage
         inscriptions = seance.inscriptions.select_related('personne').all()
+        # Ajout de la propriété is_adherent pour chaque inscription
+        for ins in inscriptions:
+            ins.is_adherent = getattr(ins.personne, 'type_personne', None) == 'adherent'
         inscrits_encadrants = [i for i in inscriptions if i.personne.statut == 'encadrant']
         inscrits_eleves = [i for i in inscriptions if i.personne.statut == 'eleve']
         inscrits_non_adherents = [i for i in inscriptions if i.personne.type_personne == 'non_adherent']

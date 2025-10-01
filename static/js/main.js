@@ -282,5 +282,51 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Tri sur les colonnes du tableau des inscrits (fiche séance) avec séparation par groupe et gestion du sens de tri par colonne
+    const inscritsTable = document.querySelector('.table.table-hover');
+    if (inscritsTable) {
+        const getCellValue = (tr, idx) => tr.children[idx].innerText || tr.children[idx].textContent;
+        const comparer = (idx, asc) => (a, b) => {
+            const v1 = getCellValue(a, idx);
+            const v2 = getCellValue(b, idx);
+            return v1.localeCompare(v2, 'fr', {numeric: true}) * (asc ? 1 : -1);
+        };
+        // Stocker l'état de tri pour chaque colonne
+        const sortStates = {};
+        inscritsTable.querySelectorAll('th').forEach((th, idx) => {
+            if (th.innerText.trim() !== 'Actions') {
+                th.style.cursor = 'pointer';
+                th.title = 'Cliquer pour trier';
+                sortStates[idx] = true; // true = asc, false = desc
+                th.addEventListener('click', function() {
+                    const tbody = inscritsTable.tBodies[0];
+                    const rows = Array.from(tbody.querySelectorAll('tr'));
+                    let start = 0;
+                    while (start < rows.length) {
+                        // Chercher la prochaine ligne de séparation ou la fin
+                        let end = start;
+                        if (rows[start].classList.contains('table-secondary')) {
+                            start++;
+                            end = start;
+                        }
+                        while (end < rows.length && !rows[end].classList.contains('table-secondary')) {
+                            end++;
+                        }
+                        // Trier les lignes du groupe
+                        const groupRows = rows.slice(start, end);
+                        groupRows.sort(comparer(idx, sortStates[idx]));
+                        // Réinsérer les lignes triées
+                        for (let i = 0; i < groupRows.length; i++) {
+                            tbody.insertBefore(groupRows[i], rows[end] || null);
+                        }
+                        start = end;
+                    }
+                    // Inverser le sens de tri pour la prochaine fois sur cette colonne
+                    sortStates[idx] = !sortStates[idx];
+                });
+            }
+        });
+    }
+
     console.log('Application Club de Plongée initialisée avec succès !');
 }); 
