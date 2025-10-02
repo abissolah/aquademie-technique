@@ -151,6 +151,16 @@ class CommunicationSeanceView(LoginRequiredMixin, View):
                         'seance': seance,
                         'inscrits': inscrits,
                     })
+            # Charger les fichiers en mémoire une seule fois pour éviter les problèmes de lecture multiple
+            fichiers_data = []
+            for f in fichiers:
+                f.seek(0)  # S'assurer que le pointeur est au début
+                fichiers_data.append({
+                    'name': f.name,
+                    'content': f.read(),
+                    'content_type': f.content_type
+                })
+            
             # Envoi du mail (BCC)
             email = EmailMessage(
                 subject=form.cleaned_data['objet'],
@@ -159,8 +169,9 @@ class CommunicationSeanceView(LoginRequiredMixin, View):
                 bcc=destinataires,
             )
             email.content_subtype = "html"
-            for f in fichiers:
-                email.attach(f.name, f.read(), f.content_type)
+            # Utiliser les données pré-chargées au lieu de relire les fichiers
+            for f_data in fichiers_data:
+                email.attach(f_data['name'], f_data['content'], f_data['content_type'])
             email.send()
             # Historique
             HistoriqueMailSeance.objects.create(

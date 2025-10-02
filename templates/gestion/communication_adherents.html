@@ -148,7 +148,10 @@
         function updateBlock() {
             
             block.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
-            if (select.value === 'tous') {
+            if (select.value === 'aucun') {
+                // Décocher tous les destinataires
+                block.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+            } else if (select.value === 'tous') {
                 
                 block.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = true);
             } else {

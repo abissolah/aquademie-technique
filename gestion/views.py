@@ -2432,7 +2432,7 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
         })
 
     def post(self, request):
-        adherents_qs = Adherent.objects.filter(type_personne='adherent').order_by('nom', 'prenom')
+        adherents_qs = Adherent.objects.filter(actif=True).order_by('nom', 'prenom')
         adherents_choices = [
             (str(a.id), f"{a.nom.upper()} {a.prenom.capitalize()} ({a.email})")
             for a in adherents_qs
@@ -2476,6 +2476,16 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
         if form.is_valid():
             destinataires = []
             
+            # Vérifier si "aucun" est sélectionné
+            if form.cleaned_data['destinataires'] == 'aucun':
+                messages.error(request, "Aucun destinataire sélectionné.")
+                return render(request, 'gestion/communication_adherents.html', {
+                    'form': form,
+                    'adherents': adherents_qs,
+                    'modeles': modeles,
+                    'historique': historique,
+                })
+            
             ids = form.cleaned_data['inscrits_choisis']
             destinataires = list(adherents_qs.filter(id__in=ids).values_list('email', flat=True))
             destinataires = [email.strip() for email in destinataires if email and email.strip()]
@@ -2508,6 +2518,16 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                     })
             from django.core.mail import EmailMessage
             from django.conf import settings
+            # Charger les fichiers en mémoire une seule fois pour éviter les problèmes de lecture multiple
+            fichiers_data = []
+            for f in fichiers:
+                f.seek(0)  # S'assurer que le pointeur est au début
+                fichiers_data.append({
+                    'name': f.name,
+                    'content': f.read(),
+                    'content_type': f.content_type
+                })
+            
             # Envoi par lots de 10 avec pause
             batch_size = 10
             for i in range(0, len(destinataires), batch_size):
@@ -2519,8 +2539,9 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                     bcc=batch,
                 )
                 email.content_subtype = "html"
-                for f in fichiers:
-                    email.attach(f.name, f.read(), f.content_type)
+                # Utiliser les données pré-chargées au lieu de relire les fichiers
+                for f_data in fichiers_data:
+                    email.attach(f_data['name'], f_data['content'], f_data['content_type'])
                 email.send()
                 if (i + batch_size) < len(destinataires):
                     time.sleep(3)

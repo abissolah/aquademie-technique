@@ -529,6 +529,8 @@ class AffectationSectionMasseForm(forms.Form):
             self.fields['adherents'].label_from_instance = lambda obj: f"{obj.nom.upper()} {obj.prenom.capitalize()} ({obj.email})"
 
 ADHERENTS_DESTINATAIRES_CHOICES = [
+    ("aucun", "Aucun destinataire"),
+    ("tous", "tout le monde"),
     ("personne_adherent", "Tous les adhérents"),
     ("statut_encadrant", "Tous les encadrants"),
     ("statut_eleve", "Tous les élèves"),
@@ -538,7 +540,7 @@ ADHERENTS_DESTINATAIRES_CHOICES = [
     ("section_niveau3", "Les élèves de la section niveau 3"),
     ("section_encadrants", "Les élèves de la section encadrants"),
     
-    ("tous", "tout le monde"),
+    
 ]
 
 class CommunicationAdherentsForm(forms.Form):
