@@ -1951,10 +1951,15 @@ def envoyer_mail_covoiturage(request, seance_id):
     if not conducteurs or not passagers:
         messages.warning(request, "Aucun conducteur ou aucun passager à notifier.")
         return redirect('seance_detail', pk=seance_id)
-    tableau = "<table border='1' cellpadding='4' cellspacing='0'><tr><th>Nom</th><th>Prénom</th><th>Email</th><th>Lieu</th></tr>"
+    tableau = "<table border='1' cellpadding='6' cellspacing='0' style='font-size: 16px; border-collapse: collapse;'><tr style='background-color: #f0f0f0;'><th style='padding: 8px;'>Nom</th><th style='padding: 8px;'>Prénom</th><th style='padding: 8px;'>Email</th><th style='padding: 8px;'>Téléphone</th><th style='padding: 8px;'>Lieu</th></tr>"
     for ins in conducteurs:
-        tableau += f"<tr><td>{ins.personne.nom}</td><td>{ins.personne.prenom}</td><td>{ins.personne.email}</td><td>{ins.lieu_covoiturage or ''}</td></tr>"
+        tableau += f"<tr><td style='padding: 8px;'>{ins.personne.nom}</td><td style='padding: 8px;'>{ins.personne.prenom}</td><td style='padding: 8px;'>{ins.personne.email}</td><td style='padding: 8px;'>{ins.personne.telephone}</td><td style='padding: 8px;'>{ins.lieu_covoiturage or ''}</td></tr>"
     tableau += "</table>"
+
+    tableau2 = "<table border='1' cellpadding='6' cellspacing='0' style='font-size: 16px; border-collapse: collapse;'><tr style='background-color: #f0f0f0;'><th style='padding: 8px;'>Nom</th><th style='padding: 8px;'>Prénom</th><th style='padding: 8px;'>Email</th><th style='padding: 8px;'>Téléphone</th><th style='padding: 8px;'>Lieu</th></tr>"
+    for ins in passagers:
+        tableau2 += f"<tr><td style='padding: 8px;'>{ins.personne.nom}</td><td style='padding: 8px;'>{ins.personne.prenom}</td><td style='padding: 8px;'>{ins.personne.email}</td><td style='padding: 8px;'>{ins.personne.telephone}</td><td style='padding: 8px;'>{ins.lieu_covoiturage or ''}</td></tr>"
+    tableau2 += "</table>"
     cc = getattr(settings, 'EMAIL_CC_COVOIT', [])
     signature_html = get_signature_html()
     signature_img_path = os.path.join(settings.BASE_DIR, 'static', 'Signature_mouss2.png')
@@ -1964,7 +1969,7 @@ def envoyer_mail_covoiturage(request, seance_id):
         if not ins.personne.email:
             continue
         subject = f"Covoiturage pour la séance du {seance.date.strftime('%d/%m/%Y')}"
-        body_html = f"Bonjour {ins.personne.prenom},<br><br>Voici la liste des personnes qui proposent du covoiturage pour la séance du {seance.date.strftime('%d/%m/%Y')} :<br><br>{tableau}<br><br>Merci de contacter directement les conducteurs pour organiser ton déplacement.<br><br>Subaquatiquement," + signature_html
+        body_html = f"<div style='font-size: 16px;'><p>Bonjour {ins.personne.prenom},</p><p>Voici la liste des personnes qui <b style='color:red'>proposent</b> du covoiturage pour la séance du {seance.date.strftime('%d/%m/%Y')} :</p>{tableau}<p>Voici la liste des personnes qui <b style='color:red'>sont en demande</b> de covoiturage :</p>{tableau2}<p>Merci de contacter directement les conducteurs pour organiser ton déplacement.</p><p>Subaquatiquement,</p></div>" + signature_html
         email = EmailMultiAlternatives(subject, '', to=[ins.personne.email], cc=cc)
         email.attach_alternative(body_html, "text/html")
         if os.path.exists(signature_img_path):
@@ -1978,6 +1983,27 @@ def envoyer_mail_covoiturage(request, seance_id):
             nb_envoyes += 1
         except Exception as e:
             erreurs.append(f"{ins.personne.nom} {ins.personne.prenom} : {str(e)}")
+
+    for ins in conducteurs:
+        if not ins.personne.email:
+            continue
+        subject = f"Covoiturage pour la séance du {seance.date.strftime('%d/%m/%Y')}"
+        body_html = f"<div style='font-size: 16px;'><p>Bonjour {ins.personne.prenom},</p><p>Voici la liste des personnes qui <b style='color:red'>proposent</b> du covoiturage pour la séance du {seance.date.strftime('%d/%m/%Y')} :</p>{tableau}<p>Voici la liste des personnes qui <b style='color:red'>sont en demande</b> de covoiturage :</p>{tableau2}<p>Merci de contacter directement les conducteurs pour organiser ton déplacement.</p><p>Subaquatiquement,</p></div>" + signature_html
+        email = EmailMultiAlternatives(subject, '', to=[ins.personne.email], cc=cc)
+        email.attach_alternative(body_html, "text/html")
+        if os.path.exists(signature_img_path):
+            with open(signature_img_path, 'rb') as img:
+                mime_img = MIMEImage(img.read(), _subtype='png')
+                mime_img.add_header('Content-ID', '<signature_mouss2>')
+                mime_img.add_header('Content-Disposition', 'inline', filename='Signature_mouss2.png')
+                email.attach(mime_img)
+        try:
+            email.send()
+            nb_envoyes += 1
+        except Exception as e:
+            erreurs.append(f"{ins.personne.nom} {ins.personne.prenom} : {str(e)}")
+
+
     if nb_envoyes:
         messages.success(request, f"{nb_envoyes} mails de covoiturage envoyés.")
     if erreurs:
