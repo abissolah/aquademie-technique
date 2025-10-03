@@ -161,18 +161,23 @@ class CommunicationSeanceView(LoginRequiredMixin, View):
                     'content_type': f.content_type
                 })
             
-            # Envoi du mail (BCC)
-            email = EmailMessage(
-                subject=form.cleaned_data['objet'],
-                body=form.cleaned_data['contenu'],
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                bcc=destinataires,
-            )
-            email.content_subtype = "html"
-            # Utiliser les données pré-chargées au lieu de relire les fichiers
-            for f_data in fichiers_data:
-                email.attach(f_data['name'], f_data['content'], f_data['content_type'])
-            email.send()
+            # Envoi du mail (un email par destinataire pour éviter les problèmes de pièces jointes)
+            cc_emails = getattr(settings, 'EMAIL_CC_DEFAULT', [])
+            nb_envoyes = 0
+            for destinataire in destinataires:
+                email = EmailMessage(
+                    subject=form.cleaned_data['objet'],
+                    body=form.cleaned_data['contenu'],
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    to=[destinataire],
+                    cc=cc_emails,
+                )
+                email.content_subtype = "html"
+                # Utiliser les données pré-chargées au lieu de relire les fichiers
+                for f_data in fichiers_data:
+                    email.attach(f_data['name'], f_data['content'], f_data['content_type'])
+                email.send()
+                nb_envoyes += 1
             # Historique
             HistoriqueMailSeance.objects.create(
                 seance=seance,
@@ -182,7 +187,7 @@ class CommunicationSeanceView(LoginRequiredMixin, View):
                 fichiers=",".join([f.name for f in fichiers]),
                 auteur=request.user
             )
-            messages.success(request, "Mail envoyé avec succès.")
+            messages.success(request, f"{nb_envoyes} mail(s) envoyé(s) avec succès.")
             return redirect('seance_detail', pk=seance.pk)
         else:
             print('[DEBUG] Formulaire NON valide :', form.errors)
