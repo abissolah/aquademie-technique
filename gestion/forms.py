@@ -259,10 +259,11 @@ class EvaluationExerciceBulkForm(forms.Form):
             for exercice in palanquee.exercices_prevus.all():
                 field_name = f"eval_{eleve.id}_{exercice.id}"
                 self.fields[field_name] = forms.ChoiceField(
-                    choices=[(1, '1 étoile'), (2, '2 étoiles'), (3, '3 étoiles')],
+                    choices=[('', 'Non réalisé'), (1, '1 étoile'), (2, '2 étoiles'), (3, '3 étoiles')],
                     label=f"{eleve.nom_complet} - {exercice.nom}",
                     required=False,
-                    widget=forms.RadioSelect
+                    widget=forms.RadioSelect,
+                    initial=''
                 )
                 comment_field_name = f"comment_{eleve.id}_{exercice.id}"
                 self.fields[comment_field_name] = forms.CharField(

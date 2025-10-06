@@ -1,4 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from django.http import Http404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
@@ -256,7 +257,23 @@ def generer_lien_evaluation(request, pk):
 
 def evaluation_publique(request, token):
     """Page d'évaluation publique accessible sans connexion (par exercice)"""
-    lien = get_object_or_404(LienEvaluation, token=token, est_valide=True)
+    try:
+        lien = LienEvaluation.objects.get(token=token)
+    except LienEvaluation.DoesNotExist:
+        raise Http404("Lien d'évaluation introuvable.")
+    
+    # Vérifier si le lien est encore valide
+    if not lien.est_valide:
+        # Le lien a été utilisé, afficher un message avec les coordonnées du DP
+        palanquee = lien.palanquee
+        dp = palanquee.seance.directeur_plongee if hasattr(palanquee.seance, 'directeur_plongee') and palanquee.seance.directeur_plongee else None
+        
+        context = {
+            'palanquee': palanquee,
+            'dp': dp,
+        }
+        return render(request, 'gestion/evaluation_deja_soumise.html', context)
+    
     if timezone.now() > lien.date_expiration:
         messages.error(request, 'Ce lien d\'évaluation a expiré.')
         return render(request, 'gestion/evaluation_expiree.html')
@@ -281,13 +298,21 @@ def evaluation_publique(request, token):
                             commentaire=commentaire
                         )
                         evaluations_sauvegardees += 1
-            if evaluations_sauvegardees == total_evaluations_attendues:
+            # Compter les exercices traités (évalués ou marqués comme non réalisés)
+            exercices_traites = 0
+            for eleve in palanquee.eleves.all():
+                for exercice in palanquee.exercices_prevus.all():
+                    note = form.cleaned_data.get(f'eval_{eleve.id}_{exercice.id}')
+                    if note is not None:  # Même si note est vide ('') pour "Non réalisé"
+                        exercices_traites += 1
+            
+            if exercices_traites == total_evaluations_attendues:
                 lien.est_valide = False
                 lien.save()
                 messages.success(request, 'Toutes les évaluations ont été soumises avec succès. Le lien d\'évaluation est maintenant fermé.')
                 return render(request, 'gestion/evaluation_soumise.html')
             else:
-                messages.success(request, f'{evaluations_sauvegardees}/{total_evaluations_attendues} évaluations sauvegardées. Vous pouvez continuer à évaluer les exercices restants.')
+                messages.success(request, f'{evaluations_sauvegardees} évaluations sauvegardées sur {total_evaluations_attendues} exercices traités. Vous pouvez continuer à évaluer les exercices restants.')
                 return redirect('evaluation_publique', token=token)
     else:
         form = EvaluationExerciceBulkForm(palanquee)
