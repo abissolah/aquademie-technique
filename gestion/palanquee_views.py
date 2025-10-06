@@ -289,31 +289,35 @@ def evaluation_publique(request, token):
                     note = form.cleaned_data.get(f'eval_{eleve.id}_{exercice.id}')
                     commentaire = form.cleaned_data.get(f'comment_{eleve.id}_{exercice.id}')
                     if note:
-                        EvaluationExercice.objects.create(
+                        # Vérifier si l'évaluation existe déjà
+                        evaluation_existante = EvaluationExercice.objects.filter(
                             eleve=eleve,
                             exercice=exercice,
-                            palanquee=palanquee,
-                            encadrant=encadrant,
-                            note=note,
-                            commentaire=commentaire
-                        )
+                            palanquee=palanquee
+                        ).first()
+                        
+                        if evaluation_existante:
+                            # Mettre à jour l'évaluation existante
+                            evaluation_existante.note = note
+                            evaluation_existante.commentaire = commentaire
+                            evaluation_existante.save()
+                        else:
+                            # Créer une nouvelle évaluation
+                            EvaluationExercice.objects.create(
+                                eleve=eleve,
+                                exercice=exercice,
+                                palanquee=palanquee,
+                                encadrant=encadrant,
+                                note=note,
+                                commentaire=commentaire
+                            )
                         evaluations_sauvegardees += 1
-            # Compter les exercices traités (évalués ou marqués comme non réalisés)
-            exercices_traites = 0
-            for eleve in palanquee.eleves.all():
-                for exercice in palanquee.exercices_prevus.all():
-                    note = form.cleaned_data.get(f'eval_{eleve.id}_{exercice.id}')
-                    if note is not None:  # Même si note est vide ('') pour "Non réalisé"
-                        exercices_traites += 1
+            # Marquer le lien comme invalidé dès qu'il y a eu une soumission
+            lien.est_valide = False
+            lien.save()
             
-            if exercices_traites == total_evaluations_attendues:
-                lien.est_valide = False
-                lien.save()
-                messages.success(request, 'Toutes les évaluations ont été soumises avec succès. Le lien d\'évaluation est maintenant fermé.')
-                return render(request, 'gestion/evaluation_soumise.html')
-            else:
-                messages.success(request, f'{evaluations_sauvegardees} évaluations sauvegardées sur {total_evaluations_attendues} exercices traités. Vous pouvez continuer à évaluer les exercices restants.')
-                return redirect('evaluation_publique', token=token)
+            messages.success(request, f'{evaluations_sauvegardees} évaluation(s) sauvegardée(s) avec succès. Le lien d\'évaluation est maintenant fermé.')
+            return render(request, 'gestion/evaluation_soumise.html')
     else:
         form = EvaluationExerciceBulkForm(palanquee)
     # Pré-remplir avec les évaluations existantes
