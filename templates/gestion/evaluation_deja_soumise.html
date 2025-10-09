@@ -15,40 +15,34 @@
                 <div class="card-body">
                     <div class="alert alert-info">
                         <h5><i class="fas fa-info-circle me-2"></i>Une évaluation a déjà été soumise par ce lien.</h5>
-                        <p class="mb-0">Si vous souhaitez la modifier, merci de contacter le Directeur de Plongée de la séance.</p>
+                        <p class="mb-0">Si vous souhaitez la modifier, merci de contacter Mouss.</p>
                     </div>
                     
-                    {% if dp %}
+                    
                     <div class="card mt-3">
                         <div class="card-header">
-                            <h6 class="mb-0"><i class="fas fa-user me-2"></i>Coordonnées du Directeur de Plongée</h6>
+                            <h6 class="mb-0"><i class="fas fa-user me-2"></i>Coordonnées de Mouss</h6>
                         </div>
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-md-6">
-                                    <p><strong>Nom :</strong> {{ dp.nom_complet }}</p>
                                     {% if dp.email %}
                                     <p><strong>Email :</strong> 
-                                        <a href="mailto:{{ dp.email }}" class="btn btn-outline-primary btn-sm">
-                                            <i class="fas fa-envelope me-1"></i>{{ dp.email }}
+                                        <a href="mailto:mouss.hippocampe@outlook.fr" class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-envelope me-1"></i>mouss.hippocampe@outlook.fr
                                         </a>
                                     </p>
                                     {% endif %}
                                 </div>
                                 <div class="col-md-6">
                                     {% if dp.telephone %}
-                                    <p><strong>Téléphone :</strong> {{ dp.telephone }}</p>
+                                    <p><strong>Téléphone :</strong> 0616416924 </p>
                                     {% endif %}
                                 </div>
                             </div>
                         </div>
                     </div>
-                    {% else %}
-                    <div class="alert alert-warning mt-3">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>Attention :</strong> Aucun Directeur de Plongée n'est défini pour cette séance.
-                    </div>
-                    {% endif %}
+                    
                     
                     <div class="card mt-3">
                         <div class="card-header">
