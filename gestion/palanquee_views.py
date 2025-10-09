@@ -217,10 +217,15 @@ def palanquee_evaluation_view(request, pk):
             exo_list = []
             for exo in exos:
                 eval_ex = eval_dict.get((eleve.id, exo.id))
+                raison_display = ''
+                if eval_ex and eval_ex.raison_non_realise:
+                    raison_display = dict(EvaluationExercice.RAISON_NON_REALISE_CHOICES).get(eval_ex.raison_non_realise, '')
                 exo_list.append({
                     'exercice': exo,
                     'note': eval_ex.note if eval_ex else None,
                     'commentaire': eval_ex.commentaire if eval_ex else '',
+                    'raison': eval_ex.raison_non_realise if eval_ex else None,
+                    'raison_display': raison_display,
                 })
             comp_list.append({'competence': comp, 'exercices': exo_list})
         data.append({'eleve': eleve, 'competences': comp_list})
@@ -288,18 +293,22 @@ def evaluation_publique(request, token):
                 for exercice in palanquee.exercices_prevus.all():
                     note = form.cleaned_data.get(f'eval_{eleve.id}_{exercice.id}')
                     commentaire = form.cleaned_data.get(f'comment_{eleve.id}_{exercice.id}')
+                    raison = form.cleaned_data.get(f'raison_{eleve.id}_{exercice.id}')
+                    
+                    # Vérifier si l'évaluation existe déjà
+                    evaluation_existante = EvaluationExercice.objects.filter(
+                        eleve=eleve,
+                        exercice=exercice,
+                        palanquee=palanquee
+                    ).first()
+                    
                     if note:
-                        # Vérifier si l'évaluation existe déjà
-                        evaluation_existante = EvaluationExercice.objects.filter(
-                            eleve=eleve,
-                            exercice=exercice,
-                            palanquee=palanquee
-                        ).first()
-                        
+                        # Si une note est donnée (exercice réalisé)
                         if evaluation_existante:
                             # Mettre à jour l'évaluation existante
                             evaluation_existante.note = note
                             evaluation_existante.commentaire = commentaire
+                            evaluation_existante.raison_non_realise = None  # Réinitialiser la raison
                             evaluation_existante.save()
                         else:
                             # Créer une nouvelle évaluation
@@ -309,6 +318,27 @@ def evaluation_publique(request, token):
                                 palanquee=palanquee,
                                 encadrant=encadrant,
                                 note=note,
+                                commentaire=commentaire,
+                                raison_non_realise=None
+                            )
+                        evaluations_sauvegardees += 1
+                    elif raison:
+                        # Si une raison est donnée (exercice non réalisé)
+                        if evaluation_existante:
+                            # Mettre à jour l'évaluation existante
+                            evaluation_existante.note = None
+                            evaluation_existante.raison_non_realise = raison
+                            evaluation_existante.commentaire = commentaire
+                            evaluation_existante.save()
+                        else:
+                            # Créer une nouvelle évaluation sans note
+                            EvaluationExercice.objects.create(
+                                eleve=eleve,
+                                exercice=exercice,
+                                palanquee=palanquee,
+                                encadrant=encadrant,
+                                note=None,
+                                raison_non_realise=raison,
                                 commentaire=commentaire
                             )
                         evaluations_sauvegardees += 1
@@ -327,6 +357,8 @@ def evaluation_publique(request, token):
         evaluations_existantes[key] = evaluation.note
         key_comment = f'comment_{evaluation.eleve.id}_{evaluation.exercice.id}'
         evaluations_existantes[key_comment] = evaluation.commentaire
+        key_raison = f'raison_{evaluation.eleve.id}_{evaluation.exercice.id}'
+        evaluations_existantes[key_raison] = evaluation.raison_non_realise
     if evaluations_existantes:
         form = EvaluationExerciceBulkForm(palanquee, initial=evaluations_existantes)
     # Préparer la structure eleves_exercices pour le template
@@ -336,11 +368,13 @@ def evaluation_publique(request, token):
         for exercice in palanquee.exercices_prevus.all():
             field_name = f"eval_{eleve.id}_{exercice.id}"
             comment_field = f"comment_{eleve.id}_{exercice.id}"
+            raison_field = f"raison_{eleve.id}_{exercice.id}"
             value = form.initial.get(field_name, '')
             exos.append({
                 'exercice': exercice,
                 'field_name': field_name,
                 'comment_field': form[comment_field],
+                'raison_field': form[raison_field],
                 'value': value,
             })
         eleves_exercices.append({

@@ -40,6 +40,8 @@
                                                     {% for i in range3 %}
                                                         <span class="star{% if i <= exo.note %} filled{% endif %}">&#9733;</span>
                                                     {% endfor %}
+                                                {% elif exo.raison %}
+                                                    <span class="badge bg-warning text-dark ms-1">Non réalisé: {{ exo.raison_display }}</span>
                                                 {% else %}
                                                     <span class="badge bg-secondary ms-1">Non évalué</span>
                                                 {% endif %}

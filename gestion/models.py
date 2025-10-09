@@ -307,20 +307,30 @@ class PalanqueeEleve(models.Model):
         unique_together = ('palanquee', 'eleve')
 
 class EvaluationExercice(models.Model):
+    RAISON_NON_REALISE_CHOICES = [
+        ('temps', 'A court de temps'),
+        ('apprehension', 'Apprehension'),
+        ('refus', "Refus de l'eleve"),
+    ]
+    
     palanquee = models.ForeignKey(Palanquee, on_delete=models.CASCADE, related_name='evaluations_exercices')
     eleve = models.ForeignKey(Adherent, on_delete=models.CASCADE, related_name='evaluations_exercices_recues', limit_choices_to={'statut': 'eleve'})
     exercice = models.ForeignKey(Exercice, on_delete=models.CASCADE, related_name='evaluations')
     encadrant = models.ForeignKey(Adherent, on_delete=models.CASCADE, related_name='evaluations_exercices_donnees', limit_choices_to={'statut': 'encadrant'})
-    note = models.IntegerField(choices=[(1, 'Non maîtrisé'), (2, 'En cours d’acquisition'), (3, 'Maîtrisé')])
+    note = models.IntegerField(choices=[(1, 'Non maitrise'), (2, "En cours d'acquisition"), (3, 'Maitrise')], null=True, blank=True)
+    raison_non_realise = models.CharField(max_length=20, choices=RAISON_NON_REALISE_CHOICES, blank=True, null=True, verbose_name="Raison de non realisation")
     commentaire = models.TextField(blank=True)
     date_evaluation = models.DateTimeField(auto_now=True)
     
     class Meta:
-        verbose_name = "Évaluation exercice"
-        verbose_name_plural = "Évaluations exercices"
+        verbose_name = "Evaluation exercice"
+        verbose_name_plural = "Evaluations exercices"
     
     def __str__(self):
-        return f"{self.eleve.nom_complet} - {self.exercice.nom} : {self.note} étoiles"
+        if self.note:
+            return f"{self.eleve.nom_complet} - {self.exercice.nom} : {self.note} etoiles"
+        else:
+            return f"{self.eleve.nom_complet} - {self.exercice.nom} : Non realise"
 
 class ModeleMailSeance(models.Model):
     nom = models.CharField(max_length=100, unique=True)

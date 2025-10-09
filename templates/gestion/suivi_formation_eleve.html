@@ -37,13 +37,21 @@
                         <div class="border rounded p-2">
                             <strong>{{ e.exercice.nom }}</strong>
                             <span class="ms-2">
-                                {% for i in range3 %}
-                                    {% if i <= e.etoiles %}
-                                        <i class="fas fa-star text-warning"></i>
-                                    {% else %}
+                                {% if e.etoiles > 0 %}
+                                    {% for i in range3 %}
+                                        {% if i <= e.etoiles %}
+                                            <i class="fas fa-star text-warning"></i>
+                                        {% else %}
+                                            <i class="far fa-star text-muted"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% elif e.raison %}
+                                    <span class="badge bg-warning text-dark">Non réalisé: {{ e.raison_display }}</span>
+                                {% else %}
+                                    {% for i in range3 %}
                                         <i class="far fa-star text-muted"></i>
-                                    {% endif %}
-                                {% endfor %}
+                                    {% endfor %}
+                                {% endif %}
                             </span>
                             {% if user.is_superuser or user.groups.all.0.name == 'admin' or user.groups.all.0.name == 'encadrant' %}
                                 {% if e.commentaire %}
@@ -64,9 +72,16 @@
                                                 <li class="list-group-item">
                                                     <strong>Date :</strong> {{ hist.palanquee.seance.date|date:'d/m/Y' }}<br>
                                                     <strong>Note :</strong> 
-                                                    {% for i in range3 %}
-                                                        {% if i <= hist.note %}<i class="fas fa-star text-warning"></i>{% else %}<i class="far fa-star text-muted"></i>{% endif %}
-                                                    {% endfor %}<br>
+                                                    {% if hist.note %}
+                                                        {% for i in range3 %}
+                                                            {% if i <= hist.note %}<i class="fas fa-star text-warning"></i>{% else %}<i class="far fa-star text-muted"></i>{% endif %}
+                                                        {% endfor %}
+                                                    {% elif hist.raison_non_realise %}
+                                                        <span class="badge bg-warning text-dark">Non réalisé: {{ hist.get_raison_non_realise_display }}</span>
+                                                    {% else %}
+                                                        <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                    <br>
                                                     <strong>Commentaire :</strong> {{ hist.commentaire|default:'-' }}<br>
                                                     <strong>Moniteur :</strong> {{ hist.encadrant.nom_complet }}
                                                 </li>

@@ -135,11 +135,22 @@
                                 {% endif %}
                             </div>
                             <div class="col-md-4">
-                                <div class="star-rating">
-                                    {% for i in "123" %}
-                                        <input type="radio" name="{{ ex.field_name }}" value="{{ i }}" id="star{{ i }}_{{ ex.field_name }}" {% if ex.value|stringformat:'s' == i|stringformat:'s' %}checked{% endif %}>
-                                        <label for="star{{ i }}_{{ ex.field_name }}"><i class="fas fa-star"></i></label>
-                                    {% endfor %}
+                                <div class="d-flex align-items-center gap-3 mb-2">
+                                    <div class="star-rating" data-field="{{ ex.field_name }}">
+                                        {% for i in "123" %}
+                                            <input type="radio" name="{{ ex.field_name }}" value="{{ i }}" id="star{{ i }}_{{ ex.field_name }}" {% if ex.value|stringformat:'s' == i|stringformat:'s' %}checked{% endif %}>
+                                            <label for="star{{ i }}_{{ ex.field_name }}"><i class="fas fa-star"></i></label>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input non-realise-checkbox" type="checkbox" id="non_realise_{{ ex.field_name }}" data-field="{{ ex.field_name }}">
+                                        <label class="form-check-label" for="non_realise_{{ ex.field_name }}">
+                                            Exercice non réalisé
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="raison-select-container" id="raison_container_{{ ex.field_name }}" style="display: none;">
+                                    {{ ex.raison_field }}
                                 </div>
                                 <small class="text-muted">1 = non maîtrisé, 2 = en cours, 3 = maîtrisé</small>
                             </div>
@@ -187,6 +198,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.star-rating').forEach(function(starRating) {
         var radios = starRating.querySelectorAll('input[type="radio"]');
         var labels = starRating.querySelectorAll('label');
+        var fieldName = starRating.getAttribute('data-field');
+        var nonRealiseCheckbox = document.querySelector('.non-realise-checkbox[data-field="' + fieldName + '"]');
+        var raisonContainer = document.getElementById('raison_container_' + fieldName);
+        
         function updateStars() {
             var checkedIdx = -1;
             radios.forEach(function(radio, idx) {
@@ -200,9 +215,52 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
+        
+        // Quand on coche "Exercice non réalisé", décocher toutes les étoiles et afficher la liste déroulante
+        if (nonRealiseCheckbox) {
+            nonRealiseCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    radios.forEach(function(radio) {
+                        radio.checked = false;
+                    });
+                    updateStars();
+                    // Afficher la liste déroulante des raisons
+                    if (raisonContainer) {
+                        raisonContainer.style.display = 'block';
+                    }
+                } else {
+                    // Masquer la liste déroulante des raisons
+                    if (raisonContainer) {
+                        raisonContainer.style.display = 'none';
+                        // Réinitialiser la sélection
+                        var select = raisonContainer.querySelector('select');
+                        if (select) {
+                            select.value = '';
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Quand on clique sur une étoile, décocher "Exercice non réalisé" et masquer la liste
         radios.forEach(function(radio) {
-            radio.addEventListener('change', updateStars);
+            radio.addEventListener('change', function() {
+                if (this.checked && nonRealiseCheckbox) {
+                    nonRealiseCheckbox.checked = false;
+                    // Masquer la liste déroulante des raisons
+                    if (raisonContainer) {
+                        raisonContainer.style.display = 'none';
+                        // Réinitialiser la sélection
+                        var select = raisonContainer.querySelector('select');
+                        if (select) {
+                            select.value = '';
+                        }
+                    }
+                }
+                updateStars();
+            });
         });
+        
         // Hover
         labels.forEach(function(label, idx) {
             label.addEventListener('mouseenter', function() {
@@ -220,6 +278,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
         });
+        
         // Initial update
         updateStars();
     });

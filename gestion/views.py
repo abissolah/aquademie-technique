@@ -1740,9 +1740,19 @@ def _suivi_formation_eleve(request, eleve_id):
             comp_data = {'competence': comp, 'exercices': [], 'etoile_competence': True}
             for ex in comp.exercices.all():
                 eval_ex = evals_dict.get(ex.id)
-                etoiles = eval_ex.note if eval_ex else 0
+                etoiles = eval_ex.note if eval_ex and eval_ex.note else 0
                 commentaire = eval_ex.commentaire if eval_ex else ''
-                comp_data['exercices'].append({'exercice': ex, 'etoiles': etoiles, 'commentaire': commentaire})
+                raison = eval_ex.raison_non_realise if eval_ex else None
+                raison_display = ''
+                if raison:
+                    raison_display = dict(EvaluationExercice.RAISON_NON_REALISE_CHOICES).get(raison, '')
+                comp_data['exercices'].append({
+                    'exercice': ex, 
+                    'etoiles': etoiles, 
+                    'commentaire': commentaire,
+                    'raison': raison,
+                    'raison_display': raison_display
+                })
                 if etoiles < 3:
                     comp_data['etoile_competence'] = False
             # Si la compétence n'a aucun exercice, elle n'est pas validée
