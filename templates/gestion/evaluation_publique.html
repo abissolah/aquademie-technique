@@ -113,7 +113,7 @@
         </div>
 
         <!-- Formulaire d'évaluation -->
-        <form method="post">
+        <form method="post" id="evaluation-form">
             {% csrf_token %}
             
             {% for eleve_ex in eleves_exercices %}
@@ -151,6 +151,9 @@
                                 </div>
                                 <div class="raison-select-container" id="raison_container_{{ ex.field_name }}" style="display: none;">
                                     {{ ex.raison_field }}
+                                </div>
+                                <div class="text-danger small mt-1" id="error_{{ ex.field_name }}" style="display: none;">
+                                    <i class="fas fa-exclamation-triangle"></i> <span class="error-message"></span>
                                 </div>
                                 <small class="text-muted">1 = non maîtrisé, 2 = en cours, 3 = maîtrisé</small>
                             </div>
@@ -228,6 +231,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (raisonContainer) {
                         raisonContainer.style.display = 'block';
                     }
+                    // Masquer le message d'erreur si présent
+                    var errorDiv = document.getElementById('error_' + fieldName);
+                    if (errorDiv) {
+                        errorDiv.style.display = 'none';
+                    }
                 } else {
                     // Masquer la liste déroulante des raisons
                     if (raisonContainer) {
@@ -240,6 +248,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             });
+            
+            // Validation en temps réel de la liste déroulante
+            if (raisonContainer) {
+                var select = raisonContainer.querySelector('select');
+                if (select) {
+                    select.addEventListener('change', function() {
+                        // Masquer le message d'erreur si une raison est sélectionnée
+                        if (this.value && this.value !== '') {
+                            var errorDiv = document.getElementById('error_' + fieldName);
+                            if (errorDiv) {
+                                errorDiv.style.display = 'none';
+                            }
+                        }
+                    });
+                }
+            }
         }
         
         // Quand on clique sur une étoile, décocher "Exercice non réalisé" et masquer la liste
@@ -258,6 +282,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
                 updateStars();
+                // Masquer le message d'erreur si présent
+                var errorDiv = document.getElementById('error_' + fieldName);
+                if (errorDiv) {
+                    errorDiv.style.display = 'none';
+                }
             });
         });
         
@@ -281,6 +310,69 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Initial update
         updateStars();
+    });
+    
+    // Validation du formulaire avant soumission
+    document.getElementById('evaluation-form').addEventListener('submit', function(e) {
+        var isValid = true;
+        var firstError = null;
+        
+        // Parcourir tous les groupes d'évaluation
+        document.querySelectorAll('.star-rating').forEach(function(starRating) {
+            var fieldName = starRating.getAttribute('data-field');
+            var radios = starRating.querySelectorAll('input[type="radio"]');
+            var nonRealiseCheckbox = document.querySelector('.non-realise-checkbox[data-field="' + fieldName + '"]');
+            var raisonContainer = document.getElementById('raison_container_' + fieldName);
+            var errorDiv = document.getElementById('error_' + fieldName);
+            var errorMessage = errorDiv.querySelector('.error-message');
+            
+            // Vérifier si au moins une étoile est cochée
+            var hasStarChecked = false;
+            radios.forEach(function(radio) {
+                if (radio.checked) {
+                    hasStarChecked = true;
+                }
+            });
+            
+            // Vérifier si la case "non réalisé" est cochée
+            var isNonRealiseChecked = nonRealiseCheckbox && nonRealiseCheckbox.checked;
+            
+            // Réinitialiser l'erreur
+            errorDiv.style.display = 'none';
+            errorMessage.textContent = '';
+            
+            // Validation : au moins une étoile OU case cochée
+            if (!hasStarChecked && !isNonRealiseChecked) {
+                isValid = false;
+                errorDiv.style.display = 'block';
+                errorMessage.textContent = 'Veuillez évaluer cet exercice ou cocher "Exercice non réalisé"';
+                if (!firstError) {
+                    firstError = errorDiv;
+                }
+            }
+            // Si case cochée, vérifier qu'une raison est sélectionnée
+            else if (isNonRealiseChecked && raisonContainer) {
+                var select = raisonContainer.querySelector('select');
+                if (select && (!select.value || select.value === '')) {
+                    isValid = false;
+                    errorDiv.style.display = 'block';
+                    errorMessage.textContent = 'Veuillez sélectionner une raison de non réalisation';
+                    if (!firstError) {
+                        firstError = errorDiv;
+                    }
+                }
+            }
+        });
+        
+        // Si erreur, empêcher la soumission et scroller vers la première erreur
+        if (!isValid) {
+            e.preventDefault();
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            // Afficher une alerte globale
+            alert('Veuillez compléter toutes les évaluations avant de soumettre le formulaire.');
+        }
     });
 });
 </script>
