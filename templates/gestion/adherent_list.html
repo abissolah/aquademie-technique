@@ -11,20 +11,27 @@
                     <i class="fas fa-users me-2"></i>Adhérents
                 </h1>
                 <div class="d-flex flex-wrap gap-2 mb-3">
-                    {% if request.user.is_staff %}
+                    {% if request.user.is_staff and not is_codir %}
+                    <a href="{% url 'adherents_communiquer' %}" class="btn btn-info">
+                        <i class="fas fa-envelope me-2"></i>Communiquer avec les adhérents
+                    </a>
+                    {% elif is_codir %}
                     <a href="{% url 'adherents_communiquer' %}" class="btn btn-info">
                         <i class="fas fa-envelope me-2"></i>Communiquer avec les adhérents
                     </a>
                     {% endif %}
+                    {% if not is_codir %}
                     <a href="{% url 'download_excel_template' %}" class="btn btn-success">
                         <i class="fas fa-download me-2"></i>Télécharger modèle d'import
                     </a>
                     <a href="{% url 'import_adherents_excel' %}" class="btn btn-info">
                         <i class="fas fa-file-excel me-2"></i>Import Excel
                     </a>
+                    {% endif %}
                     <a href="{% url 'export_adherents_excel' %}" class="btn btn-success">
                         <i class="fas fa-file-excel me-2"></i>Exporter La liste des adhérents
                     </a>
+                    {% if not is_codir %}
                     <a href="{% url 'adherent_create' %}" class="btn btn-primary">
                         <i class="fas fa-plus me-2"></i>Nouvel adhérent
                     </a>
@@ -34,6 +41,7 @@
                     <a href="{% url 'affecter_section_masse' %}" class="btn btn-warning">
                         <i class="fas fa-layer-group me-2"></i>Affecter une section en masse
                     </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -192,6 +200,7 @@
                             <a href="{% url 'adherent_detail' adherent.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
                               <i class="fas fa-eye"></i>
                             </a>
+                            {% if not is_codir %}
                             <a href="{% url 'adherent_update' adherent.pk %}" class="btn btn-sm btn-outline-warning" title="Modifier">
                               <i class="fas fa-edit"></i>
                             </a>
@@ -213,6 +222,7 @@
                                onclick="return confirm('Créer un compte pour {{ adherent.nom|upper }} {{ adherent.prenom|capfirst }} ({{ adherent.get_statut_display }}) ?');">
                               <i class="fas fa-user-plus"></i>
                             </a>
+                            {% endif %}
                             {% endif %}
                           </div>
                         </td>
@@ -292,6 +302,7 @@
                             <a href="{% url 'adherent_detail' adherent.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
                               <i class="fas fa-eye"></i>
                             </a>
+                            {% if not is_codir %}
                             <a href="{% url 'adherent_update' adherent.pk %}" class="btn btn-sm btn-outline-warning" title="Modifier">
                               <i class="fas fa-edit"></i>
                             </a>
@@ -309,6 +320,7 @@
                                 <i class="fas fa-user-slash"></i>
                               </button>
                             </form>
+                            {% endif %}
                           </div>
                         </td>
                       </tr>
@@ -386,9 +398,11 @@
                           <a href="{% url 'adherent_detail' adherent.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
                             <i class="fas fa-eye"></i>
                           </a>
+                          {% if not is_codir %}
                           <a href="{% url 'adherent_update' adherent.pk %}" class="btn btn-sm btn-outline-warning" title="Modifier">
                             <i class="fas fa-edit"></i>
                           </a>
+                          {% endif %}
                         </div>
                       </td>
                     </tr>

@@ -140,7 +140,9 @@ def group_required(group_name):
             if request.user.groups.filter(name=group_name).exists() or request.user.is_superuser:
                 return view_func(request, *args, **kwargs)
             # Redirection selon le groupe
-            if request.user.groups.filter(name='eleve').exists():
+            if request.user.groups.filter(name='codir').exists():
+                return redirect('dashboard')
+            elif request.user.groups.filter(name='eleve').exists():
                 adherent = getattr(request.user, 'adherent_profile', None)
                 if adherent:
                     return redirect('suivi_formation_eleve', eleve_id=adherent.id)
@@ -158,4 +160,33 @@ def encadrant_only(view_func):
     return group_required('encadrant')(view_func)
 
 def admin_only(view_func):
-    return group_required('admin')(view_func) 
+    return group_required('admin')(view_func)
+
+def codir_only(view_func):
+    return group_required('codir')(view_func)
+
+def is_codir(user):
+    """Vérifie si l'utilisateur appartient au groupe Codir"""
+    if not user.is_authenticated:
+        return False
+    return user.groups.filter(name='codir').exists()
+
+def is_codir_eleve(user):
+    """Vérifie si l'utilisateur est à la fois Codir et élève"""
+    if not user.is_authenticated:
+        return False
+    return user.groups.filter(name='codir').exists() and user.groups.filter(name='eleve').exists()
+
+def is_codir_encadrant(user):
+    """Vérifie si l'utilisateur est à la fois Codir et encadrant"""
+    if not user.is_authenticated:
+        return False
+    return user.groups.filter(name='codir').exists() and user.groups.filter(name='encadrant').exists()
+
+def can_access_dashboard(user):
+    """Vérifie si l'utilisateur peut accéder au dashboard"""
+    if not user.is_authenticated:
+        return False
+    return (user.is_superuser or 
+            user.groups.filter(name='admin').exists() or 
+            user.groups.filter(name='codir').exists()) 

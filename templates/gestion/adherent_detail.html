@@ -9,6 +9,7 @@
             <h1>
                 <i class="fas fa-user me-2"></i>{{ adherent.nom_complet }}
             </h1>
+            {% if not is_codir %}
             <div class="btn-group" role="group">
                 <a href="{% url 'adherent_update' adherent.pk %}" class="btn btn-warning">
                     <i class="fas fa-edit me-2"></i>Modifier
@@ -17,6 +18,7 @@
                     <i class="fas fa-trash me-2"></i>Supprimer
                 </a>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -189,16 +191,18 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
+                    {% if not is_codir %}
                     <a href="{% url 'adherent_update' adherent.pk %}" class="btn btn-outline-warning">
                         <i class="fas fa-edit me-2"></i>Modifier l'adhérent
                     </a>
+                    {% endif %}
                     {% if adherent.statut == 'eleve' %}
                     <a href="{% url 'suivi_formation_eleve' adherent.pk %}" class="btn btn-outline-info">
                         <i class="fas fa-chart-line me-2"></i>Suivi de formation
                     </a>
                     {% endif %}
                     <!-- Bouton "Créer une séance avec cet élève" retiré -->
-                    {% if adherent.statut == 'encadrant' %}
+                    {% if adherent.statut == 'encadrant' and not is_codir %}
                     <a href="{% url 'seance_create' %}" class="btn btn-outline-success">
                         <i class="fas fa-plus me-2"></i>Créer une séance avec cet encadrant
                     </a>

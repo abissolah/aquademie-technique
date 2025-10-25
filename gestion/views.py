@@ -65,9 +65,15 @@ from .models import ModeleMailSeance
 from .models import Adherent, Section, ModeleMailAdherents, HistoriqueMailAdherents
 
 # Vues d'accueil et de navigation
-@group_required('admin')
+@login_required
 def dashboard(request):
+    # Vérifier les permissions d'accès au dashboard
+    from .utils import can_access_dashboard
+    if not can_access_dashboard(request.user):
+        return redirect('login')
     """Tableau de bord principal"""
+    from .utils import is_codir, is_codir_eleve, is_codir_encadrant
+    
     context = {
         'total_adherents': Adherent.objects.filter(type_personne='adherent').count(),
         'total_seances': Seance.objects.count(),
@@ -76,6 +82,9 @@ def dashboard(request):
         'palanquees_recentes': Palanquee.objects.select_related('seance', 'section').prefetch_related('eleves')[:5],
         'adherents_eleves': Adherent.objects.filter(type_personne='adherent', statut='eleve').count(),
         'adherents_encadrants': Adherent.objects.filter(type_personne='adherent', statut='encadrant').count(),
+        'is_codir': is_codir(request.user),
+        'is_codir_eleve': is_codir_eleve(request.user),
+        'is_codir_encadrant': is_codir_encadrant(request.user),
     }
     # Ajout des alertes CACI
     from datetime import timedelta
@@ -106,12 +115,19 @@ def dashboard(request):
     return render(request, 'gestion/dashboard.html', context)
 
 # Vues pour les adhérents
-@method_decorator(group_required('admin'), name='dispatch')
+@method_decorator(login_required, name='dispatch')
 class AdherentListView(LoginRequiredMixin, ListView):
     model = Adherent
     template_name = 'gestion/adherent_list.html'
     context_object_name = 'adherents'
     # paginate_by = 20  # Pagination supprimée pour afficher tous les adhérents
+    
+    def get(self, request, *args, **kwargs):
+        # Vérifier les permissions d'accès
+        from .utils import can_access_dashboard
+        if not can_access_dashboard(request.user):
+            return redirect('login')
+        return super().get(request, *args, **kwargs)
     
     def get_queryset(self):
         queryset = Adherent.objects.all()
@@ -148,20 +164,34 @@ class AdherentListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        from .utils import is_codir, is_codir_eleve, is_codir_encadrant
+        
         adherents = context['adherents']
         context['adherents_adherents'] = [a for a in adherents if a.type_personne == 'adherent' and bool(a.actif)]
         context['adherents_non_adherents'] = [a for a in adherents if a.type_personne == 'non_adherent' and bool(a.actif)]
         context['adherents_non_adherents_desactives'] = [a for a in adherents if a.type_personne == 'non_adherent' and not bool(a.actif)]
+        context['is_codir'] = is_codir(self.request.user)
+        context['is_codir_eleve'] = is_codir_eleve(self.request.user)
+        context['is_codir_encadrant'] = is_codir_encadrant(self.request.user)
         return context
 
-@method_decorator(group_required('admin'), name='dispatch')
+@method_decorator(login_required, name='dispatch')
 class AdherentDetailView(LoginRequiredMixin, DetailView):
     model = Adherent
     template_name = 'gestion/adherent_detail.html'
     context_object_name = 'adherent'
     
+    def get(self, request, *args, **kwargs):
+        # Vérifier les permissions d'accès
+        from .utils import can_access_dashboard
+        if not can_access_dashboard(request.user):
+            return redirect('login')
+        return super().get(request, *args, **kwargs)
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        from .utils import is_codir, is_codir_eleve, is_codir_encadrant
+        
         context['today'] = timezone.now().date()
         # Ajout : séances où l'adhérent est inscrit
         from .models import InscriptionSeance
@@ -172,6 +202,9 @@ class AdherentDetailView(LoginRequiredMixin, DetailView):
             .order_by('-seance__date')
         )
         context['seances_inscrit'] = [ins.seance for ins in seances_inscrit]
+        context['is_codir'] = is_codir(self.request.user)
+        context['is_codir_eleve'] = is_codir_eleve(self.request.user)
+        context['is_codir_encadrant'] = is_codir_encadrant(self.request.user)
         return context
 
 @method_decorator(group_required('admin'), name='dispatch')
@@ -195,12 +228,18 @@ class AdherentDeleteView(LoginRequiredMixin, DeleteView):
     success_url = reverse_lazy('adherent_list')
 
 # Vues pour les élèves
-@method_decorator(group_required('encadrant'), name='dispatch')
 class EleveListView(LoginRequiredMixin, ListView):
     model = Adherent
     template_name = 'gestion/eleve_list.html'
     context_object_name = 'eleves'
     # paginate_by = 20  # Pagination supprimée pour afficher tous les élèves
+    
+    def get(self, request, *args, **kwargs):
+        # Vérifier les permissions d'accès
+        from .utils import can_access_dashboard
+        if not can_access_dashboard(request.user):
+            return redirect('login')
+        return super().get(request, *args, **kwargs)
     
     def get_queryset(self):
         queryset = Adherent.objects.filter(statut='eleve').order_by('nom', 'prenom')
@@ -213,19 +252,31 @@ class EleveListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        from .utils import is_codir, is_codir_eleve, is_codir_encadrant
+        
         eleves = context['eleves']
         context['eleves_adherents'] = [e for e in eleves if e.type_personne == 'adherent']
         context['eleves_non_adherents'] = [e for e in eleves if e.type_personne == 'non_adherent']
+        context['is_codir'] = is_codir(self.request.user)
+        context['is_codir_eleve'] = is_codir_eleve(self.request.user)
+        context['is_codir_encadrant'] = is_codir_encadrant(self.request.user)
         return context
 
-@method_decorator(group_required('admin'), name='dispatch')
+#@method_decorator(group_required('admin'), name='dispatch')
 class EncadrantListView(LoginRequiredMixin, ListView):
     model = Adherent
     template_name = 'gestion/encadrant_list.html'
     context_object_name = 'encadrants'
+   
     # paginate_by = 20  # Pagination supprimée pour afficher tous les encadrants
-    
+    def get(self, request, *args, **kwargs):
+        # Vérifier les permissions d'accès
+        from .utils import can_access_dashboard
+        if not can_access_dashboard(request.user):
+            return redirect('login')
+        return super().get(request, *args, **kwargs)
     def get_queryset(self):
+        
         queryset = Adherent.objects.filter(statut='encadrant').order_by('nom', 'prenom')
         q = self.request.GET.get('q')
         if q:
@@ -892,7 +943,11 @@ class CustomLoginView(LoginView):
 
     def get_success_url(self):
         user = self.request.user
-        if hasattr(user, 'adherent_profile') and getattr(user.adherent_profile, 'statut', None) == 'eleve':
+        # Vérifier d'abord si l'utilisateur est Codir
+        if user.groups.filter(name='codir').exists():
+            return reverse_lazy('dashboard')
+        # Sinon, logique normale pour les élèves
+        elif hasattr(user, 'adherent_profile') and getattr(user.adherent_profile, 'statut', None) == 'eleve':
             return reverse_lazy('suivi_formation_eleve', kwargs={'eleve_id': user.adherent_profile.pk})
         return super().get_success_url()
 
@@ -2449,9 +2504,13 @@ def envoyer_pdf_palanquee_encadrant(request, palanquee_id):
         messages.error(request, f"Erreur lors de l'envoi : {str(e)}")
     return redirect('seance_detail', pk=seance.pk)
 
-@method_decorator(staff_member_required, name='dispatch')
+#@method_decorator(staff_member_required, name='dispatch')
 class CommunicationAdherentsView(LoginRequiredMixin, View):
     def get(self, request):
+        # Vérifier les permissions d'accès
+        from .utils import can_access_dashboard
+        if not can_access_dashboard(request.user):
+            return redirect('login')
         adherents_qs = Adherent.objects.filter(actif=True).order_by('nom', 'prenom')
         adherents_choices = [
             (str(a.id), f"{a.nom.upper()} {a.prenom.capitalize()} ({a.email})")
@@ -2468,6 +2527,9 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
         })
 
     def post(self, request):
+        from .utils import can_access_dashboard
+        if not can_access_dashboard(request.user):
+            return redirect('login')
         adherents_qs = Adherent.objects.filter(actif=True).order_by('nom', 'prenom')
         adherents_choices = [
             (str(a.id), f"{a.nom.upper()} {a.prenom.capitalize()} ({a.email})")

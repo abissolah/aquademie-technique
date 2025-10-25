@@ -1,0 +1,118 @@
+from django.core.management.base import BaseCommand
+from django.contrib.auth.models import User
+from django.urls import reverse
+from gestion.utils import is_codir, is_codir_eleve, is_codir_encadrant, can_access_dashboard
+
+class Command(BaseCommand):
+    help = 'Teste les fonctions Codir (version simplifiée)'
+
+    def handle(self, *args, **options):
+        self.stdout.write('=== Test des fonctions Codir (version simplifiée) ===\n')
+        
+        # Test avec un utilisateur Codir élève
+        try:
+            user_eleve = User.objects.get(username='codir_eleve_test')
+            self.stdout.write(f'Test avec {user_eleve.username}:')
+            
+            # Tester les fonctions utilitaires
+            self.stdout.write(f'  - is_codir: {is_codir(user_eleve)}')
+            self.stdout.write(f'  - is_codir_eleve: {is_codir_eleve(user_eleve)}')
+            self.stdout.write(f'  - is_codir_encadrant: {is_codir_encadrant(user_eleve)}')
+            self.stdout.write(f'  - can_access_dashboard: {can_access_dashboard(user_eleve)}')
+            
+            # Tester la logique de redirection directement
+            if user_eleve.groups.filter(name='codir').exists():
+                expected_url = reverse('dashboard')
+                self.stdout.write(f'  ✅ Redirection attendue vers: {expected_url}')
+            else:
+                self.stdout.write('  ❌ Utilisateur pas reconnu comme Codir')
+            
+            self.stdout.write('')
+        except User.DoesNotExist:
+            self.stdout.write(
+                self.style.WARNING('Utilisateur codir_eleve_test non trouvé')
+            )
+        
+        # Test avec un utilisateur Codir encadrant
+        try:
+            user_encadrant = User.objects.get(username='codir_encadrant_test')
+            self.stdout.write(f'Test avec {user_encadrant.username}:')
+            
+            # Tester les fonctions utilitaires
+            self.stdout.write(f'  - is_codir: {is_codir(user_encadrant)}')
+            self.stdout.write(f'  - is_codir_eleve: {is_codir_eleve(user_encadrant)}')
+            self.stdout.write(f'  - is_codir_encadrant: {is_codir_encadrant(user_encadrant)}')
+            self.stdout.write(f'  - can_access_dashboard: {can_access_dashboard(user_encadrant)}')
+            
+            # Tester la logique de redirection directement
+            if user_encadrant.groups.filter(name='codir').exists():
+                expected_url = reverse('dashboard')
+                self.stdout.write(f'  ✅ Redirection attendue vers: {expected_url}')
+            else:
+                self.stdout.write('  ❌ Utilisateur pas reconnu comme Codir')
+            
+            self.stdout.write('')
+        except User.DoesNotExist:
+            self.stdout.write(
+                self.style.WARNING('Utilisateur codir_encadrant_test non trouvé')
+            )
+        
+        # Test avec un utilisateur élève normal (non Codir)
+        try:
+            # Chercher un utilisateur élève normal
+            eleve_user = User.objects.filter(
+                groups__name='eleve'
+            ).exclude(
+                groups__name='codir'
+            ).first()
+            
+            if eleve_user:
+                self.stdout.write(f'Test avec élève normal ({eleve_user.username}):')
+                
+                # Tester les fonctions utilitaires
+                self.stdout.write(f'  - is_codir: {is_codir(eleve_user)}')
+                self.stdout.write(f'  - is_codir_eleve: {is_codir_eleve(eleve_user)}')
+                self.stdout.write(f'  - is_codir_encadrant: {is_codir_encadrant(eleve_user)}')
+                self.stdout.write(f'  - can_access_dashboard: {can_access_dashboard(eleve_user)}')
+                
+                # Pour un élève normal, devrait aller vers le suivi de formation
+                if hasattr(eleve_user, 'adherent_profile') and eleve_user.adherent_profile.statut == 'eleve':
+                    expected_url = reverse('suivi_formation_eleve', kwargs={'eleve_id': eleve_user.adherent_profile.pk})
+                    self.stdout.write(f'  ✅ Redirection attendue vers: {expected_url}')
+                else:
+                    self.stdout.write('  ⚠️ Pas de profil adhérent associé')
+                
+                self.stdout.write('')
+            else:
+                self.stdout.write(
+                    self.style.WARNING('Aucun utilisateur élève normal trouvé')
+                )
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(f'Erreur lors du test élève normal: {e}')
+            )
+        
+        # Test de comparaison des groupes
+        self.stdout.write('=== Comparaison des groupes ===')
+        try:
+            codir_eleve = User.objects.get(username='codir_eleve_test')
+            codir_encadrant = User.objects.get(username='codir_encadrant_test')
+            
+            self.stdout.write(f'Codir élève groupes: {[g.name for g in codir_eleve.groups.all()]}')
+            self.stdout.write(f'Codir encadrant groupes: {[g.name for g in codir_encadrant.groups.all()]}')
+            
+            # Vérifier que les deux ont le groupe codir
+            if codir_eleve.groups.filter(name='codir').exists():
+                self.stdout.write('✅ Codir élève a le groupe codir')
+            else:
+                self.stdout.write('❌ Codir élève n\'a pas le groupe codir')
+                
+            if codir_encadrant.groups.filter(name='codir').exists():
+                self.stdout.write('✅ Codir encadrant a le groupe codir')
+            else:
+                self.stdout.write('❌ Codir encadrant n\'a pas le groupe codir')
+                
+        except User.DoesNotExist as e:
+            self.stdout.write(f'❌ Utilisateur de test non trouvé: {e}')
+        
+        self.stdout.write('\n=== Test terminé ===')

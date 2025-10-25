@@ -9,9 +9,11 @@
             <h1>
                 <i class="fas fa-user-graduate me-2"></i>Élèves
             </h1>
+            {% if not is_codir %}
             <a href="{% url 'adherent_create' %}" class="btn btn-primary">
                 <i class="fas fa-plus me-2"></i>Nouvel élève
             </a>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -130,6 +132,10 @@
                                             <a href="{% url 'suivi_formation_eleve' eleve.pk %}" class="btn btn-sm btn-outline-success" title="Suivi formation">
                                                 <i class="fas fa-graduation-cap"></i>
                                             </a>
+                                        {% elif is_codir_eleve and eleve.user == user %}
+                                            <a href="{% url 'suivi_formation_eleve' eleve.pk %}" class="btn btn-sm btn-outline-success" title="Suivi formation">
+                                                <i class="fas fa-graduation-cap"></i>
+                                            </a>
                                         {% endif %}
                                         {% if user.is_superuser or user.groups.all.0.name == 'admin' %}
                                             <a href="{% url 'adherent_detail' eleve.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
@@ -140,6 +146,10 @@
                                             </a>
                                             <a href="{% url 'adherent_delete' eleve.pk %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
                                                 <i class="fas fa-trash"></i>
+                                            </a>
+                                        {% elif is_codir %}
+                                            <a href="{% url 'adherent_detail' eleve.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
+                                                <i class="fas fa-eye"></i>
                                             </a>
                                         {% endif %}
                                     </div>
@@ -241,6 +251,10 @@
                                             <a href="{% url 'suivi_formation_eleve' eleve.pk %}" class="btn btn-sm btn-outline-success" title="Suivi formation">
                                                 <i class="fas fa-graduation-cap"></i>
                                             </a>
+                                        {% elif is_codir_eleve and eleve.user == user %}
+                                            <a href="{% url 'suivi_formation_eleve' eleve.pk %}" class="btn btn-sm btn-outline-success" title="Suivi formation">
+                                                <i class="fas fa-graduation-cap"></i>
+                                            </a>
                                         {% endif %}
                                         {% if user.is_superuser or user.groups.all.0.name == 'admin' %}
                                             <a href="{% url 'adherent_detail' eleve.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
@@ -251,6 +265,10 @@
                                             </a>
                                             <a href="{% url 'adherent_delete' eleve.pk %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
                                                 <i class="fas fa-trash"></i>
+                                            </a>
+                                        {% elif is_codir %}
+                                            <a href="{% url 'adherent_detail' eleve.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
+                                                <i class="fas fa-eye"></i>
                                             </a>
                                         {% endif %}
                                     </div>

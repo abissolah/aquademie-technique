@@ -66,7 +66,7 @@
             </div>
         </a>
     </div>
-    
+    {% if request.user.is_staff %}
     <div class="col-md-3 mb-3">
         <a href="{% url 'seance_list' %}" class="text-decoration-none">
             <div class="card bg-warning text-white h-100 dashboard-card">
@@ -84,6 +84,7 @@
             </div>
         </a>
     </div>
+    {% endif %}
     
     <!--
     <div class="col-md-3 mb-3">
@@ -106,6 +107,7 @@
     -->
 </div>
 
+{% if request.user.is_staff %}
 <!-- Actions rapides -->
 <div class="row mb-4">
     <div class="col-12">
@@ -164,6 +166,7 @@
     </menu>
   </form>
 </dialog>
+{% endif %}
 <!-- Bloc Alertes CACI déplacé ici -->
 <div class="row mb-4">
     <div class="col-md-12">
@@ -214,7 +217,7 @@
         </div>
     </div>
 </div>
-
+{% if request.user.is_staff %}
 <div class="row mb-4">
   <div class="col-12">
     <div class="card border-warning">
@@ -270,6 +273,7 @@
 </div>
 
 <!-- Séances récentes -->
+
 <div class="row mb-4">
     <div class="col-md-6">
         <div class="card">
@@ -399,6 +403,7 @@
     </div>
   </div>
 </div>
+{% endif %}
 {% endblock %} 
 
 {% block extra_js %}
