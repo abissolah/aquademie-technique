@@ -2573,9 +2573,9 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
         # Envoi du mail
         if form.is_valid():
             destinataires = []
-            
+            ids = form.cleaned_data['inscrits_choisis']
             # Vérifier si "aucun" est sélectionné
-            if form.cleaned_data['destinataires'] == 'aucun':
+            if form.cleaned_data['destinataires'] == 'aucun' and len(ids) == 0:
                 messages.error(request, "Aucun destinataire sélectionné.")
                 return render(request, 'gestion/communication_adherents.html', {
                     'form': form,
@@ -2584,7 +2584,7 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                     'historique': historique,
                 })
             
-            ids = form.cleaned_data['inscrits_choisis']
+            
             destinataires = list(adherents_qs.filter(id__in=ids).values_list('email', flat=True))
             destinataires = [email.strip() for email in destinataires if email and email.strip()]
             destinataires = list(set(destinataires))

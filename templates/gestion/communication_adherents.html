@@ -140,6 +140,9 @@
 
 {% block extra_js %}
 <script>
+    // Variable pour savoir si l'utilisateur est staff
+    const isStaff = {% if user.is_staff %}true{% else %}false{% endif %};
+    
     // Affichage dynamique du bloc de choix des inscrits
     document.addEventListener('DOMContentLoaded', function() {
         const select = document.getElementById('id_destinataires');
@@ -175,6 +178,22 @@
         }
         select.addEventListener('change', updateBlock);
         updateBlock();
+    });
+    
+    // Masquage des modèles commençant par "MBE_" si l'utilisateur n'est pas staff
+    document.addEventListener('DOMContentLoaded', function() {
+        if (!isStaff) {
+            const selectModele = document.getElementById('id_modele');
+            if (selectModele) {
+                const options = selectModele.querySelectorAll('option');
+                options.forEach(option => {
+                    const optionText = option.textContent || option.innerText;
+                    if (optionText.startsWith('MBE_')) {
+                        option.style.display = 'none';
+                    }
+                });
+            }
+        }
     });
     // Chargement d'un modèle : remplit objet et contenu
     document.getElementById('id_modele')?.addEventListener('change', function() {
