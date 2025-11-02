@@ -2683,3 +2683,141 @@ def supprimer_historique_mail_adherents(request, mail_id):
     messages.success(request, "Entrée d'historique supprimée.")
     return redirect('adherents_communiquer')
 
+@login_required
+def suivi_inscrits_seance(request, seance_id):
+    """Vue principale pour le suivi des inscrits par section"""
+    seance = get_object_or_404(Seance, pk=seance_id)
+    sections = Section.objects.all().order_by('nom')
+    
+    context = {
+        'seance': seance,
+        'sections': sections,
+    }
+    return render(request, 'gestion/seance_suivi_inscrits.html', context)
+
+@login_required
+def api_suivi_inscrits_section(request, seance_id):
+    """API AJAX pour charger les exercices et les données des élèves selon la section"""
+    from django.db.models import Max, Count
+    
+    seance = get_object_or_404(Seance, pk=seance_id)
+    section_id = request.GET.get('section_id')
+    
+    if not section_id:
+        return JsonResponse({'error': 'section_id requis'}, status=400)
+    
+    try:
+        section = Section.objects.get(pk=section_id)
+    except Section.DoesNotExist:
+        return JsonResponse({'error': 'Section introuvable'}, status=404)
+    
+    # Récupérer les exercices de la section (via les compétences)
+    competences = Competence.objects.filter(section=section).prefetch_related('exercices')
+    exercices_ids = set()
+    for comp in competences:
+        exercices_ids.update(comp.exercices.values_list('id', flat=True))
+    
+    exercices = Exercice.objects.filter(id__in=exercices_ids).order_by('nom')
+    
+    # Récupérer les élèves inscrits à la séance ET de la section
+    inscriptions = InscriptionSeance.objects.filter(
+        seance=seance,
+        personne__statut='eleve',
+        personne__sections=section
+    ).select_related('personne')
+    
+    eleves = [ins.personne for ins in inscriptions]
+    
+    # Pour chaque exercice, préparer les données des élèves
+    result = {
+        'section_nom': section.get_nom_display(),
+        'exercices': [],
+        'eleves': []
+    }
+    
+    for exercice in exercices:
+        exercice_data = {
+            'id': exercice.id,
+            'nom': exercice.nom,
+            'eleves_data': []
+        }
+        
+        for eleve in eleves:
+            # Récupérer toutes les évaluations de cet élève pour cet exercice (toutes séances confondues)
+            evaluations = EvaluationExercice.objects.filter(
+                eleve=eleve,
+                exercice=exercice
+            ).order_by('-date_evaluation')
+            
+            # Trouver la note maximale
+            note_max = None
+            if evaluations.exists():
+                note_max = evaluations.aggregate(Max('note'))['note__max']
+            
+            # Compter le nombre d'évaluations avec cette note maximale
+            nb_eval_max = 0
+            if note_max:
+                nb_eval_max = evaluations.filter(note=note_max).count()
+            
+            # Dernière évaluation
+            derniere_eval = evaluations.first()
+            
+            eleve_data = {
+                'id': eleve.id,
+                'nom': eleve.nom,
+                'prenom': eleve.prenom,
+                'nom_complet': eleve.nom_complet,
+                'note_max': note_max,
+                'nb_eval_max': nb_eval_max,
+                'commentaire': derniere_eval.commentaire if derniere_eval else '',
+                'date_derniere_eval': derniere_eval.date_evaluation.strftime('%d/%m/%Y') if derniere_eval and derniere_eval.date_evaluation else '',
+                'has_evaluation': evaluations.exists()
+            }
+            
+            exercice_data['eleves_data'].append(eleve_data)
+        
+        result['exercices'].append(exercice_data)
+    
+    # Liste des élèves pour référence
+    result['eleves'] = [
+        {'id': e.id, 'nom': e.nom, 'prenom': e.prenom, 'nom_complet': e.nom_complet}
+        for e in eleves
+    ]
+    
+    return JsonResponse(result)
+
+@login_required
+def api_historique_eleve_exercice(request, eleve_id, exercice_id):
+    """API AJAX pour charger l'historique complet d'un élève pour un exercice"""
+    eleve = get_object_or_404(Adherent, pk=eleve_id, statut='eleve')
+    exercice = get_object_or_404(Exercice, pk=exercice_id)
+    
+    # Récupérer toutes les évaluations de cet élève pour cet exercice
+    evaluations = EvaluationExercice.objects.filter(
+        eleve=eleve,
+        exercice=exercice
+    ).select_related('palanquee__seance', 'encadrant').order_by('-date_evaluation')
+    
+    result = {
+        'eleve_nom': eleve.nom_complet,
+        'exercice_nom': exercice.nom,
+        'evaluations': []
+    }
+    
+    for eval in evaluations:
+        eval_data = {
+            'id': eval.id,
+            'date': eval.date_evaluation.strftime('%d/%m/%Y %H:%M'),
+            'seance_date': eval.palanquee.seance.date.strftime('%d/%m/%Y'),
+            'palanquee_nom': eval.palanquee.nom,
+            'note': eval.note,
+            'note_display': dict(EvaluationExercice._meta.get_field('note').flatchoices).get(eval.note, '') if eval.note else '',
+            'etoiles': '*' * (eval.note or 0),
+            'raison_non_realise': dict(EvaluationExercice.RAISON_NON_REALISE_CHOICES).get(eval.raison_non_realise, '') if eval.raison_non_realise else '',
+            'commentaire': eval.commentaire,
+            'encadrant': eval.encadrant.nom_complet if eval.encadrant else ''
+        }
+        result['evaluations'].append(eval_data)
+    
+    return JsonResponse(result)
+

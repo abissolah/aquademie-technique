@@ -15,3 +15,6 @@ DROP CONSTRAINT IF EXISTS gestion_evaluationexercice_eleve_id_exercice_id_024bf4
 -- Si le nom de la contrainte est différent, utilisez cette syntaxe :
 -- ALTER TABLE gestion_evaluationexercice 
 -- DROP CONSTRAINT nom_exact_de_la_contrainte;
+
+
+

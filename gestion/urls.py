@@ -90,6 +90,9 @@ urlpatterns = [
     path('seances/<int:seance_id>/envoyer-mail-covoiturage/', views.envoyer_mail_covoiturage, name='envoyer_mail_covoiturage'),
     path('seances/<int:seance_id>/envoyer-liens-evaluation/', views.envoyer_liens_evaluation_encadrants, name='envoyer_liens_evaluation_encadrants'),
     path('seances/<int:pk>/communiquer/', CommunicationSeanceView.as_view(), name='seance_communiquer'),
+    path('seances/<int:seance_id>/suivi-inscrits/', views.suivi_inscrits_seance, name='suivi_inscrits_seance'),
+    path('seances/<int:seance_id>/api/suivi-inscrits-section/', views.api_suivi_inscrits_section, name='api_suivi_inscrits_section'),
+    path('api/historique-eleve-exercice/<int:eleve_id>/<int:exercice_id>/', views.api_historique_eleve_exercice, name='api_historique_eleve_exercice'),
     
     # Palanquées
     path('palanquees/', PalanqueeListView.as_view(), name='palanquee_list'),

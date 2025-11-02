@@ -311,6 +311,7 @@ class EvaluationExercice(models.Model):
         ('temps', 'A court de temps'),
         ('apprehension', 'Apprehension'),
         ('refus', "Refus de l'eleve"),
+        ('autre', 'Autre'),
     ]
     
     palanquee = models.ForeignKey(Palanquee, on_delete=models.CASCADE, related_name='evaluations_exercices')
