@@ -2747,7 +2747,7 @@ def api_suivi_inscrits_section(request, seance_id):
             evaluations = EvaluationExercice.objects.filter(
                 eleve=eleve,
                 exercice=exercice
-            ).order_by('-date_evaluation')
+            ).select_related('encadrant').order_by('-date_evaluation')
             
             # Trouver la note maximale
             note_max = None
@@ -2756,10 +2756,14 @@ def api_suivi_inscrits_section(request, seance_id):
             
             # Compter le nombre d'évaluations avec cette note maximale
             nb_eval_max = 0
+            derniere_eval_max = None
             if note_max:
-                nb_eval_max = evaluations.filter(note=note_max).count()
+                evals_max = evaluations.filter(note=note_max).order_by('-date_evaluation')
+                nb_eval_max = evals_max.count()
+                # Dernière évaluation avec la note maximale
+                derniere_eval_max = evals_max.first()
             
-            # Dernière évaluation
+            # Dernière évaluation (toutes notes confondues)
             derniere_eval = evaluations.first()
             
             eleve_data = {
@@ -2771,6 +2775,7 @@ def api_suivi_inscrits_section(request, seance_id):
                 'nb_eval_max': nb_eval_max,
                 'commentaire': derniere_eval.commentaire if derniere_eval else '',
                 'date_derniere_eval': derniere_eval.date_evaluation.strftime('%d/%m/%Y') if derniere_eval and derniere_eval.date_evaluation else '',
+                'encadrant_max': derniere_eval_max.encadrant.nom_complet if derniere_eval_max and derniere_eval_max.encadrant else '',
                 'has_evaluation': evaluations.exists()
             }
             

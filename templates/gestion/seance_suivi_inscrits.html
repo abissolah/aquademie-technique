@@ -127,10 +127,23 @@ $(document).ready(function() {
                             html += '<th>Statut</th>';
                             html += '<th>Commentaire</th>';
                             html += '<th>Date dernière évaluation</th>';
+                            html += '<th>Encadrant</th>';
                             html += '<th>Actions</th>';
                             html += '</tr>';
                             html += '</thead>';
                             html += '<tbody>';
+                            
+                            // Trier les élèves : d'abord par nombre d'étoiles (décroissant), puis par nom alphabétique
+                            exercice.eleves_data.sort(function(a, b) {
+                                // Tri par note maximale (décroissant) - les plus hautes notes en premier
+                                const noteA = a.note_max !== null && a.note_max !== undefined ? a.note_max : 0;
+                                const noteB = b.note_max !== null && b.note_max !== undefined ? b.note_max : 0;
+                                if (noteB !== noteA) {
+                                    return noteB - noteA; // Décroissant
+                                }
+                                // Si même nombre d'étoiles, tri par nom alphabétique
+                                return a.nom_complet.localeCompare(b.nom_complet);
+                            });
                             
                             exercice.eleves_data.forEach(function(eleveData) {
                                 html += '<tr>';
@@ -165,6 +178,7 @@ $(document).ready(function() {
                                 
                                 html += '<td>' + (eleveData.commentaire || '-') + '</td>';
                                 html += '<td>' + (eleveData.date_derniere_eval || '-') + '</td>';
+                                html += '<td>' + (eleveData.encadrant_max || '-') + '</td>';
                                 
                                 // Bouton historique
                                 if (eleveData.has_evaluation) {
