@@ -30,14 +30,14 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for ins in adherents %}
+                                {% for adherent, is_codir in adherents_avec_codir %}
                                 <tr>
-                                    <td><input type="checkbox" name="inscrits_choisis" value="{{ ins.id }}" statut="{{ ins.statut }}" sections="{{ ins.sections.all.0.nom }}" personne="{{ ins.type_personne }}"></td>
-                                    <td>{{ ins.nom }}</td>
-                                    <td>{{ ins.prenom }}</td>
-                                    <td>{{ ins.email }}</td>
+                                    <td><input type="checkbox" name="inscrits_choisis" value="{{ adherent.id }}" statut="{{ adherent.statut }}" sections="{{ adherent.sections.all.0.nom }}" personne="{{ adherent.type_personne }}" data-codir="{% if is_codir %}1{% else %}0{% endif %}"></td>
+                                    <td>{{ adherent.nom }}</td>
+                                    <td>{{ adherent.prenom }}</td>
+                                    <td>{{ adherent.email }}</td>
                                     <td>
-                                        {% for section in ins.sections.all %}
+                                        {% for section in adherent.sections.all %}
                                             <span class="badge bg-primary">{{ section }}</span>{% if not forloop.last %}, {% endif %}
                                         {% empty %}
                                             <span class="text-muted">Aucune</span>
@@ -157,6 +157,11 @@
             } else if (select.value === 'tous') {
                 
                 block.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = true);
+            } else if (select.value === 'membres_du_codir') {
+                // Cocher uniquement les membres du codir
+                block.querySelectorAll('input[type=checkbox]').forEach(cb => {
+                    cb.checked = cb.getAttribute('data-codir') === '1';
+                });
             } else {
                 const type = select.value.split('_')[0];
                 const filtre = select.value.replace(type + '_', '');

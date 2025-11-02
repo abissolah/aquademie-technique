@@ -543,6 +543,7 @@ ADHERENTS_DESTINATAIRES_CHOICES = [
     ("personne_adherent", "Tous les adhérents"),
     ("statut_encadrant", "Tous les encadrants"),
     ("statut_eleve", "Tous les élèves"),
+    ("membres_du_codir", "Membres du codir"),
     ("section_prepa_niveau1", "Les élèves de la section PN1 (prépa niveau 1)"),
     ("section_prepa_niveau2", "Les élèves de la section PN2 (prépa niveau 2)"),
     ("section_prepa_niveau3", "Les élèves de la section PN3 (prépa niveau 3)"),

@@ -2511,7 +2511,15 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
         from .utils import can_access_dashboard
         if not can_access_dashboard(request.user):
             return redirect('login')
-        adherents_qs = Adherent.objects.filter(actif=True).order_by('nom', 'prenom')
+        adherents_qs = Adherent.objects.filter(actif=True).select_related('user').prefetch_related('user__groups').order_by('nom', 'prenom')
+        # Préparer les données pour identifier les membres codir
+        adherents_avec_codir = []
+        for adherent in adherents_qs:
+            is_codir = False
+            if adherent.user:
+                is_codir = adherent.user.groups.filter(name='codir').exists()
+            adherents_avec_codir.append((adherent, is_codir))
+        
         adherents_choices = [
             (str(a.id), f"{a.nom.upper()} {a.prenom.capitalize()} ({a.email})")
             for a in adherents_qs
@@ -2522,6 +2530,7 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
         return render(request, 'gestion/communication_adherents.html', {
             'form': form,
             'adherents': adherents_qs,
+            'adherents_avec_codir': adherents_avec_codir,
             'modeles': modeles,
             'historique': historique,
         })
@@ -2530,7 +2539,15 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
         from .utils import can_access_dashboard
         if not can_access_dashboard(request.user):
             return redirect('login')
-        adherents_qs = Adherent.objects.filter(actif=True).order_by('nom', 'prenom')
+        adherents_qs = Adherent.objects.filter(actif=True).select_related('user').prefetch_related('user__groups').order_by('nom', 'prenom')
+        # Préparer les données pour identifier les membres codir
+        adherents_avec_codir = []
+        for adherent in adherents_qs:
+            is_codir = False
+            if adherent.user:
+                is_codir = adherent.user.groups.filter(name='codir').exists()
+            adherents_avec_codir.append((adherent, is_codir))
+        
         adherents_choices = [
             (str(a.id), f"{a.nom.upper()} {a.prenom.capitalize()} ({a.email})")
             for a in adherents_qs
@@ -2566,6 +2583,7 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                 return render(request, 'gestion/communication_adherents.html', {
                     'form': form,
                     'adherents': adherents_qs,
+                    'adherents_avec_codir': adherents_avec_codir,
                     'modeles': modeles,
                     'historique': historique,
                 })
@@ -2580,6 +2598,7 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                 return render(request, 'gestion/communication_adherents.html', {
                     'form': form,
                     'adherents': adherents_qs,
+                    'adherents_avec_codir': adherents_avec_codir,
                     'modeles': modeles,
                     'historique': historique,
                 })
@@ -2593,6 +2612,7 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                 return render(request, 'gestion/communication_adherents.html', {
                     'form': form,
                     'adherents': adherents_qs,
+                    'adherents_avec_codir': adherents_avec_codir,
                     'modeles': modeles,
                     'historique': historique,
                 })
@@ -2602,6 +2622,7 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                 return render(request, 'gestion/communication_adherents.html', {
                     'form': form,
                     'adherents': adherents_qs,
+                    'adherents_avec_codir': adherents_avec_codir,
                     'modeles': modeles,
                     'historique': historique,
                 })
@@ -2657,6 +2678,7 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
             return render(request, 'gestion/communication_adherents.html', {
                 'form': form,
                 'adherents': adherents_qs,
+                'adherents_avec_codir': adherents_avec_codir,
                 'modeles': modeles,
                 'historique': historique,
             })
