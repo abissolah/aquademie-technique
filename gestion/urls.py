@@ -93,6 +93,7 @@ urlpatterns = [
     path('seances/<int:seance_id>/suivi-inscrits/', views.suivi_inscrits_seance, name='suivi_inscrits_seance'),
     path('seances/<int:seance_id>/api/suivi-inscrits-section/', views.api_suivi_inscrits_section, name='api_suivi_inscrits_section'),
     path('api/historique-eleve-exercice/<int:eleve_id>/<int:exercice_id>/', views.api_historique_eleve_exercice, name='api_historique_eleve_exercice'),
+    path('seances/<int:seance_id>/changer-role-inscription/', views.changer_role_inscription_seance, name='changer_role_inscription_seance'),
     
     # Palanquées
     path('palanquees/', PalanqueeListView.as_view(), name='palanquee_list'),

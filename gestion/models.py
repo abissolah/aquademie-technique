@@ -276,11 +276,21 @@ class InscriptionSeance(models.Model):
         ("propose", "Je peux proposer du covoiturage"),
         ("besoin", "J'aurai besoin de covoiturage"),
     ]
+    ROLE_POUR_SEANCE_CHOICES = [
+        ("encadrant", "Encadrant"),
+        ("eleve", "Passer en élève pour la séance"),
+    ]
     seance = models.ForeignKey('Seance', on_delete=models.CASCADE, related_name='inscriptions')
     personne = models.ForeignKey('Adherent', on_delete=models.CASCADE, related_name='inscriptions_seance')
     date_inscription = models.DateTimeField(auto_now_add=True)
     covoiturage = models.CharField(max_length=10, choices=COVOITURAGE_CHOICES, blank=True, null=True, verbose_name="Covoiturage")
     lieu_covoiturage = models.CharField(max_length=200, blank=True, null=True, verbose_name="Lieu de prise en charge du covoiturage")
+    role_pour_seance = models.CharField(
+        max_length=20,
+        choices=ROLE_POUR_SEANCE_CHOICES,
+        default="encadrant",
+        verbose_name="Rôle pour cette séance"
+    )
     class Meta:
         unique_together = ('seance', 'personne')
     def __str__(self):

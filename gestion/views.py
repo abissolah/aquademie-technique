@@ -1413,8 +1413,10 @@ def importer_palanquees_seance(request, seance_id):
 def creer_palanquees(request, seance_id):
     seance = get_object_or_404(Seance, pk=seance_id)
     inscrits = seance.inscriptions.select_related('personne').all()
-    eleves = [i.personne for i in inscrits if i.personne.statut == 'eleve']
-    encadrants = [i.personne for i in inscrits if i.personne.statut == 'encadrant']
+    # Élèves : ceux qui ont le statut 'eleve' OU les encadrants passés en élève pour cette séance
+    eleves = [i.personne for i in inscrits if i.personne.statut == 'eleve' or (i.personne.statut == 'encadrant' and i.role_pour_seance == 'eleve')]
+    # Encadrants : ceux qui ont le statut 'encadrant' ET qui ne sont pas passés en élève pour cette séance
+    encadrants = [i.personne for i in inscrits if i.personne.statut == 'encadrant' and i.role_pour_seance != 'eleve']
 
     if request.method == 'POST':
         from django.db import transaction
@@ -1501,6 +1503,16 @@ def creer_palanquees(request, seance_id):
                             if not section or (hasattr(e, 'niveau') and (niveau_min is None or e.niveau < niveau_min)):
                                 section = s
                                 niveau_min = e.niveau
+                    # Si aucun élève n'a de section, essayer d'utiliser la section de l'encadrant
+                    if not section:
+                        section = moniteur.sections.first()
+                    # Si toujours pas de section, utiliser la première section disponible
+                    if not section:
+                        from .models import Section
+                        section = Section.objects.first()
+                    # Si toujours pas de section, lever une erreur
+                    if not section:
+                        raise ValueError(f"Impossible de créer la palanquée pour {moniteur.nom} {moniteur.prenom} : aucun élève n'a de section et aucune section n'est disponible dans le système.")
                     palanquee = Palanquee.objects.create(
                         nom=f"Palanquée {moniteur.nom} {moniteur.prenom}",
                         seance=seance,
@@ -1527,6 +1539,13 @@ def creer_palanquees(request, seance_id):
                             if not section or (hasattr(e, 'niveau') and (niveau_min is None or e.niveau < niveau_min)):
                                 section = s
                                 niveau_min = e.niveau
+                    # Si aucun élève n'a de section, utiliser la première section disponible
+                    if not section:
+                        from .models import Section
+                        section = Section.objects.first()
+                    # Si toujours pas de section, lever une erreur
+                    if not section:
+                        raise ValueError(f"Impossible de créer la palanquée autonome n°{num} : aucun élève n'a de section et aucune section n'est disponible dans le système.")
                     # Récupérer profondeur et durée pour cette colonne autonome
                     prof = request.POST.get(f'profondeur_max_autonome_{num}')
                     duree = request.POST.get(f'duree_max_autonome_{num}')
@@ -1549,7 +1568,12 @@ def creer_palanquees(request, seance_id):
             return redirect('seance_detail', seance_id)
         except Exception as e:
             from django.contrib import messages
-            messages.error(request, f"Erreur lors de la création des palanquées : {e}")
+            error_message = str(e)
+            # Message d'erreur plus explicite pour les problèmes de section
+            if 'section' in error_message.lower() or 'NOT NULL constraint failed: gestion_palanquee.section_id' in error_message:
+                messages.error(request, f"Erreur lors de la création des palanquées : Un ou plusieurs participants (élèves ou encadrants passés en élève) n'ont pas de section assignée. Veuillez assigner une section à tous les participants avant de créer les palanquées.")
+            else:
+                messages.error(request, f"Erreur lors de la création des palanquées : {error_message}")
             return render(request, 'gestion/creer_palanquees.html', {
                 'seance': seance, 'eleves': eleves, 'encadrants': encadrants
             })
@@ -1934,6 +1958,41 @@ def dupliquer_exercices_palanquee(request):
         return JsonResponse({'success': True})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+@csrf_exempt
+@require_POST
+@login_required
+def changer_role_inscription_seance(request, seance_id):
+    import json
+    from django.http import JsonResponse
+    from .models import InscriptionSeance
+    
+    try:
+        data = json.loads(request.body)
+        inscription_id = int(data.get('inscription_id'))
+        role = data.get('role')
+        
+        # Vérifier que le rôle est valide
+        if role not in ['encadrant', 'eleve']:
+            return JsonResponse({'success': False, 'error': 'Rôle invalide'})
+        
+        # Récupérer l'inscription
+        inscription = get_object_or_404(InscriptionSeance, pk=inscription_id, seance_id=seance_id)
+        
+        # Vérifier que la personne est bien un encadrant
+        if inscription.personne.statut != 'encadrant':
+            return JsonResponse({'success': False, 'error': 'Cette fonctionnalité est uniquement pour les encadrants'})
+        
+        # Sauvegarder l'ancien rôle pour le retour en cas d'erreur
+        ancien_role = inscription.role_pour_seance
+        
+        # Mettre à jour le rôle
+        inscription.role_pour_seance = role
+        inscription.save()
+        
+        return JsonResponse({'success': True, 'role': role})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e), 'previous_role': ancien_role if 'ancien_role' in locals() else 'encadrant'})
 
 @login_required
 def envoyer_pdf_palanquees_encadrants(request, seance_id):

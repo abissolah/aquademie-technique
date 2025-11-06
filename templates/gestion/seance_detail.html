@@ -284,13 +284,14 @@
                         <th>Statut</th>
                         <th>Date d'établissement du CACI</th>
                         <th>Adhérent</th>
+                        <th>Rôle pour la séance</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% if inscrits_encadrants %}
                     <tr class="table-secondary">
-                        <td colspan="9"><strong>Encadrants</strong> <span class="badge bg-info ms-2">{{ nb_encadrants }}</span></td>
+                        <td colspan="10"><strong>Encadrants</strong> <span class="badge bg-info ms-2">{{ nb_encadrants }}</span></td>
                     </tr>
                     {% for ins in inscrits_encadrants %}
                     <tr>
@@ -302,6 +303,12 @@
                         <td>{% if ins.personne.date_delivrance_caci %}{{ ins.personne.date_delivrance_caci|date:"d/m/Y" }}{% else %}-{% endif %}</td>
                         <td>{% if ins.is_adherent %}Oui{% else %}Non{% endif %}</td>
                         <td>
+                            <select class="form-select form-select-sm role-pour-seance" data-inscription-id="{{ ins.id }}" style="min-width: 200px;">
+                                <option value="encadrant" {% if ins.role_pour_seance == 'encadrant' %}selected{% endif %}>Encadrant</option>
+                                <option value="eleve" {% if ins.role_pour_seance == 'eleve' %}selected{% endif %}>Passer en élève pour la séance</option>
+                            </select>
+                        </td>
+                        <td>
                             <form method="post" action="{% url 'supprimer_inscription_seance' ins.id %}" style="display:inline;">
                                 {% csrf_token %}
                                 <button class="btn btn-sm btn-outline-danger" title="Supprimer l'inscription"><i class="fas fa-trash"></i></button>
@@ -312,7 +319,7 @@
                     {% endif %}
                     {% if inscrits_eleves %}
                     <tr class="table-secondary">
-                        <td colspan="9"><strong>Élèves</strong> <span class="badge bg-success ms-2">{{ nb_eleves }}</span></td>
+                        <td colspan="10"><strong>Élèves</strong> <span class="badge bg-success ms-2">{{ nb_eleves }}</span></td>
                     </tr>
                     {% for ins in inscrits_eleves %}
                     <tr>
@@ -447,6 +454,49 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(() => alert('Erreur lors de la duplication.'));
         });
     }
+    
+    // Gestion du changement de rôle pour la séance
+    document.querySelectorAll('.role-pour-seance').forEach(function(select) {
+        select.addEventListener('change', function() {
+            const inscriptionId = this.dataset.inscriptionId;
+            const role = this.value;
+            const selectElement = this;
+            
+            // Désactiver le select pendant la requête
+            selectElement.disabled = true;
+            
+            fetch("{% url 'changer_role_inscription_seance' seance.pk %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+                body: JSON.stringify({ 
+                    inscription_id: inscriptionId,
+                    role: role
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Optionnel : afficher un message de succès
+                    // On peut recharger la page pour mettre à jour les compteurs
+                    location.reload();
+                } else {
+                    alert(data.error || 'Erreur lors de la mise à jour du rôle.');
+                    // Restaurer la valeur précédente en cas d'erreur
+                    selectElement.value = data.previous_role || 'encadrant';
+                }
+            })
+            .catch(function(error) {
+                alert('Erreur lors de la mise à jour du rôle.');
+                selectElement.value = 'encadrant';
+            })
+            .finally(function() {
+                selectElement.disabled = false;
+            });
+        });
+    });
 });
 </script>
 <dialog id="dupliquerExercicesDialog">
