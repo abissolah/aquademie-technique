@@ -1418,29 +1418,40 @@ def creer_palanquees(request, seance_id):
     # Encadrants : ceux qui ont le statut 'encadrant' ET qui ne sont pas passés en élève pour cette séance
     encadrants = [i.personne for i in inscrits if i.personne.statut == 'encadrant' and i.role_pour_seance != 'eleve']
     existing_palanquees = seance.palanques.order_by('id').select_related('encadrant').prefetch_related('eleves', 'palanqueeeleve_set__eleve')
-    encadrant_settings = {moniteur.id: {'profondeur_max': None, 'duree_max': 40} for moniteur in encadrants}
+    encadrant_settings = {
+        moniteur.id: {'profondeur_max': None, 'duree_max': 40, 'palanquee_id': None}
+        for moniteur in encadrants
+    }
     existing_affectations = {}
     autonomes_data = []
     existing_aptitudes = {}
     autonome_counter = 0
+    existing_mon_palanquees = {}
+    existing_autonome_map = {}
     for palanquee in existing_palanquees:
         for palanquee_eleve in palanquee.palanqueeeleve_set.all():
             if palanquee_eleve.aptitude:
                 existing_aptitudes[palanquee_eleve.eleve_id] = palanquee_eleve.aptitude
         if palanquee.encadrant_id:
-            encadrant_settings[palanquee.encadrant_id] = {
-                'profondeur_max': palanquee.profondeur_max,
-                'duree_max': palanquee.duree
-            }
+            existing_mon_palanquees[palanquee.encadrant_id] = palanquee
+            settings = encadrant_settings.get(palanquee.encadrant_id)
+            if settings is None:
+                settings = {'profondeur_max': None, 'duree_max': 40, 'palanquee_id': None}
+                encadrant_settings[palanquee.encadrant_id] = settings
+            settings['profondeur_max'] = palanquee.profondeur_max
+            settings['duree_max'] = palanquee.duree if palanquee.duree is not None else 40
+            settings['palanquee_id'] = palanquee.id
             for eleve in palanquee.eleves.all():
                 existing_affectations.setdefault(eleve.id, set()).add(palanquee.encadrant_id)
         else:
             autonome_counter += 1
+            existing_autonome_map[autonome_counter] = palanquee
             autonomes_data.append({
                 'num': autonome_counter,
                 'eleves': [eleve.id for eleve in palanquee.eleves.all()],
                 'profondeur_max': palanquee.profondeur_max,
-                'duree_max': palanquee.duree
+                'duree_max': palanquee.duree,
+                'palanquee_id': palanquee.id
             })
     existing_affectations = {k: list(v) for k, v in existing_affectations.items()}
     autonome_count = len(autonomes_data)
@@ -1508,55 +1519,71 @@ def creer_palanquees(request, seance_id):
         #         'seance': seance, 'eleves': eleves, 'encadrants': encadrants,
         #         'eleves_non_aff': eleves_non_aff, 'demande_confirmation': True
         #     })
-        # Création des palanquées (on ajoute, on ne supprime pas les existantes)
         try:
             with transaction.atomic():
-                # Supprimer les palanquées existantes avant de recréer selon le formulaire
-                Palanquee.objects.filter(seance=seance).delete()
+                used_palanquee_ids = set()
+                deleted_palanquee_ids = set()
                 # Regrouper les élèves par moniteur
                 groupes = {}
                 for eid, mid in affectations.items():
                     if mid:
                         groupes.setdefault(mid, []).append(eid)
                 for moniteur in encadrants:
-                    if moniteur.id not in groupes:
-                        continue
-                    eleves_ids = groupes[moniteur.id]
-                    eleves_objs = [e for e in eleves if str(e.id) in eleves_ids]
-                    # Section la plus faible des élèves
-                    section = None
-                    niveau_min = None
-                    for e in eleves_objs:
-                        s = e.sections.first()
-                        if s:
-                            if not section or (hasattr(e, 'niveau') and (niveau_min is None or e.niveau < niveau_min)):
-                                section = s
-                                niveau_min = e.niveau
-                    # Si aucun élève n'a de section, essayer d'utiliser la section de l'encadrant
-                    if not section:
-                        section = moniteur.sections.first()
-                    # Si toujours pas de section, utiliser la première section disponible
-                    if not section:
-                        from .models import Section
-                        section = Section.objects.first()
-                    # Si toujours pas de section, lever une erreur
-                    if not section:
-                        raise ValueError(f"Impossible de créer la palanquée pour {moniteur.nom} {moniteur.prenom} : aucun élève n'a de section et aucune section n'est disponible dans le système.")
-                    palanquee = Palanquee.objects.create(
-                        nom=f"Palanquée {moniteur.nom} {moniteur.prenom}",
-                        seance=seance,
-                        section=section,
-                        encadrant=moniteur,
-                        precision_exercices='',
-                        profondeur_max=profs[moniteur.id],
-                        duree=durees[moniteur.id]
-                    )
-                    for eid in eleves_ids:
-                        aptitude = palanquees_data[eid]['aptitude']
-                        PalanqueeEleve.objects.create(palanquee=palanquee, eleve_id=eid, aptitude=aptitude)
+                    eleves_ids = groupes.get(moniteur.id, [])
+                    palanquee_obj = existing_mon_palanquees.get(moniteur.id)
+                    if eleves_ids:
+                        eleves_objs = [e for e in eleves if str(e.id) in eleves_ids]
+                        section = None
+                        niveau_min = None
+                        for e in eleves_objs:
+                            s = e.sections.first()
+                            if s:
+                                if not section or (hasattr(e, 'niveau') and (niveau_min is None or e.niveau < niveau_min)):
+                                    section = s
+                                    niveau_min = e.niveau
+                        if not section:
+                            section = moniteur.sections.first()
+                        if not section:
+                            from .models import Section
+                            section = Section.objects.first()
+                        if not section:
+                            raise ValueError(f"Impossible de créer la palanquée pour {moniteur.nom} {moniteur.prenom} : aucun élève n'a de section et aucune section n'est disponible dans le système.")
+                        profondeur_max = profs.get(moniteur.id)
+                        duree_max = durees.get(moniteur.id)
+                        if palanquee_obj:
+                            palanquee_obj.section = section
+                            palanquee_obj.encadrant = moniteur
+                            palanquee_obj.profondeur_max = profondeur_max
+                            palanquee_obj.duree = duree_max
+                            palanquee_obj.save()
+                            PalanqueeEleve.objects.filter(palanquee=palanquee_obj).delete()
+                            palanquee = palanquee_obj
+                        else:
+                            palanquee = Palanquee.objects.create(
+                                nom=f"Palanquée {moniteur.nom} {moniteur.prenom}",
+                                seance=seance,
+                                section=section,
+                                encadrant=moniteur,
+                                precision_exercices='',
+                                profondeur_max=profondeur_max,
+                                duree=duree_max
+                            )
+                        for eid in eleves_ids:
+                            aptitude = palanquees_data[eid]['aptitude']
+                            PalanqueeEleve.objects.create(palanquee=palanquee, eleve_id=int(eid), aptitude=aptitude)
+                        used_palanquee_ids.add(palanquee.id)
+                    else:
+                        if palanquee_obj:
+                            palanquee_obj.delete()
+                            deleted_palanquee_ids.add(palanquee_obj.id)
                 # Création des palanquées autonomes
                 for num, eids in autonomes_groupes.items():
                     if not eids:
+                        num_int = int(num)
+                        pal = existing_autonome_map.get(num_int)
+                        if pal:
+                            pal.delete()
+                            deleted_palanquee_ids.add(pal.id)
                         continue
                     eleves_objs = [e for e in eleves if str(e.id) in eids]
                     # Section la plus faible des élèves
@@ -1580,18 +1607,33 @@ def creer_palanquees(request, seance_id):
                     duree = request.POST.get(f'duree_max_autonome_{num}')
                     profondeur_max = int(prof) if prof else None
                     duree_max = int(duree) if duree else None
-                    palanquee = Palanquee.objects.create(
-                        nom=f"Palanquée autonomes n°{num}",
-                        seance=seance,
-                        section=section,
-                        encadrant=None,
-                        precision_exercices='',
-                        profondeur_max=profondeur_max,
-                        duree=duree_max
-                    )
+                    num_int = int(num)
+                    palanquee_obj = existing_autonome_map.get(num_int)
+                    if palanquee_obj:
+                        palanquee_obj.section = section
+                        palanquee_obj.encadrant = None
+                        palanquee_obj.profondeur_max = profondeur_max
+                        palanquee_obj.duree = duree_max
+                        palanquee_obj.save()
+                        PalanqueeEleve.objects.filter(palanquee=palanquee_obj).delete()
+                        palanquee = palanquee_obj
+                    else:
+                        palanquee = Palanquee.objects.create(
+                            nom=f"Palanquée autonomes n°{num}",
+                            seance=seance,
+                            section=section,
+                            encadrant=None,
+                            precision_exercices='',
+                            profondeur_max=profondeur_max,
+                            duree=duree_max
+                        )
                     for eid in eids:
                         aptitude = palanquees_data[eid]['aptitude']
-                        PalanqueeEleve.objects.create(palanquee=palanquee, eleve_id=eid, aptitude=aptitude)
+                        PalanqueeEleve.objects.create(palanquee=palanquee, eleve_id=int(eid), aptitude=aptitude)
+                    used_palanquee_ids.add(palanquee.id)
+                for pal in existing_palanquees:
+                    if pal.id not in used_palanquee_ids and pal.id not in deleted_palanquee_ids:
+                        pal.delete()
             from django.contrib import messages
             messages.success(request, "Palanquées créées avec succès.")
             return redirect('seance_detail', seance_id)
