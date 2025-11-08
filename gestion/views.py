@@ -1297,7 +1297,7 @@ def export_adherents_excel(request):
     # Colonnes de base + section
     colonnes = [
         'Nom', 'Prénom', 'Email', 'Téléphone', 'Adresse', 'Code postal', 'Ville',
-        'Numéro de licence', 'Assurance', 'Date délivrance CACI', 'Niveau', 'Statut', 'Section'
+        'Numéro de licence', 'Assurance', 'Date délivrance CACI', 'Niveau', 'Statut', 'Section', 'Date de naissance'
     ]
 
     def adherent_to_dict(a):
@@ -1315,6 +1315,7 @@ def export_adherents_excel(request):
             'Niveau': a.get_niveau_display() if hasattr(a, 'get_niveau_display') else a.niveau,
             'Statut': a.get_statut_display() if hasattr(a, 'get_statut_display') else a.statut,
             'Section': ', '.join([s.get_nom_display() for s in a.sections.all()]),
+            'Date de naissance': a.date_naissance,
         }
 
     # Création des DataFrames
