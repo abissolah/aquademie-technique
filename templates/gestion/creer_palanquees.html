@@ -14,7 +14,7 @@
         <div class="table-responsive">
             <table class="table table-bordered align-middle" id="table-palanquees">
                 <thead>
-                    <tr data-eleve-id="{{ eleve.id }}">
+                    <tr>
                         <th class="sticky-col sticky-col-1">Nom Prénom</th>
                         <th class="sticky-col sticky-col-2">Niveau</th>
                         <th class="sticky-col sticky-col-3">Section</th>
@@ -44,7 +44,7 @@
                 </thead>
                 <tbody>
                     {% for eleve in eleves %}
-                    <tr>
+                    <tr data-eleve-id="{{ eleve.id }}">
                         <td class="sticky-col sticky-col-1">{{ eleve.nom }} {{ eleve.prenom }}</td>
                         <td class="sticky-col sticky-col-2">{{ eleve.get_niveau_display }}</td>
                         <td class="sticky-col sticky-col-3">{% for s in eleve.sections.all %}<span class="badge bg-info me-1">{{ s.get_nom_display }}</span>{% endfor %}</td>
@@ -91,8 +91,25 @@
         </div>
     </form>
 </div>
+<style>
+tr.eleve-assigne > td,
+tr.eleve-assigne > th {
+    background-color: #dff5d8 !important;
+}
+tr.eleve-assigne .sticky-col {
+    background-color: #dff5d8 !important;
+}
+</style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    function updateEleveRowHighlight(eleveId) {
+        const row = document.querySelector(`tr[data-eleve-id="${eleveId}"]`);
+        if (!row) return;
+        const relatedCheckboxes = document.querySelectorAll(`[data-eleve="${eleveId}"]`);
+        const isChecked = Array.from(relatedCheckboxes).some(cb => cb.checked);
+        row.classList.toggle('eleve-assigne', isChecked);
+    }
+
     const table = document.getElementById('table-palanquees');
     const addAutonomeBtn = document.getElementById('add-autonome-col');
     let autonomeCount = {{ autonome_count|default:0 }};
@@ -120,6 +137,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
             updateCheckboxState(eleveId);
+            updateEleveRowHighlight(eleveId);
         });
     };
 
@@ -133,6 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
         eleveIds.add(cb.dataset.eleve);
     });
     eleveIds.forEach(updateCheckboxState);
+    eleveIds.forEach(updateEleveRowHighlight);
 
     addAutonomeBtn.addEventListener('click', function() {
         autonomeCount++;
@@ -160,6 +179,7 @@ document.addEventListener('DOMContentLoaded', function() {
             td.appendChild(checkbox);
             row.appendChild(td);
             updateCheckboxState(eleveId);
+            updateEleveRowHighlight(eleveId);
         });
     });
 
