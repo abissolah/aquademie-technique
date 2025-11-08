@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load gestion_extras %}
 {% block title %}Créer les palanquées - {{ seance.date|date:'d/m/Y' }}{% endblock %}
 {% block content %}
 <div class="container mt-4">
@@ -13,22 +14,32 @@
         <div class="table-responsive">
             <table class="table table-bordered align-middle" id="table-palanquees">
                 <thead>
-                    <tr>
+                    <tr data-eleve-id="{{ eleve.id }}">
                         <th class="sticky-col sticky-col-1">Nom Prénom</th>
                         <th class="sticky-col sticky-col-2">Niveau</th>
                         <th class="sticky-col sticky-col-3">Section</th>
                         <th class="sticky-col sticky-col-4">Aptitude</th>
                         {% for moniteur in encadrants %}
+                            {% with param=encadrant_settings|dict_get:moniteur.id %}
                             <th class="text-center">
                                 {{ moniteur.nom }} {{ moniteur.prenom }}<br>
                                 <span class="badge bg-info">{{ moniteur.get_niveau_display }}</span>
                                 <div class="mt-2">
-                                    <input type="number" name="profondeur_max_{{ moniteur.id }}" class="form-control form-control-sm mb-1" placeholder="Profondeur max" min="0">
-                                    <input type="number" name="duree_max_{{ moniteur.id }}" class="form-control form-control-sm" placeholder="Durée max (min)" min="0" value="40">
+                                    <input type="number" name="profondeur_max_{{ moniteur.id }}" class="form-control form-control-sm mb-1" placeholder="Profondeur max" min="0" value="{{ param.profondeur_max|default_if_none:'' }}">
+                                    <input type="number" name="duree_max_{{ moniteur.id }}" class="form-control form-control-sm" placeholder="Durée max (min)" min="0" value="{{ param.duree_max|default:40 }}">
+                                </div>
+                            </th>
+                            {% endwith %}
+                        {% endfor %}
+                        {% for auto in autonomes_data %}
+                            <th class="text-center autonome-th" data-autonome-num="{{ auto.num }}">
+                                Autonomes n°{{ auto.num }}<br><span class="badge bg-secondary">Sans encadrant</span>
+                                <div class="mt-2">
+                                    <input type="number" name="profondeur_max_autonome_{{ auto.num }}" class="form-control form-control-sm mb-1" placeholder="Profondeur max" min="0" value="{{ auto.profondeur_max|default_if_none:'' }}">
+                                    <input type="number" name="duree_max_autonome_{{ auto.num }}" class="form-control form-control-sm" placeholder="Durée max (min)" min="0" value="{{ auto.duree_max|default:40 }}">
                                 </div>
                             </th>
                         {% endfor %}
-                        <!-- Colonnes autonomes dynamiques -->
                     </tr>
                 </thead>
                 <tbody>
@@ -38,29 +49,37 @@
                         <td class="sticky-col sticky-col-2">{{ eleve.get_niveau_display }}</td>
                         <td class="sticky-col sticky-col-3">{% for s in eleve.sections.all %}<span class="badge bg-info me-1">{{ s.get_nom_display }}</span>{% endfor %}</td>
                         <td class="sticky-col sticky-col-4">
+                            {% with current_aptitude=existing_aptitudes|dict_get:eleve.id %}
                             <select name="aptitude_{{ eleve.id }}" class="form-select form-select-sm">
                                 <option value="">---</option>
-                                <option value="bapteme">Baptême</option>
-                                <option value="PE12">PE12</option>
-                                <option value="PE20">PE20</option>
-                                <option value="PA20">PA20</option>
-                                <option value="PE40">PE40</option>
-                                <option value="PA40">PA40</option>
-                                <option value="PA60">PA60</option>
-                                <option value="GP">GP</option>
-                                <option value="E1">E1</option>
-                                <option value="E2">E2</option>
-                                <option value="E3">E3</option>
-                                <option value="E4">E4</option>
+                                <option value="bapteme" {% if current_aptitude == 'bapteme' %}selected{% endif %}>Baptême</option>
+                                <option value="PE12" {% if current_aptitude == 'PE12' %}selected{% endif %}>PE12</option>
+                                <option value="PE20" {% if current_aptitude == 'PE20' %}selected{% endif %}>PE20</option>
+                                <option value="PA20" {% if current_aptitude == 'PA20' %}selected{% endif %}>PA20</option>
+                                <option value="PE40" {% if current_aptitude == 'PE40' %}selected{% endif %}>PE40</option>
+                                <option value="PA40" {% if current_aptitude == 'PA40' %}selected{% endif %}>PA40</option>
+                                <option value="PA60" {% if current_aptitude == 'PA60' %}selected{% endif %}>PA60</option>
+                                <option value="GP" {% if current_aptitude == 'GP' %}selected{% endif %}>GP</option>
+                                <option value="E1" {% if current_aptitude == 'E1' %}selected{% endif %}>E1</option>
+                                <option value="E2" {% if current_aptitude == 'E2' %}selected{% endif %}>E2</option>
+                                <option value="E3" {% if current_aptitude == 'E3' %}selected{% endif %}>E3</option>
+                                <option value="E4" {% if current_aptitude == 'E4' %}selected{% endif %}>E4</option>
                                 
                             </select>
+                            {% endwith %}
                         </td>
-                        {% for moniteur in encadrants %}
-                        <td class="text-center">
-                            <input type="checkbox" name="affectation_{{ eleve.id }}_{{ moniteur.id }}" class="affectation-checkbox" data-eleve="{{ eleve.id }}" data-moniteur="{{ moniteur.id }}">
+                        {% with affectations=existing_affectations|dict_get:eleve.id %}
+                            {% for moniteur in encadrants %}
+                            <td class="text-center">
+                                <input type="checkbox" name="affectation_{{ eleve.id }}_{{ moniteur.id }}" class="affectation-checkbox" data-eleve="{{ eleve.id }}" data-moniteur="{{ moniteur.id }}" {% if affectations and moniteur.id in affectations %}checked{% endif %}>
+                            </td>
+                            {% endfor %}
+                        {% endwith %}
+                        {% for auto in autonomes_data %}
+                        <td class="text-center autonome-td">
+                            <input type="checkbox" name="affectation_autonome_{{ auto.num }}_{{ eleve.id }}" class="affectation-autonome-checkbox" data-eleve="{{ eleve.id }}" data-autonome="{{ auto.num }}" {% if auto.eleves and eleve.id in auto.eleves %}checked{% endif %}>
                         </td>
                         {% endfor %}
-                        <!-- Cases autonomes dynamiques -->
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -74,31 +93,49 @@
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // JS pour griser les autres cases si une case est cochée pour un élève
-    document.querySelectorAll('.affectation-checkbox').forEach(function(checkbox) {
+    const table = document.getElementById('table-palanquees');
+    const addAutonomeBtn = document.getElementById('add-autonome-col');
+    let autonomeCount = {{ autonome_count|default:0 }};
+
+    const updateCheckboxState = (eleveId) => {
+        const checkboxes = document.querySelectorAll('[data-eleve="' + eleveId + '"]');
+        const checked = Array.from(checkboxes).filter(cb => cb.checked);
+        checkboxes.forEach(cb => {
+            if (checked.length > 0) {
+                cb.disabled = !cb.checked;
+            } else {
+                cb.disabled = false;
+            }
+        });
+    };
+
+    const registerCheckbox = (checkbox) => {
         checkbox.addEventListener('change', function() {
             const eleveId = this.dataset.eleve;
             if (this.checked) {
-                document.querySelectorAll('.affectation-checkbox[data-eleve="' + eleveId + '"]').forEach(function(cb) {
-                    if (cb !== checkbox) {
-                        cb.disabled = true;
+                document.querySelectorAll('[data-eleve="' + eleveId + '"]').forEach(cb => {
+                    if (cb !== this) {
+                        cb.checked = false;
                     }
                 });
-            } else {
-                document.querySelectorAll('.affectation-checkbox[data-eleve="' + eleveId + '"]').forEach(function(cb) {
-                    cb.disabled = false;
-                });
             }
+            updateCheckboxState(eleveId);
         });
+    };
+
+    document.querySelectorAll('.affectation-checkbox, .affectation-autonome-checkbox').forEach(cb => {
+        registerCheckbox(cb);
     });
 
-    // Gestion des colonnes autonomes dynamiques
-    let autonomeCount = 0;
-    const table = document.getElementById('table-palanquees');
-    const addAutonomeBtn = document.getElementById('add-autonome-col');
+    // Appliquer l'état initial pour désactiver les cases non sélectionnées
+    const eleveIds = new Set();
+    document.querySelectorAll('.affectation-checkbox, .affectation-autonome-checkbox').forEach(cb => {
+        eleveIds.add(cb.dataset.eleve);
+    });
+    eleveIds.forEach(updateCheckboxState);
+
     addAutonomeBtn.addEventListener('click', function() {
         autonomeCount++;
-        // Ajout de l'en-tête
         const theadRow = table.querySelector('thead tr');
         const th = document.createElement('th');
         th.className = 'text-center autonome-th';
@@ -108,50 +145,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 <input type="number" name="duree_max_autonome_${autonomeCount}" class="form-control form-control-sm" placeholder="Durée max (min)" value="40" min="0">
             </div>`;
         theadRow.appendChild(th);
-        // Ajout des cases à cocher pour chaque élève
         const tbodyRows = table.querySelectorAll('tbody tr');
         tbodyRows.forEach(function(row) {
+            const eleveId = row.dataset.eleveId;
             const td = document.createElement('td');
             td.className = 'text-center autonome-td';
-            const eleveId = row.querySelector('input[name^="affectation_"]')?.dataset.eleve || row.querySelector('select[name^="aptitude_"]')?.name.split('_')[1];
-            td.innerHTML = `<input type="checkbox" name="affectation_autonome_${autonomeCount}_${eleveId}" class="affectation-autonome-checkbox" data-eleve="${eleveId}" data-autonome="${autonomeCount}">`;
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.name = `affectation_autonome_${autonomeCount}_${eleveId}`;
+            checkbox.className = 'affectation-autonome-checkbox';
+            checkbox.dataset.eleve = eleveId;
+            checkbox.dataset.autonome = autonomeCount;
+            registerCheckbox(checkbox);
+            td.appendChild(checkbox);
             row.appendChild(td);
+            updateCheckboxState(eleveId);
         });
     });
 
-    // Gestion de l'exclusivité des affectations (encadrant/autonome)
-    document.addEventListener('change', function(e) {
-        debugger;
-        if (e.target.classList.contains('affectation-autonome-checkbox')) {
-            const eleveId = e.target.dataset.eleve;
-            if (e.target.checked) {
-                // Désactive toutes les autres cases pour cet élève
-                document.querySelectorAll('[data-eleve="' + eleveId + '"]').forEach(function(cb) {
-                    if (cb !== e.target) {
-                        cb.disabled = true;
-                    }
-                });
-            } else {
-                document.querySelectorAll('[data-eleve="' + eleveId + '"]').forEach(function(cb) {
-                    cb.disabled = false;
-                });
-            }
-        }
-    });
-
-    // Validation côté client : au moins une case cochée dans une colonne moniteur ou autonome
     document.getElementById('form-palanquees').addEventListener('submit', function(e) {
-        // Sélectionne toutes les cases à cocher d'affectation (moniteur ou autonome)
         const checkboxes = document.querySelectorAll('.affectation-checkbox, .affectation-autonome-checkbox');
-        let auMoinsUneCochee = false;
-        checkboxes.forEach(function(cb) {
-            if (cb.checked) {
-                auMoinsUneCochee = true;
-            }
-        });
+        const auMoinsUneCochee = Array.from(checkboxes).some(cb => cb.checked);
         if (!auMoinsUneCochee) {
             e.preventDefault();
             alert('Veuillez cocher au moins une case dans une colonne moniteur ou autonome pour créer au moins une palanquée.');
+            return;
+        }
+        const confirmation = confirm('Toutes les palanquées existantes pour cette séance seront supprimées et remplacées par cette configuration. Voulez-vous continuer ?');
+        if (!confirmation) {
+            e.preventDefault();
         }
     });
 });

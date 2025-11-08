@@ -1417,6 +1417,33 @@ def creer_palanquees(request, seance_id):
     eleves = [i.personne for i in inscrits if i.personne.statut == 'eleve' or (i.personne.statut == 'encadrant' and i.role_pour_seance == 'eleve')]
     # Encadrants : ceux qui ont le statut 'encadrant' ET qui ne sont pas passés en élève pour cette séance
     encadrants = [i.personne for i in inscrits if i.personne.statut == 'encadrant' and i.role_pour_seance != 'eleve']
+    existing_palanquees = seance.palanques.order_by('id').select_related('encadrant').prefetch_related('eleves', 'palanqueeeleve_set__eleve')
+    encadrant_settings = {moniteur.id: {'profondeur_max': None, 'duree_max': 40} for moniteur in encadrants}
+    existing_affectations = {}
+    autonomes_data = []
+    existing_aptitudes = {}
+    autonome_counter = 0
+    for palanquee in existing_palanquees:
+        for palanquee_eleve in palanquee.palanqueeeleve_set.all():
+            if palanquee_eleve.aptitude:
+                existing_aptitudes[palanquee_eleve.eleve_id] = palanquee_eleve.aptitude
+        if palanquee.encadrant_id:
+            encadrant_settings[palanquee.encadrant_id] = {
+                'profondeur_max': palanquee.profondeur_max,
+                'duree_max': palanquee.duree
+            }
+            for eleve in palanquee.eleves.all():
+                existing_affectations.setdefault(eleve.id, set()).add(palanquee.encadrant_id)
+        else:
+            autonome_counter += 1
+            autonomes_data.append({
+                'num': autonome_counter,
+                'eleves': [eleve.id for eleve in palanquee.eleves.all()],
+                'profondeur_max': palanquee.profondeur_max,
+                'duree_max': palanquee.duree
+            })
+    existing_affectations = {k: list(v) for k, v in existing_affectations.items()}
+    autonome_count = len(autonomes_data)
 
     if request.method == 'POST':
         from django.db import transaction
@@ -1484,6 +1511,8 @@ def creer_palanquees(request, seance_id):
         # Création des palanquées (on ajoute, on ne supprime pas les existantes)
         try:
             with transaction.atomic():
+                # Supprimer les palanquées existantes avant de recréer selon le formulaire
+                Palanquee.objects.filter(seance=seance).delete()
                 # Regrouper les élèves par moniteur
                 groupes = {}
                 for eid, mid in affectations.items():
@@ -1574,8 +1603,17 @@ def creer_palanquees(request, seance_id):
                 messages.error(request, f"Erreur lors de la création des palanquées : Un ou plusieurs participants (élèves ou encadrants passés en élève) n'ont pas de section assignée. Veuillez assigner une section à tous les participants avant de créer les palanquées.")
             else:
                 messages.error(request, f"Erreur lors de la création des palanquées : {error_message}")
+            eleves_sorted = sorted(eleves, key=lambda e: (e.nom.upper(), e.prenom.upper()))
+            encadrants_sorted = sorted(encadrants, key=lambda e: (e.nom.upper(), e.prenom.upper()))
             return render(request, 'gestion/creer_palanquees.html', {
-                'seance': seance, 'eleves': eleves, 'encadrants': encadrants
+                'seance': seance,
+                'eleves': eleves_sorted,
+                'encadrants': encadrants_sorted,
+                'encadrant_settings': encadrant_settings,
+                'existing_affectations': existing_affectations,
+                'autonomes_data': autonomes_data,
+                'existing_aptitudes': existing_aptitudes,
+                'autonome_count': autonome_count,
             })
     else:
         eleves = sorted(eleves, key=lambda e: (e.nom.upper(), e.prenom.upper()))
@@ -1584,6 +1622,11 @@ def creer_palanquees(request, seance_id):
             'seance': seance,
             'eleves': eleves,
             'encadrants': encadrants,
+            'encadrant_settings': encadrant_settings,
+            'existing_affectations': existing_affectations,
+            'autonomes_data': autonomes_data,
+            'existing_aptitudes': existing_aptitudes,
+            'autonome_count': autonome_count,
         })
 
 class PalanqueeDeleteView(LoginRequiredMixin, DeleteView):

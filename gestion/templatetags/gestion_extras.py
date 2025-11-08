@@ -4,8 +4,8 @@ register = template.Library()
 @register.filter
 def dict_get(d, key):
     if d is None:
-        return ''
-    return d.get(key, '')
+        return None
+    return d.get(key)
 
 
 
