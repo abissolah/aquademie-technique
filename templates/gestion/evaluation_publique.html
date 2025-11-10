@@ -198,6 +198,14 @@
     
     <script>
 document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('textarea[name^="comment_"]').forEach(function(textarea) {
+        textarea.setAttribute('required', 'required');
+        textarea.classList.add('is-required');
+        if (!textarea.placeholder || textarea.placeholder.toLowerCase().includes('optionnel')) {
+            textarea.placeholder = 'Commentaire (obligatoire)';
+        }
+    });
+
     document.querySelectorAll('.star-rating').forEach(function(starRating) {
         var radios = starRating.querySelectorAll('input[type="radio"]');
         var labels = starRating.querySelectorAll('label');
