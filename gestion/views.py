@@ -2792,6 +2792,16 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                     'content_type': f.content_type
                 })
             
+            # Déterminer le reply-to
+            default_reply = getattr(settings, 'DEFAULT_FROM_EMAIL', None)
+            reply_to_list = []
+            if default_reply:
+                reply_to_list.append(default_reply)
+            if request.user and getattr(request.user, 'email', ''):
+                user_email = request.user.email.strip()
+                if user_email and user_email.lower() not in [addr.lower() for addr in reply_to_list]:
+                    reply_to_list.append(user_email)
+
             # Envoi par lots de 10 avec pause
             batch_size = 10
             for i in range(0, len(destinataires), batch_size):
@@ -2801,6 +2811,7 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                     body=form.cleaned_data['contenu'],
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     bcc=batch,
+                    reply_to=reply_to_list if reply_to_list else None,
                 )
                 email.content_subtype = "html"
                 # Utiliser les données pré-chargées au lieu de relire les fichiers
