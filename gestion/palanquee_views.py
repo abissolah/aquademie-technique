@@ -254,7 +254,7 @@ def generer_lien_evaluation(request, pk):
     # Créer un nouveau lien d'évaluation
     lien = LienEvaluation.objects.create(
         palanquee=palanquee,
-        date_expiration=timezone.now() + timedelta(days=30)  # Lien valide 30 jours
+        date_expiration=timezone.now() + timedelta(days=7)  # Lien valide 7 jours
     )
     
     messages.success(request, f'Nouveau lien d\'évaluation généré : {request.build_absolute_uri(lien.url_evaluation)}')

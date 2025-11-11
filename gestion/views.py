@@ -2283,11 +2283,16 @@ def envoyer_liens_evaluation_encadrants(request, seance_id):
             # Créer un nouveau lien
             import uuid
             from datetime import timedelta
+            expiration_date = timezone.now() + timedelta(days=7)
             lien = LienEvaluation.objects.create(
                 palanquee=palanquee,
                 token=uuid.uuid4(),
-                date_expiration=seance.date + timedelta(days=2)
+                date_expiration=expiration_date
             )
+        else:
+            from datetime import timedelta
+            lien.date_expiration = timezone.now() + timedelta(days=7)
+            lien.save()
         # Envoyer le mail
         ok, msg = envoyer_lien_evaluation(lien, request)
         if ok:
