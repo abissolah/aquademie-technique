@@ -161,6 +161,17 @@ class CommunicationSeanceView(LoginRequiredMixin, View):
                     'content_type': f.content_type
                 })
             
+            # Déterminer le reply-to
+            default_reply = getattr(settings, 'DEFAULT_FROM_EMAIL', None)
+            reply_to_list = []
+            if default_reply:
+                reply_to_list.append(default_reply)
+            if request.user and getattr(request.user, 'email', ''):
+                user_email = request.user.email.strip()
+                if user_email and user_email.lower() not in [addr.lower() for addr in reply_to_list]:
+                    reply_to_list.append(user_email)
+
+
             # Envoi du mail (un email par destinataire pour éviter les problèmes de pièces jointes)
             cc_emails = getattr(settings, 'EMAIL_CC_DEFAULT', [])
             nb_envoyes = 0
@@ -171,6 +182,7 @@ class CommunicationSeanceView(LoginRequiredMixin, View):
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     to=[destinataire],
                     cc=cc_emails,
+                    reply_to=reply_to_list,
                 )
                 email.content_subtype = "html"
                 # Utiliser les données pré-chargées au lieu de relire les fichiers
