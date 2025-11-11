@@ -1013,8 +1013,10 @@ def envoyer_mail_invitation_seance(request, seance_id):
     if not lien:
         messages.error(request, "Aucun lien d'inscription généré pour cette séance.")
         return redirect('seance_detail', pk=seance_id)
-    # Récupère tous les adhérents du club
-    adherents = Adherent.objects.filter(type_personne='adherent')
+    # Récupère tous les destinataires : adhérents du club + non-adhérents actifs
+    adherents = Adherent.objects.filter(
+        Q(type_personne='adherent') | Q(type_personne='non_adherent', actif=True)
+    )
     emails = [a.email for a in adherents if a.email]
     if not emails:
         messages.error(request, "Aucun email d'adhérent trouvé.")
