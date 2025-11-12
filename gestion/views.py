@@ -2932,7 +2932,7 @@ def api_suivi_inscrits_section(request, seance_id):
             evaluations = EvaluationExercice.objects.filter(
                 eleve=eleve,
                 exercice=exercice
-            ).select_related('encadrant').order_by('-date_evaluation')
+            ).select_related('encadrant', 'palanquee__seance').order_by('-date_evaluation')
             
             # Trouver la note maximale
             note_max = None
@@ -2951,6 +2951,19 @@ def api_suivi_inscrits_section(request, seance_id):
             # Dernière évaluation (toutes notes confondues)
             derniere_eval = evaluations.first()
             
+            # Préparer toutes les évaluations pour l'affichage par élève (ordonnées par note décroissante)
+            toutes_evaluations = []
+            for eval in evaluations:
+                if eval.note:  # Seulement les évaluations avec une note
+                    toutes_evaluations.append({
+                        'note': eval.note,
+                        'date': eval.date_evaluation.strftime('%d/%m/%Y') if eval.date_evaluation else '',
+                        'commentaire': eval.commentaire or '',
+                        'encadrant': eval.encadrant.nom_complet if eval.encadrant else ''
+                    })
+            # Trier par note décroissante
+            toutes_evaluations.sort(key=lambda x: x['note'], reverse=True)
+            
             eleve_data = {
                 'id': eleve.id,
                 'nom': eleve.nom,
@@ -2960,8 +2973,10 @@ def api_suivi_inscrits_section(request, seance_id):
                 'nb_eval_max': nb_eval_max,
                 'commentaire': derniere_eval.commentaire if derniere_eval else '',
                 'date_derniere_eval': derniere_eval.date_evaluation.strftime('%d/%m/%Y') if derniere_eval and derniere_eval.date_evaluation else '',
+                'date_seance': derniere_eval.palanquee.seance.date.strftime('%d/%m/%Y') if derniere_eval and derniere_eval.palanquee and derniere_eval.palanquee.seance else '',
                 'encadrant_max': derniere_eval_max.encadrant.nom_complet if derniere_eval_max and derniere_eval_max.encadrant else '',
-                'has_evaluation': evaluations.exists()
+                'has_evaluation': evaluations.exists(),
+                'toutes_evaluations': toutes_evaluations  # Pour l'affichage par élève
             }
             
             exercice_data['eleves_data'].append(eleve_data)
@@ -2973,6 +2988,54 @@ def api_suivi_inscrits_section(request, seance_id):
         {'id': e.id, 'nom': e.nom, 'prenom': e.prenom, 'nom_complet': e.nom_complet}
         for e in eleves
     ]
+    
+    # Structure pour l'affichage par élève
+    result['eleves_data'] = []
+    for eleve in eleves:
+        eleve_data = {
+            'id': eleve.id,
+            'nom': eleve.nom,
+            'prenom': eleve.prenom,
+            'nom_complet': eleve.nom_complet,
+            'exercices': []
+        }
+        
+        for exercice in exercices:
+            # Récupérer toutes les évaluations de cet élève pour cet exercice
+            evaluations = EvaluationExercice.objects.filter(
+                eleve=eleve,
+                exercice=exercice
+            ).select_related('encadrant', 'palanquee__seance').order_by('-date_evaluation')
+            
+            # Trouver la note maximale et le nombre de fois qu'il a eu cette note
+            note_max = None
+            nb_eval_max = 0
+            derniere_eval_max = None
+            if evaluations.exists():
+                note_max = evaluations.aggregate(Max('note'))['note__max']
+                if note_max:
+                    evals_max = evaluations.filter(note=note_max).order_by('-date_evaluation')
+                    nb_eval_max = evals_max.count()
+                    derniere_eval_max = evals_max.first()
+            
+            # Dernière évaluation (toutes notes confondues)
+            derniere_eval = evaluations.first()
+            
+            exercice_data = {
+                'id': exercice.id,
+                'nom': exercice.nom,
+                'note_max': note_max,
+                'nb_eval_max': nb_eval_max,
+                'commentaire': derniere_eval.commentaire if derniere_eval else '',
+                'date_derniere_eval': derniere_eval.date_evaluation.strftime('%d/%m/%Y') if derniere_eval and derniere_eval.date_evaluation else '',
+                'date_seance': derniere_eval.palanquee.seance.date.strftime('%d/%m/%Y') if derniere_eval and derniere_eval.palanquee and derniere_eval.palanquee.seance else '',
+                'encadrant': derniere_eval.encadrant.nom_complet if derniere_eval and derniere_eval.encadrant else '',
+                'has_evaluation': evaluations.exists()
+            }
+            
+            eleve_data['exercices'].append(exercice_data)
+        
+        result['eleves_data'].append(eleve_data)
     
     return JsonResponse(result)
 
