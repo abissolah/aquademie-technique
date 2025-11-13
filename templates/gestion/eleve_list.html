@@ -9,11 +9,16 @@
             <h1>
                 <i class="fas fa-user-graduate me-2"></i>Élèves
             </h1>
-            {% if not is_codir %}
-            <a href="{% url 'adherent_create' %}" class="btn btn-primary">
-                <i class="fas fa-plus me-2"></i>Nouvel élève
-            </a>
-            {% endif %}
+            <div class="d-flex gap-2">
+                <a href="{% url 'suivi_eleves' %}" class="btn btn-info">
+                    <i class="fas fa-chart-line me-2"></i>Suivi des élèves
+                </a>
+                {% if not is_codir %}
+                <a href="{% url 'adherent_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Nouvel élève
+                </a>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>

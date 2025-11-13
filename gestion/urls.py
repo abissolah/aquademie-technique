@@ -42,9 +42,12 @@ urlpatterns = [
     path('adherents/affecter-section-masse/', views.affecter_section_masse, name='affecter_section_masse'),
     path('adherents/communiquer/', CommunicationAdherentsView.as_view(), name='adherents_communiquer'),
     path('adherents/communiquer/historique/<int:mail_id>/supprimer/', views.supprimer_historique_mail_adherents, name='supprimer_historique_mail_adherents'),
+    path('adherents/communiquer/liste-diffusion/<int:liste_id>/supprimer/', views.supprimer_liste_diffusion, name='supprimer_liste_diffusion'),
     
     # Élèves
     path('eleves/', views.EleveListView.as_view(), name='eleve_list'),
+    path('eleves/suivi/', views.suivi_eleves, name='suivi_eleves'),
+    path('eleves/api/suivi-section/', views.api_suivi_eleves_section, name='api_suivi_eleves_section'),
     path('eleves/<int:eleve_id>/suivi-formation/', views.suivi_formation_eleve, name='suivi_formation_eleve'),
     
     # Encadrants

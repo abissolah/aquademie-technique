@@ -2663,6 +2663,7 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
         from .utils import can_access_dashboard
         if not can_access_dashboard(request.user):
             return redirect('login')
+        from .models import ListeDiffusion
         adherents_qs = Adherent.objects.filter(actif=True).select_related('user').prefetch_related('user__groups').order_by('nom', 'prenom')
         # Préparer les données pour identifier les membres codir
         adherents_avec_codir = []
@@ -2676,21 +2677,30 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
             (str(a.id), f"{a.nom.upper()} {a.prenom.capitalize()} ({a.email})")
             for a in adherents_qs
         ]
-        form = CommunicationAdherentsForm(inscrits_choices=adherents_choices)
+        listes_diffusion = ListeDiffusion.objects.all().prefetch_related('adherents')
+        form = CommunicationAdherentsForm(inscrits_choices=adherents_choices, listes_diffusion=listes_diffusion)
         modeles = ModeleMailAdherents.objects.all()
         historique = HistoriqueMailAdherents.objects.order_by('-date_envoi')[:20]
+        # Préparer les données des listes pour le JavaScript (IDs des adhérents par liste)
+        import json
+        listes_data = {}
+        for liste in listes_diffusion:
+            listes_data[liste.id] = list(liste.adherents.filter(actif=True).values_list('id', flat=True))
         return render(request, 'gestion/communication_adherents.html', {
             'form': form,
             'adherents': adherents_qs,
             'adherents_avec_codir': adherents_avec_codir,
             'modeles': modeles,
             'historique': historique,
+            'listes_diffusion': listes_diffusion,
+            'listes_data': json.dumps(listes_data),
         })
 
     def post(self, request):
         from .utils import can_access_dashboard
         if not can_access_dashboard(request.user):
             return redirect('login')
+        from .models import ListeDiffusion
         adherents_qs = Adherent.objects.filter(actif=True).select_related('user').prefetch_related('user__groups').order_by('nom', 'prenom')
         # Préparer les données pour identifier les membres codir
         adherents_avec_codir = []
@@ -2704,9 +2714,15 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
             (str(a.id), f"{a.nom.upper()} {a.prenom.capitalize()} ({a.email})")
             for a in adherents_qs
         ]
-        form = CommunicationAdherentsForm(request.POST, request.FILES, inscrits_choices=adherents_choices)
+        listes_diffusion = ListeDiffusion.objects.all().prefetch_related('adherents')
+        form = CommunicationAdherentsForm(request.POST, request.FILES, inscrits_choices=adherents_choices, listes_diffusion=listes_diffusion)
         modeles = ModeleMailAdherents.objects.all()
         historique = HistoriqueMailAdherents.objects.all()[:20]
+        # Préparer les données des listes pour le JavaScript (IDs des adhérents par liste)
+        import json
+        listes_data = {}
+        for liste in listes_diffusion:
+            listes_data[liste.id] = list(liste.adherents.filter(actif=True).values_list('id', flat=True))
 
         # Suppression d'un modèle
         if 'supprimer_modele' in request.POST:
@@ -2738,14 +2754,41 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                     'adherents_avec_codir': adherents_avec_codir,
                     'modeles': modeles,
                     'historique': historique,
+                    'listes_diffusion': listes_diffusion,
+                    'listes_data': json.dumps(listes_data),
+                })
+
+        # Création d'une liste de diffusion
+        if 'creer_liste_diffusion' in request.POST:
+            nom_liste = request.POST.get('nom_liste', '').strip()
+            ids_adherents = request.POST.getlist('adherents_liste')
+            if nom_liste and ids_adherents:
+                liste = ListeDiffusion.objects.create(nom=nom_liste, auteur=request.user)
+                liste.adherents.set(Adherent.objects.filter(id__in=ids_adherents))
+                messages.success(request, f"Liste de diffusion '{nom_liste}' créée avec succès.")
+                return redirect('adherents_communiquer')
+            else:
+                messages.error(request, "Veuillez donner un nom à la liste et sélectionner au moins un adhérent.")
+                return render(request, 'gestion/communication_adherents.html', {
+                    'form': form,
+                    'adherents': adherents_qs,
+                    'adherents_avec_codir': adherents_avec_codir,
+                    'modeles': modeles,
+                    'historique': historique,
+                    'listes_diffusion': listes_diffusion,
+                    'listes_data': json.dumps(listes_data),
                 })
 
         # Envoi du mail
         if form.is_valid():
             destinataires = []
             ids = form.cleaned_data['inscrits_choisis']
-            # Vérifier si "aucun" est sélectionné
-            if form.cleaned_data['destinataires'] == 'aucun' and len(ids) == 0:
+            destinataires_choix = form.cleaned_data['destinataires']
+            
+            # Si une liste personnalisée est sélectionnée, on utilise quand même les adhérents cochés
+            # (la liste sert juste à pré-remplir les cases, mais l'utilisateur peut modifier)
+            # Sinon, utiliser la logique existante
+            if destinataires_choix == 'aucun' and len(ids) == 0:
                 messages.error(request, "Aucun destinataire sélectionné.")
                 return render(request, 'gestion/communication_adherents.html', {
                     'form': form,
@@ -2753,10 +2796,11 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                     'adherents_avec_codir': adherents_avec_codir,
                     'modeles': modeles,
                     'historique': historique,
+                    'listes_diffusion': listes_diffusion,
+                    'listes_data': json.dumps(listes_data),
                 })
-            
-            
-            destinataires = list(adherents_qs.filter(id__in=ids).values_list('email', flat=True))
+            else:
+                destinataires = list(adherents_qs.filter(id__in=ids).values_list('email', flat=True))
             destinataires = [email.strip() for email in destinataires if email and email.strip()]
             destinataires = list(set(destinataires))
             if not destinataires:
@@ -2767,6 +2811,8 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                     'adherents_avec_codir': adherents_avec_codir,
                     'modeles': modeles,
                     'historique': historique,
+                    'listes_diffusion': listes_diffusion,
+                    'listes_data': json.dumps(listes_data),
                 })
             fichiers = request.FILES.getlist('fichiers')
             if len(fichiers) > 5:
@@ -2777,6 +2823,8 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                     'adherents_avec_codir': adherents_avec_codir,
                     'modeles': modeles,
                     'historique': historique,
+                    'listes_diffusion': listes_diffusion,
+                    'listes_data': json.dumps(listes_data),
                 })
             for f in fichiers:
                 if f.size > 5*1024*1024:
@@ -2784,8 +2832,10 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                     return render(request, 'gestion/communication_adherents.html', {
                         'form': form,
                         'adherents': adherents_qs,
+                        'adherents_avec_codir': adherents_avec_codir,
                         'modeles': modeles,
                         'historique': historique,
+                        'listes_diffusion': listes_diffusion,
                     })
             from django.core.mail import EmailMessage
             from django.conf import settings
@@ -2835,7 +2885,16 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                 fichiers=",".join([f.name for f in fichiers]),
                 auteur=request.user
             )
-            messages.success(request, "Mail envoyé avec succès à :<br>" + "<br>".join(destinataires))
+            # Préparer le message avec nom, prénom et email
+            from django.utils.safestring import mark_safe
+            destinataires_info = []
+            for email in destinataires:
+                adherent = adherents_qs.filter(email=email).first()
+                if adherent:
+                    destinataires_info.append(f"{adherent.nom.upper()} {adherent.prenom.capitalize()} ({email})")
+                else:
+                    destinataires_info.append(email)
+            messages.success(request, mark_safe("Mail envoyé avec succès à :<br>" + "<br>".join(destinataires_info)))
             return redirect('adherents_communiquer')
         else:
             return render(request, 'gestion/communication_adherents.html', {
@@ -2844,6 +2903,8 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                 'adherents_avec_codir': adherents_avec_codir,
                 'modeles': modeles,
                 'historique': historique,
+                'listes_diffusion': listes_diffusion,
+                'listes_data': json.dumps(listes_data),
             })
 
 def api_modele_mail_adherents(request, modele_id):
@@ -2854,6 +2915,19 @@ def api_modele_mail_adherents(request, modele_id):
         'objet': modele.objet,
         'contenu': modele.contenu,
     })
+
+@login_required
+def supprimer_liste_diffusion(request, liste_id):
+    from .models import ListeDiffusion
+    from .utils import can_access_dashboard
+    if not can_access_dashboard(request.user):
+        return redirect('login')
+    liste = get_object_or_404(ListeDiffusion, pk=liste_id)
+    if request.method == 'POST':
+        nom_liste = liste.nom
+        liste.delete()
+        messages.success(request, f"Liste de diffusion '{nom_liste}' supprimée avec succès.")
+    return redirect('adherents_communiquer')
 
 @require_POST
 def adherent_desactiver(request, pk):
@@ -3071,6 +3145,158 @@ def api_historique_eleve_exercice(request, eleve_id, exercice_id):
             'encadrant': eval.encadrant.nom_complet if eval.encadrant else ''
         }
         result['evaluations'].append(eval_data)
+    
+    return JsonResponse(result)
+
+@login_required
+def suivi_eleves(request):
+    """Vue principale pour le suivi de tous les élèves par section"""
+    sections = Section.objects.all().order_by('nom')
+    
+    context = {
+        'sections': sections,
+    }
+    return render(request, 'gestion/eleve_suivi.html', context)
+
+@login_required
+def api_suivi_eleves_section(request):
+    """API AJAX pour charger les exercices et les données de tous les élèves selon la section"""
+    from django.db.models import Max
+    
+    section_id = request.GET.get('section_id')
+    
+    if not section_id:
+        return JsonResponse({'error': 'section_id requis'}, status=400)
+    
+    try:
+        section = Section.objects.get(pk=section_id)
+    except Section.DoesNotExist:
+        return JsonResponse({'error': 'Section introuvable'}, status=404)
+    
+    # Récupérer les exercices de la section (via les compétences)
+    competences = Competence.objects.filter(section=section).prefetch_related('exercices')
+    exercices_ids = set()
+    for comp in competences:
+        exercices_ids.update(comp.exercices.values_list('id', flat=True))
+    
+    exercices = Exercice.objects.filter(id__in=exercices_ids).order_by('nom')
+    
+    # Récupérer TOUS les élèves de la section (pas seulement ceux inscrits à une séance)
+    eleves = Adherent.objects.filter(
+        statut='eleve',
+        sections=section,
+        actif=True
+    ).order_by('nom', 'prenom')
+    
+    # Pour chaque exercice, préparer les données des élèves
+    result = {
+        'section_nom': section.get_nom_display(),
+        'exercices': [],
+        'eleves': []
+    }
+    
+    for exercice in exercices:
+        exercice_data = {
+            'id': exercice.id,
+            'nom': exercice.nom,
+            'eleves_data': []
+        }
+        
+        for eleve in eleves:
+            # Récupérer toutes les évaluations de cet élève pour cet exercice (toutes séances confondues)
+            evaluations = EvaluationExercice.objects.filter(
+                eleve=eleve,
+                exercice=exercice
+            ).select_related('encadrant', 'palanquee__seance').order_by('-date_evaluation')
+            
+            # Trouver la note maximale
+            note_max = None
+            if evaluations.exists():
+                note_max = evaluations.aggregate(Max('note'))['note__max']
+            
+            # Compter le nombre d'évaluations avec cette note maximale
+            nb_eval_max = 0
+            derniere_eval_max = None
+            if note_max:
+                evals_max = evaluations.filter(note=note_max).order_by('-date_evaluation')
+                nb_eval_max = evals_max.count()
+                # Dernière évaluation avec la note maximale
+                derniere_eval_max = evals_max.first()
+            
+            # Dernière évaluation (toutes notes confondues)
+            derniere_eval = evaluations.first()
+            
+            eleve_data = {
+                'id': eleve.id,
+                'nom': eleve.nom,
+                'prenom': eleve.prenom,
+                'nom_complet': eleve.nom_complet,
+                'note_max': note_max,
+                'nb_eval_max': nb_eval_max,
+                'commentaire': derniere_eval.commentaire if derniere_eval else '',
+                'date_derniere_eval': derniere_eval.date_evaluation.strftime('%d/%m/%Y') if derniere_eval and derniere_eval.date_evaluation else '',
+                'date_seance': derniere_eval.palanquee.seance.date.strftime('%d/%m/%Y') if derniere_eval and derniere_eval.palanquee and derniere_eval.palanquee.seance else '',
+                'encadrant_max': derniere_eval_max.encadrant.nom_complet if derniere_eval_max and derniere_eval_max.encadrant else '',
+                'has_evaluation': evaluations.exists(),
+            }
+            
+            exercice_data['eleves_data'].append(eleve_data)
+        
+        result['exercices'].append(exercice_data)
+    
+    # Liste des élèves pour référence
+    result['eleves'] = [
+        {'id': e.id, 'nom': e.nom, 'prenom': e.prenom, 'nom_complet': e.nom_complet}
+        for e in eleves
+    ]
+    
+    # Structure pour l'affichage par élève
+    result['eleves_data'] = []
+    for eleve in eleves:
+        eleve_data = {
+            'id': eleve.id,
+            'nom': eleve.nom,
+            'prenom': eleve.prenom,
+            'nom_complet': eleve.nom_complet,
+            'exercices': []
+        }
+        
+        for exercice in exercices:
+            # Récupérer toutes les évaluations de cet élève pour cet exercice
+            evaluations = EvaluationExercice.objects.filter(
+                eleve=eleve,
+                exercice=exercice
+            ).select_related('encadrant', 'palanquee__seance').order_by('-date_evaluation')
+            
+            # Trouver la note maximale et le nombre de fois qu'il a eu cette note
+            note_max = None
+            nb_eval_max = 0
+            derniere_eval_max = None
+            if evaluations.exists():
+                note_max = evaluations.aggregate(Max('note'))['note__max']
+                if note_max:
+                    evals_max = evaluations.filter(note=note_max).order_by('-date_evaluation')
+                    nb_eval_max = evals_max.count()
+                    derniere_eval_max = evals_max.first()
+            
+            # Dernière évaluation (toutes notes confondues)
+            derniere_eval = evaluations.first()
+            
+            exercice_data = {
+                'id': exercice.id,
+                'nom': exercice.nom,
+                'note_max': note_max,
+                'nb_eval_max': nb_eval_max,
+                'commentaire': derniere_eval.commentaire if derniere_eval else '',
+                'date_derniere_eval': derniere_eval.date_evaluation.strftime('%d/%m/%Y') if derniere_eval and derniere_eval.date_evaluation else '',
+                'date_seance': derniere_eval.palanquee.seance.date.strftime('%d/%m/%Y') if derniere_eval and derniere_eval.palanquee and derniere_eval.palanquee.seance else '',
+                'encadrant': derniere_eval.encadrant.nom_complet if derniere_eval and derniere_eval.encadrant else '',
+                'has_evaluation': evaluations.exists()
+            }
+            
+            eleve_data['exercices'].append(exercice_data)
+        
+        result['eleves_data'].append(eleve_data)
     
     return JsonResponse(result)
 

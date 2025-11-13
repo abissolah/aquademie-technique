@@ -1,0 +1,487 @@
+{% extends 'base.html' %}
+
+{% block title %}Suivi des élèves - Club de Plongée{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-users me-2"></i>Suivi des élèves
+            </h1>
+            <a href="{% url 'eleve_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Retour à la liste des élèves
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-filter me-2"></i>Sélectionner une section
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="section-select" class="form-label">Section :</label>
+                    <select id="section-select" class="form-select">
+                        <option value="">-- Choisir une section --</option>
+                        {% for section in sections %}
+                        <option value="{{ section.id }}">{{ section.get_nom_display }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="content-area" style="display: none;">
+    <div class="row">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-eye me-2"></i>Mode d'affichage
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="mode-select" class="form-label">Affichage :</label>
+                        <select id="mode-select" class="form-select">
+                            <option value="exercice">Par exercice</option>
+                            <option value="eleve">Par élève</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0" id="section-title">Suivi section : <span id="section-nom"></span></h5>
+                </div>
+                <div class="card-body" id="exercices-container">
+                    <!-- Les exercices seront chargés ici via AJAX -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour l'historique -->
+<div class="modal fade" id="historiqueModal" tabindex="-1" aria-labelledby="historiqueModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="historiqueModalLabel">Historique des évaluations</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="historique-modal-body">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    const sectionSelect = $('#section-select');
+    const modeSelect = $('#mode-select');
+    const contentArea = $('#content-area');
+    const exercicesContainer = $('#exercices-container');
+    const sectionNom = $('#section-nom');
+    let currentData = null; // Stocker les données chargées
+    
+    // Fonction pour charger les données
+    function chargerDonnees() {
+        const sectionId = sectionSelect.val();
+        
+        if (!sectionId) {
+            contentArea.hide();
+            return;
+        }
+        
+        // Afficher le loader
+        exercicesContainer.html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Chargement...</span></div></div>');
+        contentArea.show();
+        
+        // Charger les données via AJAX
+        $.ajax({
+            url: '{% url "api_suivi_eleves_section" %}',
+            method: 'GET',
+            data: {
+                section_id: sectionId
+            },
+            success: function(data) {
+                currentData = data;
+                sectionNom.text(data.section_nom);
+                afficherDonnees(data);
+            },
+            error: function(xhr, status, error) {
+                exercicesContainer.html('<div class="alert alert-danger">Erreur lors du chargement des données : ' + error + '</div>');
+            }
+        });
+    }
+    
+    // Fonction pour afficher les données selon le mode
+    function afficherDonnees(data) {
+        const mode = modeSelect.val();
+        
+        if (mode === 'exercice') {
+            afficherParExercice(data);
+        } else {
+            afficherParEleve(data);
+        }
+    }
+    
+    // Fonction pour afficher par exercice (affichage actuel)
+    function afficherParExercice(data) {
+        let html = '';
+        
+        if (data.exercices.length === 0) {
+            html = '<div class="alert alert-info">Aucun exercice trouvé pour cette section.</div>';
+        } else {
+            data.exercices.forEach(function(exercice, index) {
+                const collapseId = 'collapse-exercice-' + exercice.id + '-' + index;
+                html += '<div class="mb-3">';
+                html += '<div class="card">';
+                html += '<div class="card-header" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#' + collapseId + '" aria-expanded="false" aria-controls="' + collapseId + '">';
+                html += '<h6 class="mb-0 d-flex justify-content-between align-items-center">';
+                html += '<span><i class="fas fa-chevron-right me-2"></i>' + exercice.nom + '</span>';
+                html += '<span class="badge bg-secondary">' + exercice.eleves_data.length + ' élève(s)</span>';
+                html += '</h6>';
+                html += '</div>';
+                html += '<div id="' + collapseId + '" class="collapse">';
+                html += '<div class="card-body">';
+                
+                if (exercice.eleves_data.length === 0) {
+                    html += '<p class="text-muted">Aucun élève pour cette section.</p>';
+                } else {
+                    html += '<div class="table-responsive">';
+                    html += '<table class="table table-bordered table-hover">';
+                    html += '<thead class="table-light">';
+                    html += '<tr>';
+                    html += '<th>Élève</th>';
+                    html += '<th>Statut</th>';
+                    html += '<th>Commentaire</th>';
+                    html += '<th>Date dernière évaluation</th>';
+                    html += '<th>Date de la séance</th>';
+                    html += '<th>Encadrant</th>';
+                    html += '<th>Actions</th>';
+                    html += '</tr>';
+                    html += '</thead>';
+                    html += '<tbody>';
+                    
+                    // Trier les élèves : d'abord par nombre d'étoiles (décroissant), puis par nom alphabétique
+                    exercice.eleves_data.sort(function(a, b) {
+                        // Tri par note maximale (décroissant) - les plus hautes notes en premier
+                        const noteA = a.note_max !== null && a.note_max !== undefined ? a.note_max : 0;
+                        const noteB = b.note_max !== null && b.note_max !== undefined ? b.note_max : 0;
+                        if (noteB !== noteA) {
+                            return noteB - noteA; // Décroissant
+                        }
+                        // Si même nombre d'étoiles, tri par nom alphabétique
+                        return a.nom_complet.localeCompare(b.nom_complet);
+                    });
+                    
+                    exercice.eleves_data.forEach(function(eleveData) {
+                        html += '<tr>';
+                        html += '<td><strong>' + eleveData.nom_complet + '</strong></td>';
+                        
+                        // Statut avec étoiles (même style que suivi_formation_eleve)
+                        let statutHtml = '';
+                        if (eleveData.note_max !== null && eleveData.note_max !== undefined) {
+                            statutHtml = '<span class="ms-2">';
+                            // Afficher 3 étoiles, avec celles remplies selon la note
+                            for (let i = 1; i <= 3; i++) {
+                                if (i <= eleveData.note_max) {
+                                    statutHtml += '<i class="fas fa-star text-warning"></i>';
+                                } else {
+                                    statutHtml += '<i class="far fa-star text-muted"></i>';
+                                }
+                            }
+                            // Ajouter le nombre d'évaluations entre parenthèses si > 1
+                            if (eleveData.nb_eval_max > 1) {
+                                statutHtml += ' <span class="fw-bold">(' + eleveData.nb_eval_max + ')</span>';
+                            }
+                            statutHtml += '</span>';
+                        } else {
+                            statutHtml = '<span class="ms-2">';
+                            // Afficher 3 étoiles vides si pas d'évaluation
+                            for (let i = 1; i <= 3; i++) {
+                                statutHtml += '<i class="far fa-star text-muted"></i>';
+                            }
+                            statutHtml += '</span>';
+                        }
+                        html += '<td>' + statutHtml + '</td>';
+                        
+                        html += '<td>' + (eleveData.commentaire || '-') + '</td>';
+                        html += '<td>' + (eleveData.date_derniere_eval || '-') + '</td>';
+                        html += '<td>' + (eleveData.date_seance || '-') + '</td>';
+                        html += '<td>' + (eleveData.encadrant_max || '-') + '</td>';
+                        
+                        // Bouton historique
+                        if (eleveData.has_evaluation) {
+                            html += '<td>';
+                            html += '<button type="button" class="btn btn-sm btn-outline-info" onclick="ouvrirHistorique(' + eleveData.id + ', ' + exercice.id + ', \'' + eleveData.nom_complet.replace(/'/g, "\\'") + '\', \'' + exercice.nom.replace(/'/g, "\\'") + '\')">';
+                            html += '<i class="fas fa-history me-1"></i>Voir l\'historique pour cette personne';
+                            html += '</button>';
+                            html += '</td>';
+                        } else {
+                            html += '<td><span class="text-muted">Aucune évaluation</span></td>';
+                        }
+                        
+                        html += '</tr>';
+                    });
+                    
+                    html += '</tbody>';
+                    html += '</table>';
+                    html += '</div>';
+                }
+                
+                html += '</div>';
+                html += '</div>';
+                html += '</div>';
+                html += '</div>';
+            });
+        }
+        
+        exercicesContainer.html(html);
+    }
+    
+    // Fonction pour afficher par élève
+    function afficherParEleve(data) {
+        let html = '';
+        
+        if (!data.eleves_data || data.eleves_data.length === 0) {
+            html = '<div class="alert alert-info">Aucun élève pour cette section.</div>';
+        } else {
+            // Trier les élèves par nom
+            const elevesTries = [...data.eleves_data].sort(function(a, b) {
+                return a.nom_complet.localeCompare(b.nom_complet);
+            });
+            
+            elevesTries.forEach(function(eleveData, index) {
+                const collapseId = 'collapse-eleve-' + eleveData.id + '-' + index;
+                html += '<div class="mb-3">';
+                html += '<div class="card">';
+                html += '<div class="card-header" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#' + collapseId + '" aria-expanded="false" aria-controls="' + collapseId + '">';
+                html += '<h5 class="mb-0 d-flex justify-content-between align-items-center">';
+                html += '<span><i class="fas fa-chevron-right me-2"></i><i class="fas fa-user me-2"></i>' + eleveData.nom_complet + '</span>';
+                html += '<span class="badge bg-secondary">' + eleveData.exercices.length + ' exercice(s)</span>';
+                html += '</h5>';
+                html += '</div>';
+                html += '<div id="' + collapseId + '" class="collapse">';
+                html += '<div class="card-body">';
+                
+                if (eleveData.exercices.length === 0) {
+                    html += '<p class="text-muted">Aucun exercice pour cette section.</p>';
+                } else {
+                    html += '<div class="table-responsive">';
+                    html += '<table class="table table-bordered table-hover">';
+                    html += '<thead class="table-light">';
+                    html += '<tr>';
+                    html += '<th>Exercice</th>';
+                    html += '<th>Statut</th>';
+                    html += '<th>Commentaire</th>';
+                    html += '<th>Date dernière évaluation</th>';
+                    html += '<th>Date de la séance</th>';
+                    html += '<th>Encadrant</th>';
+                    html += '<th>Actions</th>';
+                    html += '</tr>';
+                    html += '</thead>';
+                    html += '<tbody>';
+                    
+                    eleveData.exercices.forEach(function(exercice) {
+                        html += '<tr>';
+                        html += '<td><strong>' + exercice.nom + '</strong></td>';
+                        
+                        // Statut : note max avec entre parenthèses le nombre de fois qu'il a obtenu cette note
+                        let statutHtml = '';
+                        if (exercice.note_max !== null && exercice.note_max !== undefined) {
+                            statutHtml = '<span class="ms-2">';
+                            // Afficher 3 étoiles, avec celles remplies selon la note
+                            for (let i = 1; i <= 3; i++) {
+                                if (i <= exercice.note_max) {
+                                    statutHtml += '<i class="fas fa-star text-warning"></i>';
+                                } else {
+                                    statutHtml += '<i class="far fa-star text-muted"></i>';
+                                }
+                            }
+                            // Ajouter le nombre d'évaluations entre parenthèses si > 0
+                            if (exercice.nb_eval_max > 0) {
+                                statutHtml += ' <span class="fw-bold">(' + exercice.nb_eval_max + ')</span>';
+                            }
+                            statutHtml += '</span>';
+                        } else {
+                            statutHtml = '<span class="ms-2">';
+                            // Afficher 3 étoiles vides si pas d'évaluation
+                            for (let i = 1; i <= 3; i++) {
+                                statutHtml += '<i class="far fa-star text-muted"></i>';
+                            }
+                            statutHtml += '</span>';
+                        }
+                        html += '<td>' + statutHtml + '</td>';
+                        
+                        // Commentaire
+                        html += '<td>' + (exercice.commentaire || '-') + '</td>';
+                        
+                        // Date dernière évaluation
+                        html += '<td>' + (exercice.date_derniere_eval || '-') + '</td>';
+                        
+                        // Date de la séance
+                        html += '<td>' + (exercice.date_seance || '-') + '</td>';
+                        
+                        // Encadrant (qui a émis la dernière évaluation)
+                        html += '<td>' + (exercice.encadrant || '-') + '</td>';
+                        
+                        // Bouton historique
+                        if (exercice.has_evaluation) {
+                            html += '<td>';
+                            html += '<button type="button" class="btn btn-sm btn-outline-info" onclick="ouvrirHistorique(' + eleveData.id + ', ' + exercice.id + ', \'' + eleveData.nom_complet.replace(/'/g, "\\'") + '\', \'' + exercice.nom.replace(/'/g, "\\'") + '\')">';
+                            html += '<i class="fas fa-history me-1"></i>Voir l\'historique pour cette personne';
+                            html += '</button>';
+                            html += '</td>';
+                        } else {
+                            html += '<td><span class="text-muted">Aucune évaluation</span></td>';
+                        }
+                        
+                        html += '</tr>';
+                    });
+                    
+                    html += '</tbody>';
+                    html += '</table>';
+                    html += '</div>';
+                }
+                
+                html += '</div>';
+                html += '</div>';
+                html += '</div>';
+                html += '</div>';
+            });
+        }
+        
+        exercicesContainer.html(html);
+    }
+    
+    // Écouter les changements de section
+    sectionSelect.on('change', function() {
+        chargerDonnees();
+    });
+    
+    // Écouter les changements de mode d'affichage
+    modeSelect.on('change', function() {
+        if (currentData) {
+            afficherDonnees(currentData);
+        }
+    });
+    
+    // Gérer l'animation des chevrons lors de l'ouverture/fermeture des accordéons
+    $(document).on('show.bs.collapse', '.collapse', function() {
+        const header = $(this).prev('.card-header');
+        const chevron = header.find('.fa-chevron-right');
+        if (chevron.length) {
+            chevron.removeClass('fa-chevron-right').addClass('fa-chevron-down');
+        }
+    });
+    
+    $(document).on('hide.bs.collapse', '.collapse', function() {
+        const header = $(this).prev('.card-header');
+        const chevron = header.find('.fa-chevron-down');
+        if (chevron.length) {
+            chevron.removeClass('fa-chevron-down').addClass('fa-chevron-right');
+        }
+    });
+});
+
+function ouvrirHistorique(eleveId, exerciceId, eleveNom, exerciceNom) {
+    const modal = new bootstrap.Modal(document.getElementById('historiqueModal'));
+    const modalBody = $('#historique-modal-body');
+    const modalTitle = $('#historiqueModalLabel');
+    
+    modalTitle.text('Historique : ' + eleveNom + ' - ' + exerciceNom);
+    modalBody.html('<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Chargement...</span></div></div>');
+    modal.show();
+    
+    // Charger l'historique via AJAX
+    const url = '/api/historique-eleve-exercice/' + eleveId + '/' + exerciceId + '/';
+    $.ajax({
+        url: url,
+        method: 'GET',
+        success: function(data) {
+            let html = '<div class="mb-3">';
+            html += '<p class="mb-2"><strong>Élève :</strong> ' + data.eleve_nom + '</p>';
+            html += '<p class="mb-3"><strong>Exercice :</strong> ' + data.exercice_nom + '</p>';
+            html += '</div>';
+            
+            if (data.evaluations.length === 0) {
+                html += '<div class="alert alert-info">Aucune évaluation trouvée.</div>';
+            } else {
+                html += '<div class="table-responsive">';
+                html += '<table class="table table-bordered table-hover">';
+                html += '<thead class="table-light">';
+                html += '<tr>';
+                html += '<th>Date</th>';
+                html += '<th>Séance</th>';
+                html += '<th>Palanquée</th>';
+                html += '<th>Note</th>';
+                html += '<th>Raison non réalisé</th>';
+                html += '<th>Commentaire</th>';
+                html += '<th>Encadrant</th>';
+                html += '</tr>';
+                html += '</thead>';
+                html += '<tbody>';
+                
+                data.evaluations.forEach(function(eval) {
+                    html += '<tr>';
+                    html += '<td>' + eval.date + '</td>';
+                    html += '<td>' + eval.seance_date + '</td>';
+                    html += '<td>' + eval.palanquee_nom + '</td>';
+                    
+                    // Note
+                    if (eval.note) {
+                        html += '<td>';
+                        html += '<span class="fw-bold">' + eval.etoiles + '</span>';
+                        html += '<small class="text-muted ms-2">(' + eval.note_display + ')</small>';
+                        html += '</td>';
+                    } else {
+                        html += '<td><span class="text-muted">-</span></td>';
+                    }
+                    
+                    html += '<td>' + (eval.raison_non_realise || '-') + '</td>';
+                    html += '<td>' + (eval.commentaire || '-') + '</td>';
+                    html += '<td>' + (eval.encadrant || '-') + '</td>';
+                    html += '</tr>';
+                });
+                
+                html += '</tbody>';
+                html += '</table>';
+                html += '</div>';
+            }
+            
+            modalBody.html(html);
+        },
+        error: function(xhr, status, error) {
+            modalBody.html('<div class="alert alert-danger">Erreur lors du chargement de l\'historique : ' + error + '</div>');
+        }
+    });
+}
+</script>
+{% endblock %}
+

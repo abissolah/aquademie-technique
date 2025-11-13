@@ -555,7 +555,7 @@ ADHERENTS_DESTINATAIRES_CHOICES = [
 
 class CommunicationAdherentsForm(forms.Form):
     destinataires = forms.ChoiceField(
-        choices=ADHERENTS_DESTINATAIRES_CHOICES,
+        choices=[],  # Sera rempli dynamiquement avec les listes personnalisées
         label="Destinataires",
         widget=forms.Select(attrs={"class": "form-select"})
     )
@@ -587,9 +587,17 @@ class CommunicationAdherentsForm(forms.Form):
         widget=forms.Select(attrs={"class": "form-select"})
     )
 
-    def __init__(self, *args, inscrits_choices=None, **kwargs):
+    def __init__(self, *args, inscrits_choices=None, listes_diffusion=None, **kwargs):
         super().__init__(*args, **kwargs)
         if inscrits_choices is not None:
             self.fields['inscrits_choisis'].choices = inscrits_choices
+        
+        # Construire les choix de destinataires avec les listes personnalisées
+        choices = list(ADHERENTS_DESTINATAIRES_CHOICES)
+        if listes_diffusion is not None:
+            # Ajouter les listes personnalisées avec un préfixe pour les identifier
+            for liste in listes_diffusion:
+                choices.append((f"liste_{liste.id}", f"📋 {liste.nom} ({liste.adherents.count()} adhérent(s))"))
+        self.fields['destinataires'].choices = choices
 
  

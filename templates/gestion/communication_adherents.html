@@ -4,7 +4,12 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h1 class="mb-4"><i class="fas fa-envelope me-2"></i>Communiquer avec les adhérents</h1>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0"><i class="fas fa-envelope me-2"></i>Communiquer avec les adhérents</h1>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCreerListe">
+            <i class="fas fa-plus-circle me-2"></i>Créer une liste de diffusion
+        </button>
+    </div>
     <div class="card mb-4">
         <div class="card-body">
             {{ form.media }}
@@ -77,61 +82,172 @@
     </div>
 </div>
 {% if form.fields.modele.queryset %}
-<div class="container mb-4">
-    <div class="mb-3">
-        <label>Supprimer un modèle :</label>
-        <ul class="list-group">
-            {% for modele in form.fields.modele.queryset %}
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    {{ modele.nom }}
-                    <form method="post" action="{% url 'supprimer_modele_mail_adherents' modele.id %}" style="display:inline;">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer ce modèle ?');">
-                            <i class="fas fa-trash"></i> Supprimer
-                        </button>
-                    </form>
-                </li>
-            {% endfor %}
-        </ul>
-    </div>
-</div>
-{% endif %}
-{% if historique %}
-<div class="card mt-4">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Historique des envois</h5>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-sm table-hover align-middle">
-                <thead>
-                    <tr>
-                        <th>Objet</th>
-                        <th>Date</th>
-                        <th>Auteur</th>
-                        <th>Destinataires</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for mail in historique %}
-                    <tr>
-                        <td>{{ mail.objet }}</td>
-                        <td>{{ mail.date_envoi|date:"d/m/Y H:i" }}</td>
-                        <td>{% if mail.auteur %}{{ mail.auteur.get_full_name|default:mail.auteur.username }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
-                        <td>{{ mail.destinataires }}</td>
-                        <td>
-                            <form method="post" action="{% url 'supprimer_historique_mail_adherents' mail.id %}" style="display:inline;">
+<div class="container mb-3">
+    <div class="card">
+        <div class="card-header" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#collapseModeles" aria-expanded="false" aria-controls="collapseModeles">
+            <h6 class="mb-0 d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-chevron-right me-2"></i>Supprimer un modèle</span>
+            </h6>
+        </div>
+        <div id="collapseModeles" class="collapse">
+            <div class="card-body">
+                <ul class="list-group">
+                    {% for modele in form.fields.modele.queryset %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ modele.nom }}
+                            <form method="post" action="{% url 'supprimer_modele_mail_adherents' modele.id %}" style="display:inline;">
                                 {% csrf_token %}
-                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer cet envoi ?');">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer ce modèle ?');">
                                     <i class="fas fa-trash"></i> Supprimer
                                 </button>
                             </form>
-                        </td>
-                    </tr>
+                        </li>
                     {% endfor %}
-                </tbody>
-            </table>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% if listes_diffusion %}
+<div class="container mb-3">
+    <div class="card">
+        <div class="card-header" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#collapseListes" aria-expanded="false" aria-controls="collapseListes">
+            <h6 class="mb-0 d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-chevron-right me-2"></i>Listes de diffusion personnalisées</span>
+            </h6>
+        </div>
+        <div id="collapseListes" class="collapse">
+            <div class="card-body">
+                <ul class="list-group">
+                    {% for liste in listes_diffusion %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ liste.nom }}</strong>
+                                <span class="badge bg-secondary ms-2">{{ liste.adherents.count }} adhérent(s)</span>
+                            </div>
+                            <form method="post" action="{% url 'supprimer_liste_diffusion' liste.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer cette liste de diffusion ?');">
+                                    <i class="fas fa-trash"></i> Supprimer
+                                </button>
+                            </form>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal pour créer une liste de diffusion -->
+<div class="modal fade" id="modalCreerListe" tabindex="-1" aria-labelledby="modalCreerListeLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalCreerListeLabel">
+                    <i class="fas fa-plus-circle me-2"></i>Créer une nouvelle liste de diffusion
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" id="form-liste-diffusion">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="nom_liste" class="form-label">Nom de la liste :</label>
+                        <input type="text" name="nom_liste" id="nom_liste" class="form-control" required placeholder="Ex: Voyage technique">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Sélectionner les adhérents :</label>
+                        <div class="mb-2">
+                            <input type="text" id="recherche-adherents" class="form-control" placeholder="Rechercher par nom, prénom ou email...">
+                        </div>
+                        <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
+                            <table class="table table-sm table-hover align-middle" id="table-adherents-liste">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th><input type="checkbox" id="select-all-liste"></th>
+                                        <th>Nom</th>
+                                        <th>Prénom</th>
+                                        <th>Email</th>
+                                        <th>Section(s)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for adherent, is_codir in adherents_avec_codir %}
+                                    <tr class="ligne-adherent" data-nom="{{ adherent.nom|lower }}" data-prenom="{{ adherent.prenom|lower }}" data-email="{{ adherent.email|lower }}">
+                                        <td><input type="checkbox" name="adherents_liste" value="{{ adherent.id }}" class="checkbox-liste"></td>
+                                        <td>{{ adherent.nom }}</td>
+                                        <td>{{ adherent.prenom }}</td>
+                                        <td>{{ adherent.email }}</td>
+                                        <td>
+                                            {% for section in adherent.sections.all %}
+                                                <span class="badge bg-primary">{{ section }}</span>{% if not forloop.last %}, {% endif %}
+                                            {% empty %}
+                                                <span class="text-muted">Aucune</span>
+                                            {% endfor %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="submit" form="form-liste-diffusion" name="creer_liste_diffusion" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>Créer la liste
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if historique %}
+<div class="container mb-3">
+    <div class="card">
+        <div class="card-header" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#collapseHistorique" aria-expanded="false" aria-controls="collapseHistorique">
+            <h6 class="mb-0 d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-chevron-right me-2"></i>Historique des envois</span>
+            </h6>
+        </div>
+        <div id="collapseHistorique" class="collapse">
+            <div class="card-body">
+                <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                    <table class="table table-sm table-hover align-middle">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Objet</th>
+                                <th>Date</th>
+                                <th>Auteur</th>
+                                <th>Destinataires</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mail in historique %}
+                            <tr>
+                                <td>{{ mail.objet }}</td>
+                                <td>{{ mail.date_envoi|date:"d/m/Y H:i" }}</td>
+                                <td>{% if mail.auteur %}{{ mail.auteur.get_full_name|default:mail.auteur.username }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
+                                <td style="max-width: 400px; word-wrap: break-word;">{{ mail.destinataires }}</td>
+                                <td>
+                                    <form method="post" action="{% url 'supprimer_historique_mail_adherents' mail.id %}" style="display:inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer cet envoi ?');">
+                                            <i class="fas fa-trash"></i> Supprimer
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -142,6 +258,9 @@
 <script>
     // Variable pour savoir si l'utilisateur est staff
     const isStaff = {% if user.is_staff %}true{% else %}false{% endif %};
+    
+    // Données des listes de diffusion (IDs des adhérents par liste)
+    const listesData = {{ listes_data|safe }};
     
     // Affichage dynamique du bloc de choix des inscrits
     document.addEventListener('DOMContentLoaded', function() {
@@ -162,6 +281,18 @@
                 block.querySelectorAll('input[type=checkbox]').forEach(cb => {
                     cb.checked = cb.getAttribute('data-codir') === '1';
                 });
+            } else if (select.value.startsWith('liste_')) {
+                // Si une liste personnalisée est sélectionnée, cocher les adhérents de la liste
+                const listeId = parseInt(select.value.replace('liste_', ''));
+                if (listesData && listesData[listeId]) {
+                    const adherentsIds = listesData[listeId];
+                    block.querySelectorAll('input[type=checkbox]').forEach(cb => {
+                        const adherentId = parseInt(cb.value);
+                        cb.checked = adherentsIds.includes(adherentId);
+                    });
+                } else {
+                    block.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+                }
             } else {
                 const type = select.value.split('_')[0];
                 const filtre = select.value.replace(type + '_', '');
@@ -214,6 +345,95 @@
                     document.getElementById('id_contenu').value = data.contenu;
                 }
             });
+    });
+    
+    // Gestion du "Tout sélectionner" pour la création de liste (seulement les lignes visibles)
+    const selectAllListe = document.getElementById('select-all-liste');
+    if (selectAllListe) {
+        selectAllListe.addEventListener('change', function() {
+            // Sélectionner uniquement les checkboxes des lignes visibles
+            document.querySelectorAll('.ligne-adherent').forEach(tr => {
+                if (tr.style.display !== 'none') {
+                    const checkbox = tr.querySelector('.checkbox-liste');
+                    if (checkbox) {
+                        checkbox.checked = this.checked;
+                    }
+                }
+            });
+        });
+    }
+    
+    // Réinitialiser le formulaire de création de liste quand la modal est fermée
+    const modalCreerListe = document.getElementById('modalCreerListe');
+    if (modalCreerListe) {
+        modalCreerListe.addEventListener('hidden.bs.modal', function() {
+            const form = document.getElementById('form-liste-diffusion');
+            if (form) {
+                form.reset();
+                // Décocher toutes les checkboxes
+                document.querySelectorAll('.checkbox-liste').forEach(cb => {
+                    cb.checked = false;
+                });
+                if (selectAllListe) {
+                    selectAllListe.checked = false;
+                }
+                // Réinitialiser la recherche
+                const rechercheInput = document.getElementById('recherche-adherents');
+                if (rechercheInput) {
+                    rechercheInput.value = '';
+                    // Afficher toutes les lignes
+                    document.querySelectorAll('.ligne-adherent').forEach(tr => {
+                        tr.style.display = '';
+                    });
+                }
+            }
+        });
+    }
+    
+    // Filtre de recherche dans la modal de création de liste
+    const rechercheAdherents = document.getElementById('recherche-adherents');
+    if (rechercheAdherents) {
+        rechercheAdherents.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase().trim();
+            const lignes = document.querySelectorAll('.ligne-adherent');
+            
+            if (searchTerm === '') {
+                // Afficher toutes les lignes si la recherche est vide
+                lignes.forEach(tr => {
+                    tr.style.display = '';
+                });
+            } else {
+                // Filtrer les lignes selon le terme de recherche
+                lignes.forEach(tr => {
+                    const nom = tr.getAttribute('data-nom') || '';
+                    const prenom = tr.getAttribute('data-prenom') || '';
+                    const email = tr.getAttribute('data-email') || '';
+                    
+                    if (nom.includes(searchTerm) || prenom.includes(searchTerm) || email.includes(searchTerm)) {
+                        tr.style.display = '';
+                    } else {
+                        tr.style.display = 'none';
+                    }
+                });
+            }
+        });
+    }
+    
+    // Gérer l'animation des chevrons pour tous les accordéons (modèles, listes, historique)
+    $(document).on('show.bs.collapse', '.collapse', function() {
+        const header = $(this).prev('.card-header');
+        const chevron = header.find('.fa-chevron-right');
+        if (chevron.length) {
+            chevron.removeClass('fa-chevron-right').addClass('fa-chevron-down');
+        }
+    });
+    
+    $(document).on('hide.bs.collapse', '.collapse', function() {
+        const header = $(this).prev('.card-header');
+        const chevron = header.find('.fa-chevron-down');
+        if (chevron.length) {
+            chevron.removeClass('fa-chevron-down').addClass('fa-chevron-right');
+        }
     });
 </script>
 {% endblock %}
