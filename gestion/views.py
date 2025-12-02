@@ -1035,17 +1035,17 @@ def envoyer_mail_invitation_seance(request, seance_id):
     url = request.build_absolute_uri(f"/inscription/{lien.uuid}/")
     message_txt = render_to_string('gestion/email_invitation_seance.txt', {'seance': seance, 'lien': lien, 'url': url})
     message_html = render_to_string('gestion/email_invitation_seance.html', {'seance': seance, 'lien': lien, 'url': url})
-    cc_emails = getattr(settings, 'EMAIL_CC_DEFAULT', [])
-    datatuple = [(subject, adherent, [adherent.email], cc_emails) for adherent in adherents if adherent.email]
+    # Pas d'envoi en copie pour les invitations
+    datatuple = [(subject, adherent, [adherent.email]) for adherent in adherents if adherent.email]
     from django.core.mail import EmailMultiAlternatives
     # Liste pour stocker les destinataires qui ont reçu le mail
     destinataires_envoyes = []
-    for subject, adherent, recipient_list, cc_list in datatuple:
+    for subject, adherent, recipient_list in datatuple:
         url = request.build_absolute_uri(f"/inscription/{lien.uuid}/")
         context = {'seance': seance, 'lien': lien, 'url': url, 'adherent': adherent}
         message_txt = render_to_string('gestion/email_invitation_seance.txt', context)
         message_html = render_to_string('gestion/email_invitation_seance.html', context)
-        email = EmailMultiAlternatives(subject, message_txt, None, recipient_list, cc=cc_list)
+        email = EmailMultiAlternatives(subject, message_txt, None, recipient_list)
         email.attach_alternative(message_html, "text/html")
         # Attacher l'image de signature en inline
         signature_img_path = os.path.join(settings.BASE_DIR, 'static', 'Signature_mouss2.png')
@@ -3299,28 +3299,30 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                         'email': adherent.email
                     })
             
-            # Envoi par lots de 10 avec pause
+            # Envoi individuel à chaque destinataire (sans BCC)
             batch_size = 10
             destinataires_envoyes = []
             for i in range(0, len(destinataires), batch_size):
                 batch = destinataires[i:i+batch_size]
-                email = EmailMessage(
-                    subject=form.cleaned_data['objet'],
-                    body=form.cleaned_data['contenu'],
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    bcc=batch,
-                    reply_to=reply_to_list if reply_to_list else None,
-                )
-                email.content_subtype = "html"
-                # Utiliser les données pré-chargées au lieu de relire les fichiers
-                for f_data in fichiers_data:
-                    email.attach(f_data['name'], f_data['content'], f_data['content_type'])
-                email.send()
-                # Ajouter les destinataires du lot à la liste
+                # Envoyer un mail individuel à chaque destinataire du lot
                 for email_dest in batch:
+                    email = EmailMessage(
+                        subject=form.cleaned_data['objet'],
+                        body=form.cleaned_data['contenu'],
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        to=[email_dest],
+                        reply_to=reply_to_list if reply_to_list else None,
+                    )
+                    email.content_subtype = "html"
+                    # Utiliser les données pré-chargées au lieu de relire les fichiers
+                    for f_data in fichiers_data:
+                        email.attach(f_data['name'], f_data['content'], f_data['content_type'])
+                    email.send()
+                    # Ajouter le destinataire à la liste
                     dest_info = next((d for d in destinataires_complets if d['email'] == email_dest), None)
                     if dest_info and dest_info not in destinataires_envoyes:
                         destinataires_envoyes.append(dest_info)
+                # Pause entre les lots pour éviter les limites SMTP
                 if (i + batch_size) < len(destinataires):
                     time.sleep(3)
             
