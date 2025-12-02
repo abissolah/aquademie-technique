@@ -5,6 +5,42 @@
 {% block content %}
 <div class="container mt-4">
     <h1 class="mb-4"><i class="fas fa-envelope me-2"></i>Communiquer avec les inscrits</h1>
+    {% if destinataires_envoyes %}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+                <h5 class="alert-heading mb-1">
+                    <i class="fas fa-check-circle me-2"></i>Mail envoyé avec succès !
+                </h5>
+                <p class="mb-2">Le mail a été envoyé à <strong>{{ destinataires_envoyes|length }}</strong> destinataire(s) :</p>
+            </div>
+            <a href="{% url 'exporter_destinataires_communication_excel' seance.pk %}" class="btn btn-sm btn-outline-success ms-3">
+                <i class="fas fa-file-excel me-1"></i>Exporter en Excel
+            </a>
+        </div>
+        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+            <table class="table table-sm table-bordered mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 30%;">Nom</th>
+                        <th style="width: 30%;">Prénom</th>
+                        <th style="width: 40%;">Email</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dest in destinataires_envoyes %}
+                    <tr>
+                        <td>{{ dest.nom|upper }}</td>
+                        <td>{{ dest.prenom|capfirst }}</td>
+                        <td><code>{{ dest.email }}</code></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
     <div class="card mb-4">
         <div class="card-body">
             {{ form.media }}
@@ -60,7 +96,7 @@
                     <a href="{% url 'seance_detail' seance.pk %}" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left me-2"></i>Retour à la séance
                     </a>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" id="btn-envoyer-communication" class="btn btn-primary">
                         <i class="fas fa-paper-plane me-2"></i>Envoyer le mail
                     </button>
                 </div>
@@ -123,5 +159,42 @@
                 }
             });
     });
+    
+    // Protection contre les doubles clics pour l'envoi de communication
+    const btnEnvoyerCommunication = document.getElementById('btn-envoyer-communication');
+    const commForm = document.getElementById('comm-form');
+    if (btnEnvoyerCommunication && commForm) {
+        commForm.addEventListener('submit', function(e) {
+            const btn = btnEnvoyerCommunication;
+            // Vérifier si le bouton est déjà désactivé
+            if (btn.classList.contains('disabled') || btn.style.pointerEvents === 'none') {
+                e.preventDefault();
+                return false;
+            }
+            
+            // Désactiver le bouton
+            btn.classList.add('disabled');
+            btn.style.pointerEvents = 'none';
+            btn.style.opacity = '0.6';
+            btn.style.cursor = 'not-allowed';
+            
+            // Sauvegarder le contenu original
+            const originalHTML = btn.innerHTML;
+            
+            // Changer le texte et ajouter un spinner
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Envoi en cours...';
+            
+            // Réactivation après 30 secondes en cas d'erreur réseau
+            setTimeout(() => {
+                if (btn.classList.contains('disabled')) {
+                    btn.classList.remove('disabled');
+                    btn.style.pointerEvents = '';
+                    btn.style.opacity = '';
+                    btn.style.cursor = '';
+                    btn.innerHTML = originalHTML;
+                }
+            }, 30000); // 30 secondes de timeout
+        });
+    }
 </script>
 {% endblock %}

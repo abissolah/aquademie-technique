@@ -3,6 +3,124 @@
 {% block title %}{{ seance.date|date:"d/m/Y" }} - {{ seance.lieu }} - Club de Plongée{% endblock %}
 
 {% block content %}
+{% if destinataires_invitation_envoyes %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <div class="d-flex justify-content-between align-items-start mb-2">
+        <div>
+            <h5 class="alert-heading mb-1">
+                <i class="fas fa-check-circle me-2"></i>Invitation envoyée avec succès !
+            </h5>
+            <p class="mb-2">L'invitation a été envoyée à <strong>{{ destinataires_invitation_envoyes|length }}</strong> destinataire(s) :</p>
+        </div>
+        <a href="{% url 'exporter_destinataires_invitation_excel' seance.pk %}" class="btn btn-sm btn-outline-success ms-3">
+            <i class="fas fa-file-excel me-1"></i>Exporter en Excel
+        </a>
+    </div>
+    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-sm table-bordered mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 30%;">Nom</th>
+                    <th style="width: 30%;">Prénom</th>
+                    <th style="width: 40%;">Email</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dest in destinataires_invitation_envoyes %}
+                <tr>
+                    <td>{{ dest.nom|upper }}</td>
+                    <td>{{ dest.prenom|capfirst }}</td>
+                    <td><code>{{ dest.email }}</code></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+{% if destinataires_evaluation_envoyes %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <div class="d-flex justify-content-between align-items-start mb-2">
+        <div>
+            <h5 class="alert-heading mb-1">
+                <i class="fas fa-check-circle me-2"></i>Liens d'évaluation envoyés avec succès !
+            </h5>
+            <p class="mb-2">Les liens d'évaluation ont été envoyés à <strong>{{ destinataires_evaluation_envoyes|length }}</strong> encadrant(s) :</p>
+        </div>
+        <a href="{% url 'exporter_destinataires_evaluation_excel' seance.pk %}" class="btn btn-sm btn-outline-success ms-3">
+            <i class="fas fa-file-excel me-1"></i>Exporter en Excel
+        </a>
+    </div>
+    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-sm table-bordered mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 25%;">Nom</th>
+                    <th style="width: 25%;">Prénom</th>
+                    <th style="width: 30%;">Email</th>
+                    <th style="width: 20%;">Palanquée</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dest in destinataires_evaluation_envoyes %}
+                <tr>
+                    <td>{{ dest.nom|upper }}</td>
+                    <td>{{ dest.prenom|capfirst }}</td>
+                    <td><code>{{ dest.email }}</code></td>
+                    <td>{{ dest.palanquee }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+{% if destinataires_covoiturage_envoyes %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <div class="d-flex justify-content-between align-items-start mb-2">
+        <div>
+            <h5 class="alert-heading mb-1">
+                <i class="fas fa-check-circle me-2"></i>Mail de covoiturage envoyé avec succès !
+            </h5>
+            <p class="mb-2">Le mail de covoiturage a été envoyé à <strong>{{ destinataires_covoiturage_envoyes|length }}</strong> destinataire(s) :</p>
+        </div>
+        <a href="{% url 'exporter_destinataires_covoiturage_excel' seance.pk %}" class="btn btn-sm btn-outline-success ms-3">
+            <i class="fas fa-file-excel me-1"></i>Exporter en Excel
+        </a>
+    </div>
+    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-sm table-bordered mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 25%;">Nom</th>
+                    <th style="width: 25%;">Prénom</th>
+                    <th style="width: 30%;">Email</th>
+                    <th style="width: 20%;">Rôle</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dest in destinataires_covoiturage_envoyes %}
+                <tr>
+                    <td>{{ dest.nom|upper }}</td>
+                    <td>{{ dest.prenom|capfirst }}</td>
+                    <td><code>{{ dest.email }}</code></td>
+                    <td>
+                        {% if dest.role == 'Conducteur' %}
+                            <span class="badge bg-primary">{{ dest.role }}</span>
+                        {% else %}
+                            <span class="badge bg-info">{{ dest.role }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
 <div class="row">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -180,13 +298,13 @@
                             <code style="word-break: break-all;">{{ request.scheme }}://{{ request.get_host }}/inscription/{{ seance.liens_inscription.last.uuid }}/</code>
                         </div>
                     {% endif %}
-                    <a href="{% url 'envoyer_mail_invitation_seance' seance.pk %}" class="btn btn-outline-success">
+                    <a href="{% url 'envoyer_mail_invitation_seance' seance.pk %}" id="btn-envoyer-invitation" class="btn btn-outline-success">
                         <i class="fas fa-envelope"></i> Envoyer l'invitation par mail
                     </a>
                     {% if seance.inscriptions.count > 0 %}
                     <a href="{% url 'creer_palanquees' seance.pk %}" class="btn btn-success mb-2"><i class="fas fa-users"></i> Créer les palanquées</a>
                     {% endif %}
-                    <a href="{% url 'envoyer_mail_covoiturage' seance.pk %}" class="btn btn-outline-success">
+                    <a href="{% url 'envoyer_mail_covoiturage' seance.pk %}" id="btn-envoyer-covoiturage" class="btn btn-outline-success">
                         <i class="fas fa-car"></i> Envoyer mail covoiturage
                     </a>
                     <a href="{% url 'generer_fiche_securite_excel' seance.pk %}" class="btn btn-outline-danger">
@@ -200,7 +318,7 @@
                     <a href="{% url 'envoyer_pdf_palanquees_encadrants' seance.pk %}" class="btn btn-outline-info">
                         <i class="fas fa-file-pdf"></i> Générer et envoyer PDF à tous les encadrants
                     </a>
-                    <a href="{% url 'envoyer_liens_evaluation_encadrants' seance.pk %}" class="btn btn-outline-info">
+                    <a href="{% url 'envoyer_liens_evaluation_encadrants' seance.pk %}" id="btn-envoyer-liens-evaluation" class="btn btn-outline-info">
                         <i class="fas fa-link"></i> Générer et envoyer liens d'évaluation à tous les encadrants
                     </a>
                 </div>
@@ -497,6 +615,113 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+    
+    // Protection contre les doubles clics pour l'envoi d'invitation par mail
+    const btnEnvoyerInvitation = document.getElementById('btn-envoyer-invitation');
+    if (btnEnvoyerInvitation) {
+        btnEnvoyerInvitation.addEventListener('click', function(e) {
+            // Vérifier si le bouton est déjà désactivé
+            if (this.classList.contains('disabled') || this.style.pointerEvents === 'none') {
+                e.preventDefault();
+                return false;
+            }
+            
+            // Désactiver le bouton
+            this.classList.add('disabled');
+            this.style.pointerEvents = 'none';
+            this.style.opacity = '0.6';
+            this.style.cursor = 'not-allowed';
+            
+            // Sauvegarder le contenu original
+            const originalHTML = this.innerHTML;
+            
+            // Changer le texte et ajouter un spinner
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Envoi en cours...';
+            
+            // Si la page se recharge (succès), le bouton sera réinitialisé
+            // Si erreur, on peut réactiver après un délai (mais normalement la page se recharge)
+            // Pour gérer le cas où la page ne se recharge pas (erreur réseau), on réactive après 30 secondes
+            setTimeout(() => {
+                if (this.classList.contains('disabled')) {
+                    this.classList.remove('disabled');
+                    this.style.pointerEvents = '';
+                    this.style.opacity = '';
+                    this.style.cursor = '';
+                    this.innerHTML = originalHTML;
+                }
+            }, 30000); // 30 secondes de timeout
+        });
+    }
+    
+    // Protection contre les doubles clics pour l'envoi de liens d'évaluation
+    const btnEnvoyerLiensEvaluation = document.getElementById('btn-envoyer-liens-evaluation');
+    if (btnEnvoyerLiensEvaluation) {
+        btnEnvoyerLiensEvaluation.addEventListener('click', function(e) {
+            // Vérifier si le bouton est déjà désactivé
+            if (this.classList.contains('disabled') || this.style.pointerEvents === 'none') {
+                e.preventDefault();
+                return false;
+            }
+            
+            // Désactiver le bouton
+            this.classList.add('disabled');
+            this.style.pointerEvents = 'none';
+            this.style.opacity = '0.6';
+            this.style.cursor = 'not-allowed';
+            
+            // Sauvegarder le contenu original
+            const originalHTML = this.innerHTML;
+            
+            // Changer le texte et ajouter un spinner
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Envoi en cours...';
+            
+            // Réactivation après 30 secondes en cas d'erreur réseau
+            setTimeout(() => {
+                if (this.classList.contains('disabled')) {
+                    this.classList.remove('disabled');
+                    this.style.pointerEvents = '';
+                    this.style.opacity = '';
+                    this.style.cursor = '';
+                    this.innerHTML = originalHTML;
+                }
+            }, 30000); // 30 secondes de timeout
+        });
+    }
+    
+    // Protection contre les doubles clics pour l'envoi de mail de covoiturage
+    const btnEnvoyerCovoiturage = document.getElementById('btn-envoyer-covoiturage');
+    if (btnEnvoyerCovoiturage) {
+        btnEnvoyerCovoiturage.addEventListener('click', function(e) {
+            // Vérifier si le bouton est déjà désactivé
+            if (this.classList.contains('disabled') || this.style.pointerEvents === 'none') {
+                e.preventDefault();
+                return false;
+            }
+            
+            // Désactiver le bouton
+            this.classList.add('disabled');
+            this.style.pointerEvents = 'none';
+            this.style.opacity = '0.6';
+            this.style.cursor = 'not-allowed';
+            
+            // Sauvegarder le contenu original
+            const originalHTML = this.innerHTML;
+            
+            // Changer le texte et ajouter un spinner
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Envoi en cours...';
+            
+            // Réactivation après 30 secondes en cas d'erreur réseau
+            setTimeout(() => {
+                if (this.classList.contains('disabled')) {
+                    this.classList.remove('disabled');
+                    this.style.pointerEvents = '';
+                    this.style.opacity = '';
+                    this.style.cursor = '';
+                    this.innerHTML = originalHTML;
+                }
+            }, 30000); // 30 secondes de timeout
+        });
+    }
 });
 </script>
 <dialog id="dupliquerExercicesDialog">

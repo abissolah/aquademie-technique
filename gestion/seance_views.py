@@ -79,10 +79,15 @@ class CommunicationSeanceView(LoginRequiredMixin, View):
         inscrits = list(inscrits_qs.values('id', 'personne__nom', 'personne__prenom', 'personne__email'))
         inscrits_choices = [(str(ins['id']), f"{ins['personne__nom']} {ins['personne__prenom']} ({ins['personne__email']})") for ins in inscrits]
         form = CommunicationSeanceForm(inscrits_choices=inscrits_choices)
+        # Récupérer la liste des destinataires depuis la session (si disponible)
+        destinataires_envoyes = None
+        if 'destinataires_communication_envoyes' in request.session:
+            destinataires_envoyes = request.session.pop('destinataires_communication_envoyes')
         return render(request, 'gestion/communication_seance.html', {
             'form': form,
             'seance': seance,
             'inscrits': inscrits,
+            'destinataires_envoyes': destinataires_envoyes,
         })
 
     def post(self, request, pk):
@@ -172,9 +177,30 @@ class CommunicationSeanceView(LoginRequiredMixin, View):
                     reply_to_list.append(user_email)
 
 
+            # Récupérer les informations complètes des destinataires (nom, prénom, email)
+            destinataires_complets = []
+            if form.cleaned_data['destinataires'] == 'encadrants':
+                destinataires_complets = list(seance.inscriptions.filter(
+                    personne__statut='encadrant', personne__email__in=destinataires
+                ).values('personne__nom', 'personne__prenom', 'personne__email'))
+            elif form.cleaned_data['destinataires'] == 'eleves':
+                destinataires_complets = list(seance.inscriptions.filter(
+                    personne__statut='eleve', personne__email__in=destinataires
+                ).values('personne__nom', 'personne__prenom', 'personne__email'))
+            elif form.cleaned_data['destinataires'] == 'tous':
+                destinataires_complets = list(seance.inscriptions.filter(
+                    personne__email__in=destinataires
+                ).values('personne__nom', 'personne__prenom', 'personne__email'))
+            elif form.cleaned_data['destinataires'] == 'choix':
+                ids = form.cleaned_data['inscrits_choisis']
+                destinataires_complets = list(seance.inscriptions.filter(
+                    id__in=ids, personne__email__in=destinataires
+                ).values('personne__nom', 'personne__prenom', 'personne__email'))
+            
             # Envoi du mail (un email par destinataire pour éviter les problèmes de pièces jointes)
             cc_emails = getattr(settings, 'EMAIL_CC_DEFAULT', [])
             nb_envoyes = 0
+            destinataires_envoyes = []
             for destinataire in destinataires:
                 email = EmailMessage(
                     subject=form.cleaned_data['objet'],
@@ -190,6 +216,27 @@ class CommunicationSeanceView(LoginRequiredMixin, View):
                     email.attach(f_data['name'], f_data['content'], f_data['content_type'])
                 email.send()
                 nb_envoyes += 1
+                # Trouver les informations du destinataire
+                dest_info = next((d for d in destinataires_complets if d['personne__email'] == destinataire), None)
+                if dest_info:
+                    destinataires_envoyes.append({
+                        'nom': dest_info['personne__nom'],
+                        'prenom': dest_info['personne__prenom'],
+                        'email': dest_info['personne__email']
+                    })
+            
+            # Stocker la liste des destinataires dans la session pour l'affichage
+            if destinataires_envoyes:
+                request.session['destinataires_communication_envoyes'] = destinataires_envoyes
+                # Stocker aussi dans la session pour l'export Excel
+                request.session['destinataires_communication_export'] = {
+                    'destinataires': destinataires_envoyes,
+                    'seance_id': seance.pk,
+                    'date_seance': seance.date.strftime('%d/%m/%Y'),
+                    'lieu': str(seance.lieu.nom),
+                    'objet': form.cleaned_data['objet']
+                }
+            
             # Historique
             HistoriqueMailSeance.objects.create(
                 seance=seance,
@@ -200,7 +247,7 @@ class CommunicationSeanceView(LoginRequiredMixin, View):
                 auteur=request.user
             )
             messages.success(request, f"{nb_envoyes} mail(s) envoyé(s) avec succès.")
-            return redirect('seance_detail', pk=seance.pk)
+            return redirect('seance_communiquer', pk=seance.pk)
         else:
             print('[DEBUG] Formulaire NON valide :', form.errors)
             return render(request, 'gestion/communication_seance.html', {

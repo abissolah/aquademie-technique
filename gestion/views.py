@@ -454,6 +454,15 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         context['nb_eleves'] = len(inscrits_eleves)
         context['covoiturage_propose'] = [i for i in inscriptions if i.covoiturage == 'propose']
         context['covoiturage_besoin'] = [i for i in inscriptions if i.covoiturage == 'besoin']
+        # Récupérer la liste des destinataires depuis la session (si disponible)
+        if 'destinataires_invitation_envoyes' in self.request.session:
+            context['destinataires_invitation_envoyes'] = self.request.session.pop('destinataires_invitation_envoyes')
+        # Récupérer la liste des destinataires des liens d'évaluation depuis la session
+        if 'destinataires_evaluation_envoyes' in self.request.session:
+            context['destinataires_evaluation_envoyes'] = self.request.session.pop('destinataires_evaluation_envoyes')
+        # Récupérer la liste des destinataires du covoiturage depuis la session
+        if 'destinataires_covoiturage_envoyes' in self.request.session:
+            context['destinataires_covoiturage_envoyes'] = self.request.session.pop('destinataires_covoiturage_envoyes')
         return context
 
 @method_decorator(group_required('admin'), name='dispatch')
@@ -1029,6 +1038,8 @@ def envoyer_mail_invitation_seance(request, seance_id):
     cc_emails = getattr(settings, 'EMAIL_CC_DEFAULT', [])
     datatuple = [(subject, adherent, [adherent.email], cc_emails) for adherent in adherents if adherent.email]
     from django.core.mail import EmailMultiAlternatives
+    # Liste pour stocker les destinataires qui ont reçu le mail
+    destinataires_envoyes = []
     for subject, adherent, recipient_list, cc_list in datatuple:
         url = request.build_absolute_uri(f"/inscription/{lien.uuid}/")
         context = {'seance': seance, 'lien': lien, 'url': url, 'adherent': adherent}
@@ -1045,9 +1056,377 @@ def envoyer_mail_invitation_seance(request, seance_id):
                 mime_img.add_header('Content-Disposition', 'inline', filename='Signature_mouss2.png')
                 email.attach(mime_img)
         email.send()
+        # Ajouter le destinataire à la liste
+        destinataires_envoyes.append({
+            'nom': adherent.nom,
+            'prenom': adherent.prenom,
+            'email': adherent.email
+        })
+    # Stocker la liste des destinataires dans la session pour l'affichage
+    request.session['destinataires_invitation_envoyes'] = destinataires_envoyes
+    # Stocker aussi dans la session pour l'export Excel (avec la date de la séance)
+    request.session['destinataires_invitation_export'] = {
+        'destinataires': destinataires_envoyes,
+        'seance_id': seance_id,
+        'date_seance': seance.date.strftime('%d/%m/%Y'),
+        'lieu': str(seance.lieu.nom)
+    }
     messages.success(request, f"Invitation envoyée à {len(emails)} adhérents.")
     return redirect('seance_detail', pk=seance_id)
 
+
+@login_required
+def exporter_destinataires_evaluation_excel(request, seance_id):
+    """Exporte la liste des destinataires des liens d'évaluation en Excel"""
+    import openpyxl
+    from openpyxl.utils import get_column_letter
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from django.http import HttpResponse
+    
+    seance = get_object_or_404(Seance, pk=seance_id)
+    
+    # Récupérer les destinataires depuis la session
+    if 'destinataires_evaluation_export' not in request.session:
+        messages.error(request, "Aucune liste de destinataires disponible pour l'export.")
+        return redirect('seance_detail', pk=seance_id)
+    
+    export_data = request.session.get('destinataires_evaluation_export', {})
+    destinataires = export_data.get('destinataires', [])
+    
+    if not destinataires:
+        messages.error(request, "Aucun destinataire à exporter.")
+        return redirect('seance_detail', pk=seance_id)
+    
+    # Création du workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Destinataires liens évaluation'
+    
+    # En-tête avec informations de la séance
+    ws.append(['Séance du ' + export_data.get('date_seance', ''), ''])
+    ws.append(['Lieu : ' + export_data.get('lieu', ''), ''])
+    ws.append([''])  # Ligne vide
+    
+    # En-têtes du tableau
+    headers = ['Nom', 'Prénom', 'Email', 'Palanquée']
+    ws.append(headers)
+    
+    # Style pour les en-têtes
+    header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col_num)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Données
+    for dest in destinataires:
+        ws.append([
+            dest.get('nom', '').upper(),
+            dest.get('prenom', '').capitalize(),
+            dest.get('email', ''),
+            dest.get('palanquee', '')
+        ])
+    
+    # Ajuster la largeur des colonnes
+    ws.column_dimensions[get_column_letter(1)].width = 25  # Nom
+    ws.column_dimensions[get_column_letter(2)].width = 25  # Prénom
+    ws.column_dimensions[get_column_letter(3)].width = 35  # Email
+    ws.column_dimensions[get_column_letter(4)].width = 30  # Palanquée
+    
+    # Réponse HTTP
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    date_str = export_data.get('date_seance', '').replace('/', '-')
+    filename = f"destinataires_evaluation_{date_str}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    wb.save(response)
+    return response
+
+@login_required
+def exporter_destinataires_invitation_excel(request, seance_id):
+    """Exporte la liste des destinataires de l'invitation en Excel"""
+    import openpyxl
+    from openpyxl.utils import get_column_letter
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from django.http import HttpResponse
+    
+    seance = get_object_or_404(Seance, pk=seance_id)
+    
+    # Récupérer les destinataires depuis la session
+    if 'destinataires_invitation_export' not in request.session:
+        messages.error(request, "Aucune liste de destinataires disponible pour l'export.")
+        return redirect('seance_detail', pk=seance_id)
+    
+    export_data = request.session.get('destinataires_invitation_export', {})
+    destinataires = export_data.get('destinataires', [])
+    
+    if not destinataires:
+        messages.error(request, "Aucun destinataire à exporter.")
+        return redirect('seance_detail', pk=seance_id)
+    
+    # Création du workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Destinataires invitation'
+    
+    # En-tête avec informations de la séance
+    ws.append(['Séance du ' + export_data.get('date_seance', ''), ''])
+    ws.append(['Lieu : ' + export_data.get('lieu', ''), ''])
+    ws.append([''])  # Ligne vide
+    
+    # En-têtes du tableau
+    headers = ['Nom', 'Prénom', 'Email']
+    ws.append(headers)
+    
+    # Style pour les en-têtes
+    header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col_num)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Données
+    for dest in destinataires:
+        ws.append([
+            dest.get('nom', '').upper(),
+            dest.get('prenom', '').capitalize(),
+            dest.get('email', '')
+        ])
+    
+    # Ajuster la largeur des colonnes
+    ws.column_dimensions[get_column_letter(1)].width = 25  # Nom
+    ws.column_dimensions[get_column_letter(2)].width = 25  # Prénom
+    ws.column_dimensions[get_column_letter(3)].width = 35  # Email
+    
+    # Réponse HTTP
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    date_str = export_data.get('date_seance', '').replace('/', '-')
+    filename = f"destinataires_invitation_{date_str}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    wb.save(response)
+    return response
+
+@login_required
+def exporter_destinataires_communication_excel(request, seance_id):
+    """Exporte la liste des destinataires de la communication en Excel"""
+    import openpyxl
+    from openpyxl.utils import get_column_letter
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from django.http import HttpResponse
+    
+    seance = get_object_or_404(Seance, pk=seance_id)
+    
+    # Récupérer les destinataires depuis la session
+    if 'destinataires_communication_export' not in request.session:
+        messages.error(request, "Aucune liste de destinataires disponible pour l'export.")
+        return redirect('seance_communiquer', pk=seance_id)
+    
+    export_data = request.session.get('destinataires_communication_export', {})
+    destinataires = export_data.get('destinataires', [])
+    
+    if not destinataires:
+        messages.error(request, "Aucun destinataire à exporter.")
+        return redirect('seance_communiquer', pk=seance_id)
+    
+    # Création du workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Destinataires communication'
+    
+    # En-tête avec informations de la séance
+    ws.append(['Séance du ' + export_data.get('date_seance', ''), ''])
+    ws.append(['Lieu : ' + export_data.get('lieu', ''), ''])
+    ws.append(['Objet : ' + export_data.get('objet', ''), ''])
+    ws.append([''])  # Ligne vide
+    
+    # En-têtes du tableau
+    headers = ['Nom', 'Prénom', 'Email']
+    ws.append(headers)
+    
+    # Style pour les en-têtes
+    header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=5, column=col_num)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Données
+    for dest in destinataires:
+        ws.append([
+            dest.get('nom', '').upper(),
+            dest.get('prenom', '').capitalize(),
+            dest.get('email', '')
+        ])
+    
+    # Ajuster la largeur des colonnes
+    ws.column_dimensions[get_column_letter(1)].width = 25  # Nom
+    ws.column_dimensions[get_column_letter(2)].width = 25  # Prénom
+    ws.column_dimensions[get_column_letter(3)].width = 35  # Email
+    
+    # Réponse HTTP
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    date_str = export_data.get('date_seance', '').replace('/', '-')
+    filename = f"destinataires_communication_{date_str}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    wb.save(response)
+    return response
+
+@login_required
+def exporter_destinataires_adherents_excel(request):
+    """Exporte la liste des destinataires de la communication avec les adhérents en Excel"""
+    import openpyxl
+    from openpyxl.utils import get_column_letter
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from django.http import HttpResponse
+    
+    # Récupérer les destinataires depuis la session
+    if 'destinataires_adherents_export' not in request.session:
+        messages.error(request, "Aucune liste de destinataires disponible pour l'export.")
+        return redirect('adherents_communiquer')
+    
+    export_data = request.session.get('destinataires_adherents_export', {})
+    destinataires = export_data.get('destinataires', [])
+    
+    if not destinataires:
+        messages.error(request, "Aucun destinataire à exporter.")
+        return redirect('adherents_communiquer')
+    
+    # Création du workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Destinataires communication'
+    
+    # En-tête avec informations
+    ws.append(['Objet : ' + export_data.get('objet', ''), ''])
+    ws.append([''])  # Ligne vide
+    
+    # En-têtes du tableau
+    headers = ['Nom', 'Prénom', 'Email']
+    ws.append(headers)
+    
+    # Style pour les en-têtes
+    header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=3, column=col_num)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Données
+    for dest in destinataires:
+        ws.append([
+            dest.get('nom', '').upper(),
+            dest.get('prenom', '').capitalize(),
+            dest.get('email', '')
+        ])
+    
+    # Ajuster la largeur des colonnes
+    ws.column_dimensions[get_column_letter(1)].width = 25  # Nom
+    ws.column_dimensions[get_column_letter(2)].width = 25  # Prénom
+    ws.column_dimensions[get_column_letter(3)].width = 35  # Email
+    
+    # Réponse HTTP
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    from datetime import datetime
+    date_str = datetime.now().strftime('%Y-%m-%d')
+    filename = f"destinataires_adherents_{date_str}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    wb.save(response)
+    return response
+
+@login_required
+def exporter_destinataires_covoiturage_excel(request, seance_id):
+    """Exporte la liste des destinataires du mail de covoiturage en Excel"""
+    import openpyxl
+    from openpyxl.utils import get_column_letter
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from django.http import HttpResponse
+    
+    seance = get_object_or_404(Seance, pk=seance_id)
+    
+    # Récupérer les destinataires depuis la session
+    if 'destinataires_covoiturage_export' not in request.session:
+        messages.error(request, "Aucune liste de destinataires disponible pour l'export.")
+        return redirect('seance_detail', pk=seance_id)
+    
+    export_data = request.session.get('destinataires_covoiturage_export', {})
+    destinataires = export_data.get('destinataires', [])
+    
+    if not destinataires:
+        messages.error(request, "Aucun destinataire à exporter.")
+        return redirect('seance_detail', pk=seance_id)
+    
+    # Création du workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Destinataires covoiturage'
+    
+    # En-tête avec informations de la séance
+    ws.append(['Séance du ' + export_data.get('date_seance', ''), ''])
+    ws.append(['Lieu : ' + export_data.get('lieu', ''), ''])
+    ws.append([''])  # Ligne vide
+    
+    # En-têtes du tableau
+    headers = ['Nom', 'Prénom', 'Email', 'Rôle']
+    ws.append(headers)
+    
+    # Style pour les en-têtes
+    header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col_num)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Données
+    for dest in destinataires:
+        ws.append([
+            dest.get('nom', '').upper(),
+            dest.get('prenom', '').capitalize(),
+            dest.get('email', ''),
+            dest.get('role', '')
+        ])
+    
+    # Ajuster la largeur des colonnes
+    ws.column_dimensions[get_column_letter(1)].width = 25  # Nom
+    ws.column_dimensions[get_column_letter(2)].width = 25  # Prénom
+    ws.column_dimensions[get_column_letter(3)].width = 35  # Email
+    ws.column_dimensions[get_column_letter(4)].width = 15  # Rôle
+    
+    # Réponse HTTP
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    date_str = export_data.get('date_seance', '').replace('/', '-')
+    filename = f"destinataires_covoiturage_{date_str}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    wb.save(response)
+    return response
 
 def inscription_seance_uuid(request, uuid):
     lien = get_object_or_404(LienInscriptionSeance, uuid=uuid)
@@ -2177,6 +2556,8 @@ def envoyer_mail_covoiturage(request, seance_id):
     signature_img_path = os.path.join(settings.BASE_DIR, 'static', 'Signature_mouss2.png')
     nb_envoyes = 0
     erreurs = []
+    # Liste pour stocker les destinataires qui ont reçu le mail
+    destinataires_envoyes = []
     for ins in passagers:
         if not ins.personne.email:
             continue
@@ -2193,6 +2574,13 @@ def envoyer_mail_covoiturage(request, seance_id):
         try:
             email.send()
             nb_envoyes += 1
+            # Ajouter le destinataire à la liste
+            destinataires_envoyes.append({
+                'nom': ins.personne.nom,
+                'prenom': ins.personne.prenom,
+                'email': ins.personne.email,
+                'role': 'Passager'
+            })
         except Exception as e:
             erreurs.append(f"{ins.personne.nom} {ins.personne.prenom} : {str(e)}")
 
@@ -2212,9 +2600,26 @@ def envoyer_mail_covoiturage(request, seance_id):
         try:
             email.send()
             nb_envoyes += 1
+            # Ajouter le destinataire à la liste
+            destinataires_envoyes.append({
+                'nom': ins.personne.nom,
+                'prenom': ins.personne.prenom,
+                'email': ins.personne.email,
+                'role': 'Conducteur'
+            })
         except Exception as e:
             erreurs.append(f"{ins.personne.nom} {ins.personne.prenom} : {str(e)}")
 
+    # Stocker la liste des destinataires dans la session pour l'affichage
+    if destinataires_envoyes:
+        request.session['destinataires_covoiturage_envoyes'] = destinataires_envoyes
+        # Stocker aussi dans la session pour l'export Excel
+        request.session['destinataires_covoiturage_export'] = {
+            'destinataires': destinataires_envoyes,
+            'seance_id': seance_id,
+            'date_seance': seance.date.strftime('%d/%m/%Y'),
+            'lieu': str(seance.lieu.nom)
+        }
 
     if nb_envoyes:
         messages.success(request, f"{nb_envoyes} mails de covoiturage envoyés.")
@@ -2273,6 +2678,8 @@ def envoyer_liens_evaluation_encadrants(request, seance_id):
     seance = get_object_or_404(Seance, pk=seance_id)
     nb_envoyes = 0
     erreurs = []
+    # Liste pour stocker les destinataires qui ont reçu le mail
+    destinataires_envoyes = []
     for palanquee in seance.palanques.all():
         encadrant = palanquee.encadrant
         if not encadrant or not encadrant.email:
@@ -2299,8 +2706,25 @@ def envoyer_liens_evaluation_encadrants(request, seance_id):
         ok, msg = envoyer_lien_evaluation(lien, request)
         if ok:
             nb_envoyes += 1
+            # Ajouter le destinataire à la liste
+            destinataires_envoyes.append({
+                'nom': encadrant.nom,
+                'prenom': encadrant.prenom,
+                'email': encadrant.email,
+                'palanquee': palanquee.nom
+            })
         else:
             erreurs.append(f"{palanquee.nom} : {msg}")
+    # Stocker la liste des destinataires dans la session pour l'affichage
+    if destinataires_envoyes:
+        request.session['destinataires_evaluation_envoyes'] = destinataires_envoyes
+        # Stocker aussi dans la session pour l'export Excel
+        request.session['destinataires_evaluation_export'] = {
+            'destinataires': destinataires_envoyes,
+            'seance_id': seance_id,
+            'date_seance': seance.date.strftime('%d/%m/%Y'),
+            'lieu': str(seance.lieu.nom)
+        }
     if nb_envoyes:
         messages.success(request, f"{nb_envoyes} mails de lien d'évaluation envoyés aux encadrants.")
     if erreurs:
@@ -2686,6 +3110,10 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
         listes_data = {}
         for liste in listes_diffusion:
             listes_data[liste.id] = list(liste.adherents.filter(actif=True).values_list('id', flat=True))
+        # Récupérer la liste des destinataires depuis la session (si disponible)
+        destinataires_envoyes = None
+        if 'destinataires_adherents_envoyes' in request.session:
+            destinataires_envoyes = request.session.pop('destinataires_adherents_envoyes')
         return render(request, 'gestion/communication_adherents.html', {
             'form': form,
             'adherents': adherents_qs,
@@ -2694,6 +3122,7 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
             'historique': historique,
             'listes_diffusion': listes_diffusion,
             'listes_data': json.dumps(listes_data),
+            'destinataires_envoyes': destinataires_envoyes,
         })
 
     def post(self, request):
@@ -2859,8 +3288,20 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                 if user_email and user_email.lower() not in [addr.lower() for addr in reply_to_list]:
                     reply_to_list.append(user_email)
 
+            # Récupérer les informations complètes des destinataires (nom, prénom, email)
+            destinataires_complets = []
+            for email in destinataires:
+                adherent = adherents_qs.filter(email=email).first()
+                if adherent:
+                    destinataires_complets.append({
+                        'nom': adherent.nom,
+                        'prenom': adherent.prenom,
+                        'email': adherent.email
+                    })
+            
             # Envoi par lots de 10 avec pause
             batch_size = 10
+            destinataires_envoyes = []
             for i in range(0, len(destinataires), batch_size):
                 batch = destinataires[i:i+batch_size]
                 email = EmailMessage(
@@ -2875,8 +3316,23 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                 for f_data in fichiers_data:
                     email.attach(f_data['name'], f_data['content'], f_data['content_type'])
                 email.send()
+                # Ajouter les destinataires du lot à la liste
+                for email_dest in batch:
+                    dest_info = next((d for d in destinataires_complets if d['email'] == email_dest), None)
+                    if dest_info and dest_info not in destinataires_envoyes:
+                        destinataires_envoyes.append(dest_info)
                 if (i + batch_size) < len(destinataires):
                     time.sleep(3)
+            
+            # Stocker la liste des destinataires dans la session pour l'affichage
+            if destinataires_envoyes:
+                request.session['destinataires_adherents_envoyes'] = destinataires_envoyes
+                # Stocker aussi dans la session pour l'export Excel
+                request.session['destinataires_adherents_export'] = {
+                    'destinataires': destinataires_envoyes,
+                    'objet': form.cleaned_data['objet']
+                }
+            
             # Historique
             HistoriqueMailAdherents.objects.create(
                 objet=form.cleaned_data['objet'],
@@ -2885,16 +3341,7 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                 fichiers=",".join([f.name for f in fichiers]),
                 auteur=request.user
             )
-            # Préparer le message avec nom, prénom et email
-            from django.utils.safestring import mark_safe
-            destinataires_info = []
-            for email in destinataires:
-                adherent = adherents_qs.filter(email=email).first()
-                if adherent:
-                    destinataires_info.append(f"{adherent.nom.upper()} {adherent.prenom.capitalize()} ({email})")
-                else:
-                    destinataires_info.append(email)
-            messages.success(request, mark_safe("Mail envoyé avec succès à :<br>" + "<br>".join(destinataires_info)))
+            messages.success(request, f"Mail envoyé avec succès à {len(destinataires_envoyes)} destinataire(s).")
             return redirect('adherents_communiquer')
         else:
             return render(request, 'gestion/communication_adherents.html', {
