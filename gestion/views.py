@@ -671,6 +671,61 @@ def api_recherche_non_membre(request):
         })
     return JsonResponse({'results': results})
 
+@require_GET
+def api_liste_non_adherents_actifs(request):
+    """API pour récupérer la liste de tous les non-adhérents actifs (pour liste déroulante)"""
+    non_membres = Adherent.objects.filter(
+        type_personne='non_adherent',
+        actif=True
+    ).order_by('nom', 'prenom')
+    results = []
+    for nm in non_membres:
+        results.append({
+            'id': nm.id,
+            'nom': nm.nom,
+            'prenom': nm.prenom,
+            'nom_complet': f"{nm.nom} {nm.prenom}",
+        })
+    return JsonResponse({'non_adherents': results})
+
+@require_GET
+def api_details_non_adherent(request, adherent_id):
+    """API pour récupérer les détails complets d'un non-adhérent par son ID"""
+    try:
+        nm = Adherent.objects.get(id=adherent_id, type_personne='non_adherent')
+        # Gérer l'URL du fichier CACI de manière sécurisée
+        caci_fichier_url = ''
+        if nm.caci_fichier:
+            try:
+                caci_fichier_url = nm.caci_fichier.url
+            except (ValueError, AttributeError):
+                # Le fichier n'existe pas ou n'est pas accessible
+                caci_fichier_url = ''
+        
+        data = {
+            'id': nm.id,
+            'nom': nm.nom,
+            'prenom': nm.prenom,
+            'email': nm.email,
+            'telephone': nm.telephone,
+            'niveau': nm.niveau,
+            'statut': nm.statut,
+            'sections': [s.id for s in nm.sections.all()],
+            'date_naissance': nm.date_naissance.strftime('%Y-%m-%d') if nm.date_naissance else '',
+            'adresse': nm.adresse or '',
+            'code_postal': nm.code_postal or '',
+            'ville': nm.ville or '',
+            'numero_licence': nm.numero_licence or '',
+            'assurance': nm.assurance or '',
+            'date_delivrance_caci': nm.date_delivrance_caci.strftime('%Y-%m-%d') if nm.date_delivrance_caci else '',
+            'caci_fichier_url': caci_fichier_url,
+        }
+        return JsonResponse({'success': True, 'data': data})
+    except Adherent.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Non-adhérent non trouvé'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': f'Erreur serveur: {str(e)}'}, status=500)
+
 # Vues pour l'import Excel
 @login_required
 def import_adherents_excel(request):
