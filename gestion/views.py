@@ -1010,6 +1010,9 @@ class CustomLoginView(LoginView):
         # Vérifier d'abord si l'utilisateur est Codir
         if user.groups.filter(name='codir').exists():
             return reverse_lazy('dashboard')
+        # Vérifier si l'utilisateur est encadrant uniquement (pas Codir)
+        elif user.groups.filter(name='encadrant').exists():
+            return reverse_lazy('eleve_list')
         # Sinon, logique normale pour les élèves
         elif hasattr(user, 'adherent_profile') and getattr(user.adherent_profile, 'statut', None) == 'eleve':
             return reverse_lazy('suivi_formation_eleve', kwargs={'eleve_id': user.adherent_profile.pk})
