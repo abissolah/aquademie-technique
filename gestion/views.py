@@ -235,9 +235,10 @@ class EleveListView(LoginRequiredMixin, ListView):
     # paginate_by = 20  # Pagination supprimée pour afficher tous les élèves
     
     def get(self, request, *args, **kwargs):
-        # Vérifier les permissions d'accès
+        # Vérifier les permissions d'accès : dashboard OU encadrant
         from .utils import can_access_dashboard
-        if not can_access_dashboard(request.user):
+        is_encadrant = request.user.groups.filter(name='encadrant').exists()
+        if not can_access_dashboard(request.user) and not is_encadrant:
             return redirect('login')
         return super().get(request, *args, **kwargs)
     
