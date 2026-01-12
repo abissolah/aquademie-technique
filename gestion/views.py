@@ -167,7 +167,7 @@ class AdherentListView(LoginRequiredMixin, ListView):
         from .utils import is_codir, is_codir_eleve, is_codir_encadrant
         
         adherents = context['adherents']
-        context['adherents_adherents'] = [a for a in adherents if a.type_personne == 'adherent' and bool(a.actif)]
+        context['adherents_adherents'] = [a for a in adherents if a.type_personne == 'adherent']
         context['adherents_non_adherents'] = [a for a in adherents if a.type_personne == 'non_adherent' and bool(a.actif)]
         context['adherents_non_adherents_desactives'] = [a for a in adherents if a.type_personne == 'non_adherent' and not bool(a.actif)]
         context['is_codir'] = is_codir(self.request.user)
