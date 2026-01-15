@@ -239,9 +239,7 @@
                                     <a href="{% url 'palanquee_update' palanquee.pk %}" class="btn btn-outline-warning btn-sm mb-1">
                                         <i class="fas fa-edit"></i> Modifier
                                     </a>
-                                    <a href="{% url 'palanquee_evaluation' palanquee.pk %}" class="btn btn-outline-success btn-sm mb-1">
-                                        <i class="fas fa-star"></i> Évaluer
-                                    </a>
+                                    
                                     <a href="{% url 'palanquee_delete' palanquee.pk %}" class="btn btn-outline-danger btn-sm mb-1">
                                         <i class="fas fa-trash"></i> Supprimer
                                     </a>
@@ -525,6 +523,8 @@
 
 {% block extra_js %}
 <script>
+let sourcePalanqueeIdGlobal = null;
+
 function ouvrirDialogDuplication(sourceId) {
     const dialog = document.getElementById('dupliquerExercicesDialog');
     const inputSource = document.getElementById('sourcePalanqueeIdDialog');
@@ -532,16 +532,76 @@ function ouvrirDialogDuplication(sourceId) {
         alert("Erreur technique : la boîte de dialogue ou l'input caché n'est pas présent dans le HTML. Vérifiez le placement du <dialog> dans le template.");
         return;
     }
+    sourcePalanqueeIdGlobal = sourceId;
     inputSource.value = sourceId;
-    // Désactive la case de la palanquée source
-    document.querySelectorAll('#palanquees-cibles-list-dialog input[type=checkbox]').forEach(cb => {
-        cb.disabled = (cb.value == sourceId);
-        cb.checked = false;
-    });
+    // Réinitialiser la sélection de séance à la séance actuelle
+    const seanceSelect = document.getElementById('seance-select-dialog');
+    if (seanceSelect) {
+        seanceSelect.value = '{{ seance.id }}';
+        chargerPalanqueesSeance('{{ seance.id }}');
+    }
     dialog.showModal();
 }
+
 function fermerDialogDuplication() {
     document.getElementById('dupliquerExercicesDialog').close();
+}
+
+function chargerPalanqueesSeance(seanceId) {
+    if (!seanceId) {
+        document.getElementById('palanquees-cibles-list-dialog').innerHTML = '<p class="text-muted">Sélectionnez d\'abord une séance</p>';
+        return;
+    }
+    
+    const container = document.getElementById('palanquees-cibles-list-dialog');
+    container.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Chargement...</p>';
+    
+    const apiUrl = "{% url 'get_palanquees_seance' seance_id=0 %}".replace('0', seanceId);
+    fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (data.palanquees.length === 0) {
+                container.innerHTML = '<p class="text-muted">Aucune palanquée pour cette séance</p>';
+                return;
+            }
+            
+            let html = '';
+            data.palanquees.forEach(pal => {
+                const isSource = pal.id == sourcePalanqueeIdGlobal;
+                const elevesList = pal.eleves.length > 0 
+                    ? pal.eleves.map(e => `${e.prenom} ${e.nom}`).join(', ')
+                    : '<em class="text-muted">Aucun élève</em>';
+                
+                html += `
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" value="${pal.id}" 
+                               id="palanqueeCibleDialog${pal.id}" 
+                               name="palanquees_cibles"
+                               ${isSource ? 'disabled' : ''}>
+                        <label class="form-check-label" for="palanqueeCibleDialog${pal.id}">
+                            <strong>${pal.nom}</strong>
+                            ${pal.encadrant ? `<br><small class="text-muted">Encadrant: ${pal.encadrant}</small>` : ''}
+                            <br><small class="text-muted">Élèves: ${elevesList}</small>
+                            ${isSource ? '<br><small class="text-warning">(Palanquée source)</small>' : ''}
+                        </label>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = `<p class="text-danger">Erreur: ${data.error || 'Erreur lors du chargement'}</p>`;
+        }
+    })
+    .catch(error => {
+        container.innerHTML = `<p class="text-danger">Erreur lors du chargement des palanquées</p>`;
+        console.error('Erreur:', error);
+    });
 }
 document.addEventListener('DOMContentLoaded', function() {
     const validerBtn = document.getElementById('valider-duplication-exercices-dialog');
@@ -729,16 +789,20 @@ document.addEventListener('DOMContentLoaded', function() {
       <h5>Dupliquer les exercices</h5>
       <input type="hidden" name="source_palanquee_id" id="sourcePalanqueeIdDialog">
       <div class="mb-3">
-        <label>Sélectionnez les palanquées cibles :</label>
-        <div id="palanquees-cibles-list-dialog">
-          {% for pal in palanquees %}
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" value="{{ pal.id }}" id="palanqueeCibleDialog{{ pal.id }}" name="palanquees_cibles">
-              <label class="form-check-label" for="palanqueeCibleDialog{{ pal.id }}">
-                {{ pal.nom }}
-              </label>
-            </div>
+        <label for="seance-select-dialog" class="form-label">Sélectionnez une séance :</label>
+        <select class="form-select" id="seance-select-dialog" onchange="chargerPalanqueesSeance(this.value)">
+          <option value="">-- Choisir une séance --</option>
+          {% for s in toutes_seances %}
+            <option value="{{ s.id }}" {% if s.id == seance.id %}selected{% endif %}>
+              {{ s.date|date:"d/m/Y" }} - {{ s.lieu.nom }}
+            </option>
           {% endfor %}
+        </select>
+      </div>
+      <div class="mb-3">
+        <label>Sélectionnez les palanquées cibles :</label>
+        <div id="palanquees-cibles-list-dialog" style="max-height: 400px; overflow-y: auto;">
+          <p class="text-muted">Sélectionnez d'abord une séance</p>
         </div>
       </div>
       <menu>

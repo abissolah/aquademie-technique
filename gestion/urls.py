@@ -143,6 +143,7 @@ urlpatterns = [
     # APIs
     path('api/competences-section/', views.get_competences_section, name='get_competences_section'),
     path('api/eleves-section/', views.get_eleves_section, name='get_eleves_section'),
+    path('api/palanquees-seance/<int:seance_id>/', views.get_palanquees_seance, name='get_palanquees_seance'),
     path('api/dupliquer-exercices-palanquee/', views.dupliquer_exercices_palanquee, name='dupliquer_exercices_palanquee'),
     path('inscription/<uuid:uuid>/', views.inscription_seance_uuid, name='inscription_seance_uuid'),
     path('api/membres-app/', views.api_membres_app, name='api_membres_app'),

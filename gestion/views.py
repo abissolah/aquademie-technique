@@ -17,9 +17,8 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
 from django.core.mail import send_mass_mail
 from django.template.loader import render_to_string
 from django.core.mail import send_mail
@@ -439,6 +438,8 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         seance = self.get_object()
         palanquees_qs = seance.palanques.select_related('section', 'encadrant').prefetch_related('eleves', 'competences')
         context['palanquees'] = palanquees_qs
+        # Ajouter toutes les séances pour la liste déroulante de duplication
+        context['toutes_seances'] = Seance.objects.all().order_by('-date', 'lieu')
         # Ajout pour affichage des inscrits et du covoiturage
         inscriptions = seance.inscriptions.select_related('personne').all()
         # Ajout de la propriété is_adherent pour chaque inscription
@@ -455,6 +456,8 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         context['nb_eleves'] = len(inscrits_eleves)
         context['covoiturage_propose'] = [i for i in inscriptions if i.covoiturage == 'propose']
         context['covoiturage_besoin'] = [i for i in inscriptions if i.covoiturage == 'besoin']
+        # Ajouter toutes les séances pour la liste déroulante de duplication
+        context['toutes_seances'] = Seance.objects.all().order_by('-date', 'lieu')
         # Récupérer la liste des destinataires depuis la session (si disponible)
         if 'destinataires_invitation_envoyes' in self.request.session:
             context['destinataires_invitation_envoyes'] = self.request.session.pop('destinataires_invitation_envoyes')
@@ -2465,6 +2468,29 @@ def admin_inscription_seance(request, seance_id):
     else:
         form = AdminInscriptionSeanceForm()
     return render(request, 'gestion/admin_inscription_seance.html', {'form': form, 'seance': seance})
+
+@csrf_exempt
+@require_http_methods(["GET"])
+@login_required
+def get_palanquees_seance(request, seance_id):
+    """API pour récupérer les palanquées d'une séance avec leurs élèves"""
+    try:
+        seance = get_object_or_404(Seance, pk=seance_id)
+        palanquees = seance.palanques.all().select_related('encadrant', 'section').prefetch_related('eleves')
+        
+        palanquees_data = []
+        for pal in palanquees:
+            eleves_data = [{'id': e.id, 'nom': e.nom, 'prenom': e.prenom} for e in pal.eleves.all()]
+            palanquees_data.append({
+                'id': pal.id,
+                'nom': pal.nom,
+                'encadrant': pal.encadrant.nom_complet if pal.encadrant else 'Non défini',
+                'eleves': eleves_data
+            })
+        
+        return JsonResponse({'success': True, 'palanquees': palanquees_data})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
 
 @csrf_exempt
 @require_POST

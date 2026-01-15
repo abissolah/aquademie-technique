@@ -46,6 +46,8 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         seance = self.get_object()
         palanquees_qs = seance.palanques.select_related('section', 'encadrant').prefetch_related('eleves', 'competences')
         context['palanques'] = palanquees_qs
+        # Ajouter toutes les séances pour la liste déroulante de duplication
+        context['toutes_seances'] = Seance.objects.all().order_by('-date', 'lieu')
         return context
 
 class SeanceCreateView(LoginRequiredMixin, CreateView):
