@@ -39,6 +39,44 @@
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 </div>
 {% endif %}
+{% if destinataires_pdf_envoyes %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <div class="d-flex justify-content-between align-items-start mb-2">
+        <div>
+            <h5 class="alert-heading mb-1">
+                <i class="fas fa-check-circle me-2"></i>PDF envoyés avec succès !
+            </h5>
+            <p class="mb-2">Les fiches palanquées ont été envoyées à <strong>{{ destinataires_pdf_envoyes|length }}</strong> encadrant(s) :</p>
+        </div>
+        <a href="{% url 'exporter_destinataires_pdf_excel' seance.pk %}" class="btn btn-sm btn-outline-success ms-3">
+            <i class="fas fa-file-excel me-1"></i>Exporter en Excel
+        </a>
+    </div>
+    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-sm table-bordered mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 25%;">Nom</th>
+                    <th style="width: 25%;">Prénom</th>
+                    <th style="width: 30%;">Email</th>
+                    <th style="width: 20%;">Palanquée</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dest in destinataires_pdf_envoyes %}
+                <tr>
+                    <td>{{ dest.nom|upper }}</td>
+                    <td>{{ dest.prenom|capfirst }}</td>
+                    <td><code>{{ dest.email }}</code></td>
+                    <td>{{ dest.palanquee }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
 {% if destinataires_evaluation_envoyes %}
 <div class="alert alert-success alert-dismissible fade show" role="alert">
     <div class="d-flex justify-content-between align-items-start mb-2">
@@ -243,7 +281,7 @@
                                     <a href="{% url 'palanquee_delete' palanquee.pk %}" class="btn btn-outline-danger btn-sm mb-1">
                                         <i class="fas fa-trash"></i> Supprimer
                                     </a>
-                                    <button type="button" class="btn btn-outline-info btn-sm mb-1" onclick="ouvrirDialogDuplication({{ palanquee.id }})">
+                                    <button type="button" class="btn btn-outline-info btn-sm mb-1" onclick="ouvrirDialogDuplication({{ palanquee.id }}, '{{ palanquee.nom|escapejs }}')">
                                         <i class="fas fa-copy"></i> Dupliquer les exercices
                                     </button>
                                     {% if user.is_staff %}
@@ -523,23 +561,26 @@
 
 {% block extra_js %}
 <script>
-let sourcePalanqueeIdGlobal = null;
+let targetPalanqueeIdGlobal = null;
 
-function ouvrirDialogDuplication(sourceId) {
+function ouvrirDialogDuplication(targetId, targetName) {
     const dialog = document.getElementById('dupliquerExercicesDialog');
-    const inputSource = document.getElementById('sourcePalanqueeIdDialog');
-    if (!dialog || !inputSource) {
+    const inputTarget = document.getElementById('targetPalanqueeIdDialog');
+    const targetLabel = document.getElementById('target-palanquee-name-dialog');
+    if (!dialog || !inputTarget) {
         alert("Erreur technique : la boîte de dialogue ou l'input caché n'est pas présent dans le HTML. Vérifiez le placement du <dialog> dans le template.");
         return;
     }
-    sourcePalanqueeIdGlobal = sourceId;
-    inputSource.value = sourceId;
-    // Réinitialiser la sélection de séance à la séance actuelle
+    targetPalanqueeIdGlobal = targetId;
+    inputTarget.value = targetId;
+    if (targetLabel) targetLabel.textContent = targetName || ('Palanquée #' + targetId);
+    // Réinitialiser la sélection de séance et la liste source
     const seanceSelect = document.getElementById('seance-select-dialog');
     if (seanceSelect) {
         seanceSelect.value = '{{ seance.id }}';
         chargerPalanqueesSeance('{{ seance.id }}');
     }
+    document.querySelectorAll('#palanquees-source-list-dialog input[name="palanquee_source"]').forEach(r => { r.checked = false; });
     dialog.showModal();
 }
 
@@ -548,12 +589,12 @@ function fermerDialogDuplication() {
 }
 
 function chargerPalanqueesSeance(seanceId) {
+    const container = document.getElementById('palanquees-source-list-dialog');
     if (!seanceId) {
-        document.getElementById('palanquees-cibles-list-dialog').innerHTML = '<p class="text-muted">Sélectionnez d\'abord une séance</p>';
+        container.innerHTML = '<p class="text-muted">Sélectionnez d\'abord une séance</p>';
         return;
     }
     
-    const container = document.getElementById('palanquees-cibles-list-dialog');
     container.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Chargement...</p>';
     
     const apiUrl = "{% url 'get_palanquees_seance' seance_id=0 %}".replace('0', seanceId);
@@ -573,22 +614,19 @@ function chargerPalanqueesSeance(seanceId) {
             
             let html = '';
             data.palanquees.forEach(pal => {
-                const isSource = pal.id == sourcePalanqueeIdGlobal;
                 const elevesList = pal.eleves.length > 0 
                     ? pal.eleves.map(e => `${e.prenom} ${e.nom}`).join(', ')
                     : '<em class="text-muted">Aucun élève</em>';
                 
                 html += `
                     <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" value="${pal.id}" 
-                               id="palanqueeCibleDialog${pal.id}" 
-                               name="palanquees_cibles"
-                               ${isSource ? 'disabled' : ''}>
-                        <label class="form-check-label" for="palanqueeCibleDialog${pal.id}">
+                        <input class="form-check-input" type="radio" value="${pal.id}" 
+                               id="palanqueeSourceDialog${pal.id}" 
+                               name="palanquee_source">
+                        <label class="form-check-label" for="palanqueeSourceDialog${pal.id}">
                             <strong>${pal.nom}</strong>
                             ${pal.encadrant ? `<br><small class="text-muted">Encadrant: ${pal.encadrant}</small>` : ''}
                             <br><small class="text-muted">Élèves: ${elevesList}</small>
-                            ${isSource ? '<br><small class="text-warning">(Palanquée source)</small>' : ''}
                         </label>
                     </div>
                 `;
@@ -607,10 +645,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const validerBtn = document.getElementById('valider-duplication-exercices-dialog');
     if (validerBtn) {
         validerBtn.addEventListener('click', function() {
-            const sourcePalanqueeId = document.getElementById('sourcePalanqueeIdDialog').value;
-            const cibles = Array.from(document.querySelectorAll('#palanquees-cibles-list-dialog input[type=checkbox]:checked')).map(cb => cb.value);
-            if (!sourcePalanqueeId || cibles.length === 0) {
-                alert('Veuillez sélectionner au moins une palanquée cible.');
+            const targetPalanqueeId = document.getElementById('targetPalanqueeIdDialog').value;
+            const sourceRadio = document.querySelector('#palanquees-source-list-dialog input[name="palanquee_source"]:checked');
+            const sourcePalanqueeId = sourceRadio ? sourceRadio.value : null;
+            if (!targetPalanqueeId || !sourcePalanqueeId) {
+                alert('Veuillez sélectionner une séance puis une palanquée source (dont copier les exercices).');
                 return;
             }
             fetch("{% url 'dupliquer_exercices_palanquee' %}", {
@@ -619,7 +658,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token }}',
                 },
-                body: JSON.stringify({ source: sourcePalanqueeId, cibles: cibles })
+                body: JSON.stringify({ source: sourcePalanqueeId, cibles: [targetPalanqueeId] })
             })
             .then(response => response.json())
             .then(data => {
@@ -787,7 +826,8 @@ document.addEventListener('DOMContentLoaded', function() {
 <dialog id="dupliquerExercicesDialog">
     <form method="dialog" id="dupliquer-exercices-form-dialog">
       <h5>Dupliquer les exercices</h5>
-      <input type="hidden" name="source_palanquee_id" id="sourcePalanqueeIdDialog">
+      <p class="mb-2 text-muted">Les exercices seront copiés <strong>vers</strong> : <span id="target-palanquee-name-dialog"></span></p>
+      <input type="hidden" name="target_palanquee_id" id="targetPalanqueeIdDialog">
       <div class="mb-3">
         <label for="seance-select-dialog" class="form-label">Sélectionnez une séance :</label>
         <select class="form-select" id="seance-select-dialog" onchange="chargerPalanqueesSeance(this.value)">
@@ -800,8 +840,8 @@ document.addEventListener('DOMContentLoaded', function() {
         </select>
       </div>
       <div class="mb-3">
-        <label>Sélectionnez les palanquées cibles :</label>
-        <div id="palanquees-cibles-list-dialog" style="max-height: 400px; overflow-y: auto;">
+        <label>Sélectionnez la palanquée source (dont copier les exercices) :</label>
+        <div id="palanquees-source-list-dialog" style="max-height: 400px; overflow-y: auto;">
           <p class="text-muted">Sélectionnez d'abord une séance</p>
         </div>
       </div>

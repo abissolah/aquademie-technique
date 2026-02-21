@@ -359,12 +359,24 @@ class ExerciceForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'rows': 3}),
         }
 
+class SelectWithSeparator(forms.Select):
+    """Select widget qui affiche l'option de valeur __sep__ comme un trait désactivé."""
+    SEPARATOR_VALUE = '__sep__'
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        if value == self.SEPARATOR_VALUE:
+            option['attrs']['disabled'] = True
+        return option
+
+
 class AdminInscriptionSeanceForm(forms.Form):
-    adherent = forms.ModelChoiceField(
-        queryset=Adherent.objects.filter(type_personne='adherent'),
+    adherent = forms.ChoiceField(
+        choices=[],  # rempli dans __init__
         required=False,
-        label="Adhérent du club",
-        help_text="Sélectionner un adhérent existant OU remplir les champs ci-dessous pour un non adhérent."
+        label="Adhérent / Non adhérent",
+        help_text="Sélectionner un adhérent ou un non adhérent existant, OU remplir les champs ci-dessous pour un nouveau non adhérent.",
+        widget=SelectWithSeparator(attrs={'class': 'form-select'})
     )
     # Champs pour non adhérent
     nom = forms.CharField(required=False, label="Nom")
@@ -423,14 +435,32 @@ class AdminInscriptionSeanceForm(forms.Form):
         label="Lieu de prise en charge"
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        adherents = Adherent.objects.filter(type_personne='adherent', actif=True).order_by('nom', 'prenom')
+        non_adherents = Adherent.objects.filter(type_personne='non_adherent', actif=True).order_by('nom', 'prenom')
+        choices = [('', '---------')]
+        choices += [(str(a.pk), str(a)) for a in adherents]
+        choices += [(SelectWithSeparator.SEPARATOR_VALUE, '──────────')]
+        choices += [(str(a.pk), str(a)) for a in non_adherents]
+        self.fields['adherent'].choices = choices
+
     def clean(self):
         cleaned_data = super().clean()
+        raw_adherent = cleaned_data.get('adherent')
+        if raw_adherent and raw_adherent != SelectWithSeparator.SEPARATOR_VALUE:
+            try:
+                cleaned_data['adherent'] = Adherent.objects.get(pk=int(raw_adherent))
+            except (ValueError, Adherent.DoesNotExist):
+                cleaned_data['adherent'] = None
+        else:
+            cleaned_data['adherent'] = None
         adherent = cleaned_data.get('adherent')
         nom = cleaned_data.get('nom')
         prenom = cleaned_data.get('prenom')
         email = cleaned_data.get('email')
         if not adherent and not (nom and prenom and email):
-            raise forms.ValidationError("Sélectionnez un adhérent OU renseignez nom, prénom et email pour un non adhérent.")
+            raise forms.ValidationError("Sélectionnez un adhérent ou un non adhérent OU renseignez nom, prénom et email pour un nouveau non adhérent.")
         return cleaned_data
 
 class PublicNonAdherentInscriptionForm(forms.ModelForm):

@@ -464,6 +464,9 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         # Récupérer la liste des destinataires des liens d'évaluation depuis la session
         if 'destinataires_evaluation_envoyes' in self.request.session:
             context['destinataires_evaluation_envoyes'] = self.request.session.pop('destinataires_evaluation_envoyes')
+        # Récupérer la liste des destinataires des PDF encadrants depuis la session
+        if 'destinataires_pdf_envoyes' in self.request.session:
+            context['destinataires_pdf_envoyes'] = self.request.session.pop('destinataires_pdf_envoyes')
         # Récupérer la liste des destinataires du covoiturage depuis la session
         if 'destinataires_covoiturage_envoyes' in self.request.session:
             context['destinataires_covoiturage_envoyes'] = self.request.session.pop('destinataires_covoiturage_envoyes')
@@ -1208,6 +1211,72 @@ def exporter_destinataires_evaluation_excel(request, seance_id):
     
     wb.save(response)
     return response
+
+
+@login_required
+def exporter_destinataires_pdf_excel(request, seance_id):
+    """Exporte la liste des destinataires des PDF palanquées en Excel"""
+    import openpyxl
+    from openpyxl.utils import get_column_letter
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from django.http import HttpResponse
+
+    seance = get_object_or_404(Seance, pk=seance_id)
+
+    if 'destinataires_pdf_export' not in request.session:
+        messages.error(request, "Aucune liste de destinataires disponible pour l'export.")
+        return redirect('seance_detail', pk=seance_id)
+
+    export_data = request.session.get('destinataires_pdf_export', {})
+    destinataires = export_data.get('destinataires', [])
+
+    if not destinataires:
+        messages.error(request, "Aucun destinataire à exporter.")
+        return redirect('seance_detail', pk=seance_id)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Destinataires PDF palanquées'
+
+    ws.append(['Séance du ' + export_data.get('date_seance', ''), ''])
+    ws.append(['Lieu : ' + export_data.get('lieu', ''), ''])
+    ws.append([''])
+
+    headers = ['Nom', 'Prénom', 'Email', 'Palanquée']
+    ws.append(headers)
+
+    header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col_num)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+
+    for dest in destinataires:
+        ws.append([
+            dest.get('nom', '').upper(),
+            dest.get('prenom', '').capitalize(),
+            dest.get('email', ''),
+            dest.get('palanquee', '')
+        ])
+
+    ws.column_dimensions[get_column_letter(1)].width = 25
+    ws.column_dimensions[get_column_letter(2)].width = 25
+    ws.column_dimensions[get_column_letter(3)].width = 35
+    ws.column_dimensions[get_column_letter(4)].width = 30
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    date_str = export_data.get('date_seance', '').replace('/', '-')
+    filename = f"destinataires_pdf_palanquees_{date_str}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    wb.save(response)
+    return response
+
 
 @login_required
 def exporter_destinataires_invitation_excel(request, seance_id):
@@ -2552,6 +2621,7 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
     palanquees = seance.palanques.all()
     nb_envoyes = 0
     erreurs = []
+    destinataires_envoyes = []
     cc = getattr(settings, 'EMAIL_CC_DEFAULT', [])
     signature_html = get_signature_html()
     signature_img_path = os.path.join(settings.BASE_DIR, 'static', 'Signature_mouss.png')
@@ -2610,8 +2680,22 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
         try:
             email.send()
             nb_envoyes += 1
+            destinataires_envoyes.append({
+                'nom': encadrant.nom,
+                'prenom': encadrant.prenom,
+                'email': encadrant.email,
+                'palanquee': palanquee.nom
+            })
         except Exception as e:
             erreurs.append(f"{encadrant.nom_complet} : {str(e)}")
+    if destinataires_envoyes:
+        request.session['destinataires_pdf_envoyes'] = destinataires_envoyes
+        request.session['destinataires_pdf_export'] = {
+            'destinataires': destinataires_envoyes,
+            'seance_id': seance_id,
+            'date_seance': seance.date.strftime('%d/%m/%Y'),
+            'lieu': str(seance.lieu.nom)
+        }
     if nb_envoyes:
         messages.success(request, f"{nb_envoyes} PDF envoyés aux encadrants.")
     if erreurs:

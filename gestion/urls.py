@@ -96,6 +96,7 @@ urlpatterns = [
     path('seances/<int:seance_id>/exporter-destinataires-covoiturage/', views.exporter_destinataires_covoiturage_excel, name='exporter_destinataires_covoiturage_excel'),
     path('seances/<int:seance_id>/envoyer-liens-evaluation/', views.envoyer_liens_evaluation_encadrants, name='envoyer_liens_evaluation_encadrants'),
     path('seances/<int:seance_id>/exporter-destinataires-evaluation/', views.exporter_destinataires_evaluation_excel, name='exporter_destinataires_evaluation_excel'),
+    path('seances/<int:seance_id>/exporter-destinataires-pdf/', views.exporter_destinataires_pdf_excel, name='exporter_destinataires_pdf_excel'),
     path('seances/<int:pk>/communiquer/', CommunicationSeanceView.as_view(), name='seance_communiquer'),
     path('seances/<int:seance_id>/exporter-destinataires-communication/', views.exporter_destinataires_communication_excel, name='exporter_destinataires_communication_excel'),
     path('seances/<int:seance_id>/suivi-inscrits/', views.suivi_inscrits_seance, name='suivi_inscrits_seance'),
