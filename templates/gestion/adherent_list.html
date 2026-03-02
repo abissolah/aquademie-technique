@@ -216,6 +216,9 @@
                             <a href="{% url 'suivi_formation_eleve' adherent.pk %}" class="btn btn-sm btn-outline-success" title="Suivi formation">
                               <i class="fas fa-graduation-cap"></i>
                             </a>
+                            <a href="{% url 'suivi_formation_eleve_pdf' adherent.pk %}" target="_blank" class="btn btn-sm btn-outline-danger" title="PDF suivi élève">
+                              <i class="fas fa-file-pdf"></i>
+                            </a>
                             {% endif %}
                             {% if not adherent.user %}
                             <a href="{% url 'creer_compte_adherent' adherent.pk %}" class="btn btn-sm btn-outline-info" title="Créer compte"
@@ -312,6 +315,9 @@
                             {% if adherent.statut == 'eleve' %}
                             <a href="{% url 'suivi_formation_eleve' adherent.pk %}" class="btn btn-sm btn-outline-success" title="Suivi formation">
                               <i class="fas fa-graduation-cap"></i>
+                            </a>
+                            <a href="{% url 'suivi_formation_eleve_pdf' adherent.pk %}" target="_blank" class="btn btn-sm btn-outline-danger" title="PDF suivi élève">
+                              <i class="fas fa-file-pdf"></i>
                             </a>
                             {% endif %}
                             <form method="post" action="{% url 'adherent_desactiver' adherent.pk %}" style="display:inline;">

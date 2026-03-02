@@ -324,10 +324,10 @@ class EvaluationExercice(models.Model):
         ('autre', 'Autre'),
     ]
     
-    palanquee = models.ForeignKey(Palanquee, on_delete=models.CASCADE, related_name='evaluations_exercices')
+    palanquee = models.ForeignKey(Palanquee, on_delete=models.CASCADE, related_name='evaluations_exercices', null=True, blank=True)
     eleve = models.ForeignKey(Adherent, on_delete=models.CASCADE, related_name='evaluations_exercices_recues', limit_choices_to={'statut': 'eleve'})
     exercice = models.ForeignKey(Exercice, on_delete=models.CASCADE, related_name='evaluations')
-    encadrant = models.ForeignKey(Adherent, on_delete=models.CASCADE, related_name='evaluations_exercices_donnees', limit_choices_to={'statut': 'encadrant'})
+    encadrant = models.ForeignKey(Adherent, on_delete=models.SET_NULL, null=True, blank=True, related_name='evaluations_exercices_donnees', limit_choices_to={'statut': 'encadrant'})
     note = models.IntegerField(choices=[(1, 'Non maitrise'), (2, "En cours d'acquisition"), (3, 'Maitrise')], null=True, blank=True)
     raison_non_realise = models.CharField(max_length=20, choices=RAISON_NON_REALISE_CHOICES, blank=True, null=True, verbose_name="Raison de non realisation")
     commentaire = models.TextField(blank=True)

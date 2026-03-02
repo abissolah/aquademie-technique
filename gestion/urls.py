@@ -50,6 +50,8 @@ urlpatterns = [
     path('eleves/suivi/', views.suivi_eleves, name='suivi_eleves'),
     path('eleves/api/suivi-section/', views.api_suivi_eleves_section, name='api_suivi_eleves_section'),
     path('eleves/<int:eleve_id>/suivi-formation/', views.suivi_formation_eleve, name='suivi_formation_eleve'),
+    path('eleves/<int:eleve_id>/suivi-formation/pdf/', views.suivi_formation_eleve_pdf, name='suivi_formation_eleve_pdf'),
+    path('eleves/<int:eleve_id>/validation-dt/<int:exercice_id>/', views.validation_dt_eleve_exercice, name='validation_dt_eleve_exercice'),
     
     # Encadrants
     path('encadrants/', views.EncadrantListView.as_view(), name='encadrant_list'),

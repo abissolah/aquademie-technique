@@ -485,6 +485,9 @@
                         <td>{% if ins.personne.date_delivrance_caci %}{{ ins.personne.date_delivrance_caci|date:"d/m/Y" }}{% else %}-{% endif %}</td>
                         <td>{% if ins.is_adherent %}Oui{% else %}Non{% endif %}</td>
                         <td>
+                            <a href="{% url 'suivi_formation_eleve_pdf' ins.personne.pk %}" target="_blank" class="btn btn-sm btn-outline-danger me-1" title="PDF suivi élève">
+                                <i class="fas fa-file-pdf"></i>
+                            </a>
                             <form method="post" action="{% url 'supprimer_inscription_seance' ins.id %}" style="display:inline;">
                                 {% csrf_token %}
                                 <button class="btn btn-sm btn-outline-danger" title="Supprimer l'inscription"><i class="fas fa-trash"></i></button>

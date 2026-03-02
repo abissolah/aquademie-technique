@@ -137,9 +137,15 @@
                                             <a href="{% url 'suivi_formation_eleve' eleve.pk %}" class="btn btn-sm btn-outline-success" title="Suivi formation">
                                                 <i class="fas fa-graduation-cap"></i>
                                             </a>
+                                            <a href="{% url 'suivi_formation_eleve_pdf' eleve.pk %}" target="_blank" class="btn btn-sm btn-outline-danger" title="PDF suivi élève">
+                                                <i class="fas fa-file-pdf"></i>
+                                            </a>
                                         {% elif is_codir_eleve and eleve.user == user %}
                                             <a href="{% url 'suivi_formation_eleve' eleve.pk %}" class="btn btn-sm btn-outline-success" title="Suivi formation">
                                                 <i class="fas fa-graduation-cap"></i>
+                                            </a>
+                                            <a href="{% url 'suivi_formation_eleve_pdf' eleve.pk %}" target="_blank" class="btn btn-sm btn-outline-danger" title="PDF suivi élève">
+                                                <i class="fas fa-file-pdf"></i>
                                             </a>
                                         {% endif %}
                                         {% if user.is_superuser or user.groups.all.0.name == 'admin' %}
@@ -256,9 +262,15 @@
                                             <a href="{% url 'suivi_formation_eleve' eleve.pk %}" class="btn btn-sm btn-outline-success" title="Suivi formation">
                                                 <i class="fas fa-graduation-cap"></i>
                                             </a>
+                                            <a href="{% url 'suivi_formation_eleve_pdf' eleve.pk %}" target="_blank" class="btn btn-sm btn-outline-danger" title="PDF suivi élève">
+                                                <i class="fas fa-file-pdf"></i>
+                                            </a>
                                         {% elif is_codir_eleve and eleve.user == user %}
                                             <a href="{% url 'suivi_formation_eleve' eleve.pk %}" class="btn btn-sm btn-outline-success" title="Suivi formation">
                                                 <i class="fas fa-graduation-cap"></i>
+                                            </a>
+                                            <a href="{% url 'suivi_formation_eleve_pdf' eleve.pk %}" target="_blank" class="btn btn-sm btn-outline-danger" title="PDF suivi élève">
+                                                <i class="fas fa-file-pdf"></i>
                                             </a>
                                         {% endif %}
                                         {% if user.is_superuser or user.groups.all.0.name == 'admin' %}

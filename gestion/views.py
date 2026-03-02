@@ -2403,13 +2403,20 @@ def _suivi_formation_eleve(request, eleve_id):
     sections = eleve.sections.all()
     # Récupérer tous les groupes de compétences de ses sections
     groupes = GroupeCompetence.objects.filter(section__in=sections).prefetch_related('competences__exercices')
-    # Récupérer toutes les évaluations exercices de l'élève
-    evals = EvaluationExercice.objects.filter(eleve=eleve)
-    evals_dict = {(e.exercice_id): e for e in evals}
+    # Récupérer toutes les évaluations exercices de l'élève (dernière par exercice = la plus récente)
+    evals = EvaluationExercice.objects.filter(eleve=eleve).order_by('-date_evaluation')
+    evals_dict = {}
+    for e in evals:
+        if e.exercice_id not in evals_dict:
+            evals_dict[e.exercice_id] = e
     # Historique par exercice
     historiques = {}
     for ex in Exercice.objects.all():
         historiques[ex.id] = list(EvaluationExercice.objects.filter(eleve=eleve, exercice=ex).order_by('-date_evaluation'))
+    # Exercices qui ont déjà une validation DT (pour masquer le bouton)
+    validation_dt_exercice_ids = set(
+        EvaluationExercice.objects.filter(eleve=eleve, palanquee__isnull=True).values_list('exercice_id', flat=True)
+    )
     progression = []
     for groupe in groupes:
         groupe_data = {'groupe': groupe, 'competences': [], 'etoile_groupe': True}
@@ -2424,11 +2431,12 @@ def _suivi_formation_eleve(request, eleve_id):
                 if raison:
                     raison_display = dict(EvaluationExercice.RAISON_NON_REALISE_CHOICES).get(raison, '')
                 comp_data['exercices'].append({
-                    'exercice': ex, 
-                    'etoiles': etoiles, 
+                    'exercice': ex,
+                    'etoiles': etoiles,
                     'commentaire': commentaire,
                     'raison': raison,
-                    'raison_display': raison_display
+                    'raison_display': raison_display,
+                    'has_validation_dt': ex.id in validation_dt_exercice_ids,
                 })
                 if etoiles < 3:
                     comp_data['etoile_competence'] = False
@@ -2456,6 +2464,148 @@ def _suivi_formation_eleve(request, eleve_id):
         'historiques': historiques,
     }
     return render(request, 'gestion/suivi_formation_eleve.html', context)
+
+
+def _build_suivi_formation_pdf(eleve, progression, historiques):
+    """Construit le contenu PDF du suivi de formation (même structure que la page)."""
+    from django.utils import timezone
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=1.5*cm, rightMargin=1.5*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
+    elements = []
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=14, spaceAfter=12, alignment=TA_CENTER)
+    date_style = ParagraphStyle('DateGen', parent=styles['Normal'], alignment=TA_CENTER)
+    section_style = ParagraphStyle('Section', parent=styles['Normal'], alignment=TA_CENTER, spaceAfter=4)
+    stats_style = ParagraphStyle('Stats', parent=styles['Normal'], fontSize=8, alignment=TA_CENTER, spaceBefore=12, spaceAfter=0)
+    heading_style = ParagraphStyle('Heading', parent=styles['Heading2'], fontSize=11, spaceAfter=6, spaceBefore=12)
+    sub_style = ParagraphStyle('Sub', parent=styles['Normal'], fontSize=10, spaceAfter=4, spaceBefore=8, leftIndent=20)
+    exercice_style = ParagraphStyle('Exercice', parent=styles['Normal'], fontSize=9, spaceAfter=2, spaceBefore=10, leftIndent=40)
+    hist_style = ParagraphStyle('Hist', parent=styles['Normal'], fontSize=9, spaceAfter=2, leftIndent=40)
+
+    date_gen = timezone.now().strftime('%d/%m/%Y à %H:%M')
+    elements.append(Paragraph(f"Généré le : {date_gen}", date_style))
+    elements.append(Spacer(1, 12))
+    elements.append(Paragraph(f"<b>SUIVI DE :</b> {eleve.nom_complet.upper()}", title_style))
+    sections_names = ", ".join(s.get_nom_display() for s in eleve.sections.all()) or "-"
+    elements.append(Paragraph(f"<b>SECTION(S) :</b> {sections_names}", section_style))
+    nb_groupes = len(progression)
+    nb_groupes_valides = sum(1 for g in progression if g['etoile_groupe'])
+    nb_competences = sum(len(g['competences']) for g in progression)
+    nb_competences_valides = sum(1 for g in progression for c in g['competences'] if c['etoile_competence'])
+    stats_text = f"<b>{nb_groupes_valides}/{nb_groupes} groupe(s) validé(s)</b><br/><b>{nb_competences_valides}/{nb_competences} compétence(s) validée(s)</b>"
+    elements.append(Paragraph(stats_text, stats_style))
+    elements.append(Spacer(1, 12))
+
+    for g in progression:
+        statut_g = "Validé" if g['etoile_groupe'] else "En cours"
+        coche_g = '<font color="#28a745" size="18"> ✓</font>' if g['etoile_groupe'] else ''
+        elements.append(Paragraph(f"<b>{g['groupe'].intitule}</b> — {statut_g}{coche_g}", heading_style))
+        for c in g['competences']:
+            statut_c = "validée" if c['etoile_competence'] else "en cours"
+            coche = '<font color="#28a745" size="18"> ✓</font>' if c['etoile_competence'] else ''
+            elements.append(Paragraph(f"<b>{c['competence'].nom}</b> — {statut_c}{coche}", sub_style))
+            for e in c['exercices']:
+                n = e['etoiles'] or 0
+                if n:
+                    etoiles_texte = '<font color="#E6B800">' + "★" * n + '</font>'
+                else:
+                    etoiles_texte = ''
+                elements.append(Paragraph(f"<b>{e['exercice'].nom}</b> — {etoiles_texte}", exercice_style))
+                hist_list = historiques.get(e['exercice'].id, [])
+                for h in hist_list:
+                    date_str = (h.date_evaluation.strftime('%d/%m/%Y') if getattr(h, 'date_evaluation', None) else '-')
+                    if getattr(h, 'palanquee', None) and getattr(h.palanquee, 'seance', None):
+                        date_str = h.palanquee.seance.date.strftime('%d/%m/%Y')
+                    moniteur = (getattr(h, 'encadrant', None) and h.encadrant.nom_complet) or "Validé par le DT"
+                    comm = (getattr(h, 'commentaire', None) or '').replace('<', ' ').replace('>', ' ')
+                    elements.append(Paragraph(f"Date : {date_str} — Moniteur : {moniteur} — {comm}", hist_style))
+            elements.append(Spacer(1, 4))
+        elements.append(Spacer(1, 8))
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+@login_required
+def suivi_formation_eleve_pdf(request, eleve_id):
+    """Génère un PDF du suivi de formation (ouvre dans un nouvel onglet)."""
+    if not peut_voir_suivi(request.user, int(eleve_id)):
+        if request.user.groups.filter(name='eleve').exists():
+            adherent = getattr(request.user, 'adherent_profile', None)
+            if adherent:
+                return redirect('suivi_formation_eleve', eleve_id=adherent.id)
+        elif request.user.groups.filter(name='encadrant').exists():
+            return redirect('eleve_list')
+        else:
+            return redirect('dashboard')
+    eleve = get_object_or_404(Adherent, pk=eleve_id)
+    sections = eleve.sections.all()
+    groupes = GroupeCompetence.objects.filter(section__in=sections).prefetch_related('competences__exercices')
+    evals = EvaluationExercice.objects.filter(eleve=eleve).order_by('-date_evaluation')
+    evals_dict = {}
+    for e in evals:
+        if e.exercice_id not in evals_dict:
+            evals_dict[e.exercice_id] = e
+    historiques = {}
+    for ex in Exercice.objects.all():
+        historiques[ex.id] = list(EvaluationExercice.objects.filter(eleve=eleve, exercice=ex).order_by('-date_evaluation'))
+    validation_dt_exercice_ids = set(
+        EvaluationExercice.objects.filter(eleve=eleve, palanquee__isnull=True).values_list('exercice_id', flat=True)
+    )
+    progression = []
+    for groupe in groupes:
+        groupe_data = {'groupe': groupe, 'competences': [], 'etoile_groupe': True}
+        for comp in groupe.competences.all():
+            comp_data = {'competence': comp, 'exercices': [], 'etoile_competence': True}
+            for ex in comp.exercices.all():
+                eval_ex = evals_dict.get(ex.id)
+                etoiles = eval_ex.note if eval_ex and eval_ex.note else 0
+                commentaire = eval_ex.commentaire if eval_ex else ''
+                raison = eval_ex.raison_non_realise if eval_ex else None
+                raison_display = dict(EvaluationExercice.RAISON_NON_REALISE_CHOICES).get(raison, '') if raison else ''
+                comp_data['exercices'].append({
+                    'exercice': ex, 'etoiles': etoiles, 'commentaire': commentaire,
+                    'raison': raison, 'raison_display': raison_display,
+                    'has_validation_dt': ex.id in validation_dt_exercice_ids,
+                })
+                if etoiles < 3:
+                    comp_data['etoile_competence'] = False
+            if not comp_data['exercices']:
+                comp_data['etoile_competence'] = False
+            groupe_data['competences'].append(comp_data)
+            if not comp_data['etoile_competence']:
+                groupe_data['etoile_groupe'] = False
+        progression.append(groupe_data)
+    pdf_content = _build_suivi_formation_pdf(eleve, progression, historiques)
+    response = HttpResponse(pdf_content, content_type='application/pdf')
+    response['Content-Disposition'] = 'inline; filename="suivi_formation_{}.pdf"'.format(eleve.nom_complet.replace(' ', '_'))
+    return response
+
+
+@login_required
+@staff_member_required
+@require_POST
+def validation_dt_eleve_exercice(request, eleve_id, exercice_id):
+    """Crée une évaluation à 3 étoiles pour l'élève et l'exercice (validation DT). Ne fait rien si une validation DT existe déjà."""
+    from django.utils import timezone
+    eleve = get_object_or_404(Adherent, pk=eleve_id)
+    exercice = get_object_or_404(Exercice, pk=exercice_id)
+    if EvaluationExercice.objects.filter(eleve=eleve, exercice=exercice, palanquee__isnull=True).exists():
+        messages.info(request, f"Une validation DT existe déjà pour l'exercice {exercice.nom}.")
+        return redirect('suivi_formation_eleve', eleve_id=eleve_id)
+    date_validation = timezone.now()
+    commentaire = f"Validé par le DT le {date_validation.strftime('%d/%m/%Y')}"
+    EvaluationExercice.objects.create(
+        eleve=eleve,
+        exercice=exercice,
+        note=3,
+        commentaire=commentaire,
+        palanquee=None,
+        encadrant=None,
+    )
+    messages.success(request, f"Validation DT enregistrée pour {exercice.nom}.")
+    return redirect('suivi_formation_eleve', eleve_id=eleve_id)
+
 
 @login_required
 @staff_member_required
@@ -3753,14 +3903,14 @@ def api_historique_eleve_exercice(request, eleve_id, exercice_id):
         eval_data = {
             'id': eval.id,
             'date': eval.date_evaluation.strftime('%d/%m/%Y %H:%M'),
-            'seance_date': eval.palanquee.seance.date.strftime('%d/%m/%Y'),
-            'palanquee_nom': eval.palanquee.nom,
+            'seance_date': eval.palanquee.seance.date.strftime('%d/%m/%Y') if eval.palanquee and eval.palanquee.seance else eval.date_evaluation.strftime('%d/%m/%Y'),
+            'palanquee_nom': eval.palanquee.nom if eval.palanquee else 'Validation DT',
             'note': eval.note,
             'note_display': dict(EvaluationExercice._meta.get_field('note').flatchoices).get(eval.note, '') if eval.note else '',
             'etoiles': '*' * (eval.note or 0),
             'raison_non_realise': dict(EvaluationExercice.RAISON_NON_REALISE_CHOICES).get(eval.raison_non_realise, '') if eval.raison_non_realise else '',
             'commentaire': eval.commentaire,
-            'encadrant': eval.encadrant.nom_complet if eval.encadrant else ''
+            'encadrant': eval.encadrant.nom_complet if eval.encadrant else 'Validé par le DT'
         }
         result['evaluations'].append(eval_data)
     

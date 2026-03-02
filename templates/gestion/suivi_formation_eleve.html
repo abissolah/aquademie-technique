@@ -7,6 +7,9 @@
     <div class="mb-3">
         <span class="badge bg-primary">{{ nb_groupes_valides }}/{{ nb_groupes }} groupes validés</span>
         <span class="badge bg-success">{{ nb_competences_valides }}/{{ nb_competences }} compétences validées</span>
+        <a href="{% url 'suivi_formation_eleve_pdf' eleve.pk %}" target="_blank" class="btn btn-outline-danger btn-sm ms-2">
+            <i class="fas fa-file-pdf me-1"></i>Ouvrir le PDF
+        </a>
     </div>
     {% if user.is_superuser or user.groups.all.0.name == 'admin' or user.groups.all.0.name == 'encadrant' %}
         <button class="btn btn-outline-info mb-3" type="button" onclick="toggleAllHistoriques()" id="btn-toggle-all">Voir tout l'historique</button>
@@ -54,6 +57,14 @@
                                 {% endif %}
                             </span>
                             {% if user.is_superuser or user.groups.all.0.name == 'admin' or user.groups.all.0.name == 'encadrant' %}
+                                {% if user.is_staff and not e.has_validation_dt %}
+                                <form method="post" action="{% url 'validation_dt_eleve_exercice' eleve.pk e.exercice.id %}" class="d-inline ms-2">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-success" title="Enregistrer une validation DT (3 étoiles)">Validation DT</button>
+                                </form>
+                                {% elif user.is_staff and e.has_validation_dt %}
+                                <span class="badge bg-secondary ms-2">Validé DT</span>
+                                {% endif %}
                                 {% if e.commentaire %}
                                     <div class="small text-muted mt-1"><i class="fas fa-comment-dots"></i> {{ e.commentaire }}</div>
                                 {% endif %}
@@ -62,16 +73,15 @@
                                     {% with hist_list=historiques|dict_get:e.exercice.id %}
                                         <div class="small text-info">{{ hist_list|length }} évaluation(s) trouvée(s)
                                             {% if hist_list %}
-                                                [IDs: {% for hist in hist_list %}{{ hist.id }}{% if not forloop.last %}, {% endif %}{% endfor %}]
-                                                [Dates: {% for hist in hist_list %}{{ hist.palanquee.seance.date|date:'d/m/Y' }}{% if not forloop.last %}, {% endif %}{% endfor %}]
+                                                [Dates: {% for hist in hist_list %}{% if hist.palanquee %}{{ hist.palanquee.seance.date|date:'d/m/Y' }}{% else %}{{ hist.date_evaluation|date:'d/m/Y' }} (DT){% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}]
                                             {% endif %}
                                         </div>
                                         {% if hist_list %}
                                             <ul class="list-group">
                                             {% for hist in hist_list %}
                                                 <li class="list-group-item">
-                                                    <strong>Date :</strong> {{ hist.palanquee.seance.date|date:'d/m/Y' }}<br>
-                                                    <strong>Note :</strong> 
+                                                    <strong>Date :</strong> {% if hist.palanquee %}{{ hist.palanquee.seance.date|date:'d/m/Y' }}{% else %}{{ hist.date_evaluation|date:'d/m/Y' }}{% endif %}<br>
+                                                    <strong>Note :</strong>
                                                     {% if hist.note %}
                                                         {% for i in range3 %}
                                                             {% if i <= hist.note %}<i class="fas fa-star text-warning"></i>{% else %}<i class="far fa-star text-muted"></i>{% endif %}
@@ -83,7 +93,11 @@
                                                     {% endif %}
                                                     <br>
                                                     <strong>Commentaire :</strong> {{ hist.commentaire|default:'-' }}<br>
-                                                    <strong>Moniteur :</strong> {{ hist.encadrant.nom_complet }}
+                                                    {% if hist.palanquee and hist.encadrant %}
+                                                        <strong>Moniteur :</strong> {{ hist.encadrant.nom_complet }}
+                                                    {% else %}
+                                                        <strong>Validé par le DT</strong>
+                                                    {% endif %}
                                                 </li>
                                             {% endfor %}
                                             </ul>
