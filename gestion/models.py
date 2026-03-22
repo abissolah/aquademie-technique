@@ -181,7 +181,7 @@ class Seance(models.Model):
         null=True,
         blank=True,
         related_name='seances_dirigees',
-        limit_choices_to={'statut': 'encadrant', 'type_personne': 'adherent'},
+        limit_choices_to={'statut': 'encadrant'},
         verbose_name="Directeur de plongée"
     )
     presence_president = models.BooleanField("Présence du président", default=False)

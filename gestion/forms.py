@@ -146,9 +146,18 @@ class SeanceForm(forms.ModelForm):
         # Utiliser une liste déroulante pour le lieu
         self.fields['lieu'].queryset = Lieu.objects.all()
         self.fields['lieu'].label_from_instance = lambda obj: f"{obj.nom} - {obj.ville}"
-        # Filtrer les encadrants adhérents pour directeur de plongée
-        self.fields['directeur_plongee'].queryset = Adherent.objects.filter(statut='encadrant', type_personne='adherent')
-        self.fields['directeur_plongee'].label_from_instance = lambda obj: f"{obj.nom_complet} ({obj.get_niveau_display()})"
+        # Encadrants adhérents et non adhérents
+        self.fields['directeur_plongee'].queryset = Adherent.objects.filter(
+            statut='encadrant'
+        ).order_by('nom', 'prenom')
+
+        def _label_directeur_plongee(obj):
+            base = f"{obj.nom_complet} ({obj.get_niveau_display()})"
+            if obj.type_personne == 'non_adherent':
+                return f"{base} — {obj.get_type_personne_display()}"
+            return base
+
+        self.fields['directeur_plongee'].label_from_instance = _label_directeur_plongee
 
 class PalanqueeForm(forms.ModelForm):
     exercices_prevus = forms.ModelMultipleChoiceField(
