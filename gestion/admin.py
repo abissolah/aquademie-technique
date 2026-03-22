@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, LienEvaluation, Lieu, PalanqueeEleve
+from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, LienEvaluation, Lieu, PalanqueeEleve, CorpsMailPdfPalanquees
 from django.contrib.auth.models import User
 
 @admin.register(Adherent)
@@ -136,3 +136,15 @@ class LieuAdmin(admin.ModelAdmin):
     list_display = ['nom', 'ville', 'code_postal', 'adresse']
     search_fields = ['nom', 'ville', 'code_postal']
     ordering = ['nom', 'ville']
+
+
+@admin.register(CorpsMailPdfPalanquees)
+class CorpsMailPdfPalanqueesAdmin(admin.ModelAdmin):
+    list_display = ['__str__']
+
+    def has_add_permission(self, request):
+        # Un seul enregistrement suffit (singleton pk=1)
+        return not CorpsMailPdfPalanquees.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False

@@ -281,7 +281,10 @@
                                     <a href="{% url 'palanquee_delete' palanquee.pk %}" class="btn btn-outline-danger btn-sm mb-1">
                                         <i class="fas fa-trash"></i> Supprimer
                                     </a>
-                                    <button type="button" class="btn btn-outline-info btn-sm mb-1" onclick="ouvrirDialogDuplication({{ palanquee.id }}, '{{ palanquee.nom|escapejs }}')">
+                                    <button type="button"
+                                            class="btn btn-outline-info btn-sm mb-1 ouvrirDialogDuplicationBtn"
+                                            data-palanquee-id="{{ palanquee.id }}"
+                                            data-palanquee-nom="{{ palanquee.nom|escapejs }}">
                                         <i class="fas fa-copy"></i> Dupliquer les exercices
                                     </button>
                                     {% if user.is_staff %}
@@ -351,9 +354,9 @@
                         <i class="fas fa-user-plus"></i> Inscrire un adhérent/non adhérent
                     </a>
                     {% endif %}
-                    <a href="{% url 'envoyer_pdf_palanquees_encadrants' seance.pk %}" class="btn btn-outline-info">
+                    <button type="button" class="btn btn-outline-info" id="btn-ouvrir-modal-pdf-palanquees" data-bs-toggle="modal" data-bs-target="#modalMailPdfPalanquees">
                         <i class="fas fa-file-pdf"></i> Générer et envoyer PDF à tous les encadrants
-                    </a>
+                    </button>
                     <a href="{% url 'envoyer_liens_evaluation_encadrants' seance.pk %}" id="btn-envoyer-liens-evaluation" class="btn btn-outline-info">
                         <i class="fas fa-link"></i> Générer et envoyer liens d'évaluation à tous les encadrants
                     </a>
@@ -552,6 +555,38 @@
     </div>
 </div>
 
+<!-- Modal : corps du mail avant envoi des PDF palanquées -->
+<div class="modal fade" id="modalMailPdfPalanquees" tabindex="-1" aria-labelledby="modalMailPdfPalanqueesLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalMailPdfPalanqueesLabel">
+                    <i class="fas fa-envelope me-2"></i>Message joint aux PDF (encadrants)
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                <div id="pdf-pal-envoi-feedback" class="alert d-none mb-3" role="alert" style="white-space: pre-wrap;"></div>
+                <p class="text-muted small mb-2">
+                    Le texte est mémorisé pour les prochaines séances. Chaque encadrant reçoit sa fiche PDF en pièce jointe.
+                    Variables possibles (syntaxe Django)&nbsp;:
+                </p>
+                {% verbatim %}
+                <p class="small font-monospace text-break mb-3">{{ palanquee.encadrant.prenom }}, {{ palanquee.nom }}, {{ seance.date|date:'d/m/Y' }}, {{ seance.lieu }}…</p>
+                {% endverbatim %}
+                <label for="corps_mail_pdf_palanquees" class="form-label">Corps du message</label>
+                <textarea id="corps_mail_pdf_palanquees" name="corps_mail_pdf_palanquees" rows="10" class="form-control" placeholder="Chargement…"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="btn-confirmer-envoi-pdf-palanquees">
+                    <i class="fas fa-paper-plane me-1"></i>Envoyer les e-mails
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Retour à la liste -->
 <div class="row mt-4">
     <div class="col-12">
@@ -563,7 +598,158 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.ckeditor.com/4.22.1/full/ckeditor.js"></script>
 <script>
+const PDF_PAL_EDITOR_ID = 'corps_mail_pdf_palanquees';
+const modalMailPdfPalanquees = document.getElementById('modalMailPdfPalanquees');
+if (modalMailPdfPalanquees) {
+    modalMailPdfPalanquees.addEventListener('shown.bs.modal', function () {
+        var fb = document.getElementById('pdf-pal-envoi-feedback');
+        if (fb) {
+            fb.classList.add('d-none');
+            fb.textContent = '';
+            fb.classList.remove('alert-success', 'alert-danger', 'alert-warning');
+        }
+        var btnPal = document.getElementById('btn-confirmer-envoi-pdf-palanquees');
+        if (btnPal) btnPal.disabled = false;
+        fetch("{% url 'api_corps_mail_pdf_palanquees' %}", { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                var html = data.corps_html || '';
+                if (window.CKEDITOR && CKEDITOR.instances[PDF_PAL_EDITOR_ID]) {
+                    CKEDITOR.instances[PDF_PAL_EDITOR_ID].setData(html);
+                    return;
+                }
+                if (!window.CKEDITOR) {
+                    document.getElementById(PDF_PAL_EDITOR_ID).value = html.replace(/<[^>]+>/g, ' ');
+                    return;
+                }
+                CKEDITOR.replace(PDF_PAL_EDITOR_ID, {
+                    height: 300,
+                    baseFloatZIndex: 200000,
+                    toolbar: [
+                        ['Source', '-', 'Bold', 'Italic', 'Underline', 'Strike'],
+                        ['NumberedList', 'BulletedList', '-', 'Link', 'Unlink'],
+                        ['JustifyLeft', 'JustifyCenter', 'JustifyRight', 'JustifyBlock'],
+                        ['Format', 'FontSize'],
+                        ['TextColor', 'BGColor'],
+                        ['RemoveFormat', 'Maximize']
+                    ]
+                });
+                CKEDITOR.instances[PDF_PAL_EDITOR_ID].setData(html);
+            })
+            .catch(function () { alert('Impossible de charger le texte du message.'); });
+    });
+    modalMailPdfPalanquees.addEventListener('hidden.bs.modal', function () {
+        if (window.CKEDITOR && CKEDITOR.instances[PDF_PAL_EDITOR_ID]) {
+            CKEDITOR.instances[PDF_PAL_EDITOR_ID].destroy(true);
+        }
+    });
+    var btnConfirmerPdfPal = document.getElementById('btn-confirmer-envoi-pdf-palanquees');
+    if (btnConfirmerPdfPal) {
+        btnConfirmerPdfPal.addEventListener('click', function () {
+            var html = '';
+            if (window.CKEDITOR && CKEDITOR.instances[PDF_PAL_EDITOR_ID]) {
+                html = CKEDITOR.instances[PDF_PAL_EDITOR_ID].getData().trim();
+            } else {
+                html = (document.getElementById(PDF_PAL_EDITOR_ID) && document.getElementById(PDF_PAL_EDITOR_ID).value || '').trim();
+            }
+            if (!html) {
+                alert('Veuillez saisir un message.');
+                return;
+            }
+            var btn = this;
+            var feedbackEl = document.getElementById('pdf-pal-envoi-feedback');
+            btn.disabled = true;
+            if (feedbackEl) {
+                feedbackEl.classList.add('d-none');
+                feedbackEl.textContent = '';
+                feedbackEl.classList.remove('alert-success', 'alert-danger', 'alert-warning');
+            }
+            fetch("{% url 'envoyer_pdf_palanquees_encadrants' seance.pk %}", {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+                body: JSON.stringify({ corps_html: html }),
+            })
+            .then(function (response) {
+                if (response.status === 403) {
+                    return {
+                        okHttp: false,
+                        status: 403,
+                        data: {
+                            ok: false,
+                            messages: ['Accès refusé (CSRF ou session). Rechargez la page puis réessayez.'],
+                        },
+                    };
+                }
+                var ct = (response.headers.get('Content-Type') || '');
+                if (!ct.includes('application/json')) {
+                    return {
+                        okHttp: response.ok,
+                        status: response.status,
+                        data: {
+                            ok: false,
+                            messages: ['Réponse inattendue du serveur (code ' + response.status + ').'],
+                        },
+                    };
+                }
+                return response.json().then(function (data) {
+                    return { okHttp: response.ok, status: response.status, data: data || {} };
+                }).catch(function () {
+                    return { okHttp: false, status: response.status, data: { messages: ['Réponse invalide du serveur.'] } };
+                });
+            })
+            .then(function (result) {
+                var data = result.data;
+                var lignes = data.messages && data.messages.length ? data.messages : [];
+                if (result.status === 403) {
+                    lignes = ['Accès refusé (CSRF ou session). Rechargez la page puis réessayez.'];
+                }
+                var texte = lignes.join('\n\n');
+                if (feedbackEl && texte) {
+                    feedbackEl.textContent = texte;
+                    feedbackEl.classList.remove('d-none');
+                    if (data.ok === false || result.status === 400) {
+                        feedbackEl.classList.add('alert-danger');
+                    } else if (data.nb_envoyes > 0 && (!data.erreurs_detail || !data.erreurs_detail.length)) {
+                        feedbackEl.classList.add('alert-success');
+                    } else {
+                        feedbackEl.classList.add('alert-warning');
+                    }
+                    feedbackEl.scrollIntoView({ block: 'nearest' });
+                }
+                if (data.ok === false || result.status === 400 || result.status === 403) {
+                    btn.disabled = false;
+                    if (texte && !feedbackEl) alert(texte);
+                    return;
+                }
+                if (data.redirect_url) {
+                    window.setTimeout(function () {
+                        window.location.href = data.redirect_url;
+                    }, texte ? 2500 : 0);
+                } else {
+                    window.location.reload();
+                }
+            })
+            .catch(function () {
+                if (feedbackEl) {
+                    feedbackEl.textContent = 'Erreur réseau lors de l\'envoi.';
+                    feedbackEl.classList.remove('d-none', 'alert-success', 'alert-warning');
+                    feedbackEl.classList.add('alert-danger');
+                } else {
+                    alert('Erreur lors de l\'envoi.');
+                }
+                btn.disabled = false;
+            });
+        });
+    }
+}
+
 let targetPalanqueeIdGlobal = null;
 
 function ouvrirDialogDuplication(targetId, targetName) {
@@ -645,6 +831,16 @@ function chargerPalanqueesSeance(seanceId) {
     });
 }
 document.addEventListener('DOMContentLoaded', function() {
+    // Permet d'appeler ouvrirDialogDuplication sans utiliser onclick inline
+    // (les templates Django dans onclick perturbent parfois l'analyse JS côté IDE).
+    document.querySelectorAll('.ouvrirDialogDuplicationBtn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const targetId = this.dataset.palanqueeId;
+            const targetName = this.dataset.palanqueeNom;
+            ouvrirDialogDuplication(targetId, targetName);
+        });
+    });
+
     const validerBtn = document.getElementById('valider-duplication-exercices-dialog');
     if (validerBtn) {
         validerBtn.addEventListener('click', function() {

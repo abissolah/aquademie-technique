@@ -358,6 +358,33 @@ class ModeleMailSeance(models.Model):
     def __str__(self):
         return self.nom
 
+
+class CorpsMailPdfPalanquees(models.Model):
+    """
+    Corps HTML du mail (sans signature) envoyé avec les PDF de palanquée aux encadrants.
+    Un seul enregistrement (pk=1) sert de modèle mémorisé pour toutes les séances.
+    """
+    corps_html = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Corps du message (HTML)',
+        help_text='Syntaxe Django possible : {{ palanquee }}, {{ seance }} '
+        '(ex. palanquee.encadrant.prenom, palanquee.nom, seance.date).',
+    )
+
+    class Meta:
+        verbose_name = 'Corps du mail PDF palanquées (mémorisé)'
+        verbose_name_plural = verbose_name
+
+    def __str__(self):
+        return 'Corps mail PDF palanquées'
+
+    @classmethod
+    def get_singleton(cls):
+        obj, _ = cls.objects.get_or_create(pk=1, defaults={'corps_html': ''})
+        return obj
+
+
 class HistoriqueMailSeance(models.Model):
     seance = models.ForeignKey('Seance', on_delete=models.CASCADE, related_name='mails_envoyes')
     objet = models.CharField(max_length=255)

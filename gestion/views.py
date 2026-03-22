@@ -61,7 +61,16 @@ from django.contrib.sites.shortcuts import get_current_site
 from .utils import eleve_only, encadrant_only, admin_only, group_required
 from django.utils.decorators import method_decorator
 from .models import ModeleMailSeance
-from .models import Adherent, Section, ModeleMailAdherents, HistoriqueMailAdherents
+from .models import Adherent, Section, ModeleMailAdherents, HistoriqueMailAdherents, CorpsMailPdfPalanquees
+from django.template import engines
+from django.utils.html import strip_tags
+import html as html_lib
+
+# Corps HTML par défaut si aucun contenu n'a encore été mémorisé (équivalent à email_pdf_palanquee.txt)
+DEFAULT_CORPS_MAIL_PDF_PALANQUEES = """<p>Bonjour {{ palanquee.encadrant.prenom }},</p>
+<p>Je te prie de trouver en pièce jointe la fiche PDF de ta palanquée « {{ palanquee.nom }} » pour la séance du {{ seance.date|date:'d/m/Y' }}.</p>
+<p>Merci de ton engagement et bonne séance !</p>
+<p>Subaquatiquement,</p>"""
 
 # Vues d'accueil et de navigation
 @login_required
@@ -2766,8 +2775,67 @@ def changer_role_inscription_seance(request, seance_id):
         return JsonResponse({'success': False, 'error': str(e), 'previous_role': ancien_role if 'ancien_role' in locals() else 'encadrant'})
 
 @login_required
+def api_corps_mail_pdf_palanquees(request):
+    """Retourne le corps HTML mémorisé (ou le défaut) pour préremplir l’éditeur du mail PDF palanquées."""
+    singleton = CorpsMailPdfPalanquees.get_singleton()
+    stored = (singleton.corps_html or '').strip()
+    corps_html = stored if stored else DEFAULT_CORPS_MAIL_PDF_PALANQUEES
+    corps_html = html_lib.unescape(corps_html)
+    return JsonResponse({'corps_html': corps_html})
+
+
+def _envoi_pdf_palanquees_wants_json(request):
+    accept = (request.headers.get('Accept') or '').lower()
+    return 'application/json' in accept
+
+
+@login_required
 def envoyer_pdf_palanquees_encadrants(request, seance_id):
     seance = get_object_or_404(Seance, pk=seance_id)
+    wants_json = _envoi_pdf_palanquees_wants_json(request)
+    redirect_url = reverse('seance_detail', kwargs={'pk': seance_id})
+
+    if request.method != 'POST':
+        messages.warning(
+            request,
+            "Utilisez le bouton « Générer et envoyer PDF à tous les encadrants » sur la page de la séance pour rédiger le message.",
+        )
+        return redirect('seance_detail', pk=seance_id)
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        payload = {}
+    corps_html = (payload.get('corps_html') or '').strip()
+    # CKEditor / HTML peuvent transformer les quotes en entités (ex: &quot;).
+    # On les "décode" avant de valider/rendre la syntaxe Django.
+    corps_html = html_lib.unescape(corps_html)
+    if not corps_html:
+        msg = "Le contenu du message ne peut pas être vide."
+        messages.error(request, msg)
+        if wants_json:
+            return JsonResponse(
+                {'ok': False, 'messages': [msg], 'redirect_url': redirect_url},
+                status=400,
+            )
+        return redirect('seance_detail', pk=seance_id)
+    # Valider la syntaxe du template Django une fois
+    django_engine = engines['django']
+    try:
+        django_engine.from_string(corps_html)
+    except Exception as e:
+        msg = f"Erreur dans le contenu du message (syntaxe des variables ou du modèle) : {e}"
+        messages.error(request, msg)
+        if wants_json:
+            return JsonResponse(
+                {'ok': False, 'messages': [msg], 'redirect_url': redirect_url},
+                status=400,
+            )
+        return redirect('seance_detail', pk=seance_id)
+    # Mémoriser pour les prochaines séances
+    singleton = CorpsMailPdfPalanquees.get_singleton()
+    singleton.corps_html = corps_html
+    singleton.save(update_fields=['corps_html'])
+
     palanquees = seance.palanques.all()
     nb_envoyes = 0
     erreurs = []
@@ -2814,11 +2882,19 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
             elements.append(Paragraph(palanquee.precision_exercices, normal_style))
         doc.build(elements)
         buffer.seek(0)
-        # Préparer et envoyer le mail
+        # Corps du mail : template Django + signature
         subject = f"Fiche palanquée - {palanquee.nom} ({seance.date})"
-        body = render_to_string('gestion/email_pdf_palanquee.txt', {'palanquee': palanquee, 'seance': seance})
-        body_html = f"<p>{body.replace(chr(10), '<br>')}</p>{signature_html}"
-        email = EmailMultiAlternatives(subject, body, to=[encadrant.email], cc=cc)
+        try:
+            tpl = django_engine.from_string(corps_html)
+            rendered_main_html = tpl.render({'palanquee': palanquee, 'seance': seance})
+        except Exception as e:
+            erreurs.append(f"{encadrant.nom_complet} (rendu du message) : {str(e)}")
+            continue
+        body_html = f"{rendered_main_html}{signature_html}"
+        body_plain = strip_tags(rendered_main_html).strip()
+        if not body_plain:
+            body_plain = strip_tags(body_html).strip() or '(message vide)'
+        email = EmailMultiAlternatives(subject, body_plain, to=[encadrant.email], cc=cc)
         email.attach(f"fiche_palanquee_{palanquee.seance.date}_{palanquee.encadrant.nom_complet}.pdf", buffer.read(), 'application/pdf')
         email.attach_alternative(body_html, "text/html")
         if os.path.exists(signature_img_path):
@@ -2846,10 +2922,34 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
             'date_seance': seance.date.strftime('%d/%m/%Y'),
             'lieu': str(seance.lieu.nom)
         }
+    # Messages Django (affichés après rechargement de la page séance)
+    confirmation_lignes = []
     if nb_envoyes:
-        messages.success(request, f"{nb_envoyes} PDF envoyés aux encadrants.")
+        succ = f"{nb_envoyes} PDF envoyés aux encadrants."
+        messages.success(request, succ)
+        confirmation_lignes.append(succ)
+    elif not erreurs:
+        avert = (
+            "Aucun PDF envoyé : vérifiez qu'il existe des palanquées avec un encadrant "
+            "disposant d'une adresse e-mail."
+        )
+        messages.warning(request, avert)
+        confirmation_lignes.append(avert)
     if erreurs:
-        messages.error(request, "Erreurs lors de l'envoi : " + ", ".join(erreurs))
+        err_msg = "Erreurs lors de l'envoi : " + ", ".join(erreurs)
+        messages.error(request, err_msg)
+        confirmation_lignes.append(err_msg)
+
+    if wants_json:
+        return JsonResponse(
+            {
+                'ok': True,
+                'nb_envoyes': nb_envoyes,
+                'messages': confirmation_lignes,
+                'erreurs_detail': erreurs,
+                'redirect_url': redirect_url,
+            }
+        )
     return redirect('seance_detail', pk=seance_id)
 
 @login_required

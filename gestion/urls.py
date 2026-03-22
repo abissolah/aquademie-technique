@@ -93,6 +93,7 @@ urlpatterns = [
     path('seances/<int:seance_id>/fiche-securite/', views.generer_fiche_securite, name='generer_fiche_securite'),
     path('seances/<int:seance_id>/fiche-securite-excel/', views.generer_fiche_securite_excel, name='generer_fiche_securite_excel'),
     path('seances/<int:seance_id>/admin-inscription/', views.admin_inscription_seance, name='admin_inscription_seance'),
+    path('api/corps-mail-pdf-palanquees/', views.api_corps_mail_pdf_palanquees, name='api_corps_mail_pdf_palanquees'),
     path('seances/<int:seance_id>/envoyer-pdf-palanquees/', views.envoyer_pdf_palanquees_encadrants, name='envoyer_pdf_palanquees_encadrants'),
     path('seances/<int:seance_id>/envoyer-mail-covoiturage/', views.envoyer_mail_covoiturage, name='envoyer_mail_covoiturage'),
     path('seances/<int:seance_id>/exporter-destinataires-covoiturage/', views.exporter_destinataires_covoiturage_excel, name='exporter_destinataires_covoiturage_excel'),
