@@ -3344,6 +3344,78 @@ def exporter_inscrits_seance_excel(request, seance_id):
     wb.save(response)
     return response
 
+
+@login_required
+@group_required('admin')
+def exporter_participations_encadrants_excel(request):
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    seances = Seance.objects.all().order_by('date')
+    date_debut = request.GET.get('date_debut')
+    date_fin = request.GET.get('date_fin')
+
+    if date_debut:
+        seances = seances.filter(date__gte=date_debut)
+    if date_fin:
+        seances = seances.filter(date__lte=date_fin)
+
+    seances = list(seances)
+    seance_ids = [seance.id for seance in seances]
+
+    participations_qs = InscriptionSeance.objects.filter(
+        seance_id__in=seance_ids,
+        personne__statut='encadrant',
+        role_pour_seance='encadrant',
+    ).values_list('personne_id', 'seance_id')
+    participations = set(participations_qs)
+
+    encadrants = (
+        Adherent.objects.filter(
+            statut='encadrant',
+            inscriptions_seance__seance_id__in=seance_ids,
+            inscriptions_seance__role_pour_seance='encadrant',
+        )
+        .distinct()
+        .order_by('nom', 'prenom')
+    )
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Participations encadrants'
+
+    headers = ['Encadrant'] + [seance.date.strftime('%d/%m/%Y') for seance in seances]
+    ws.append(headers)
+
+    header_fill = PatternFill(start_color='D9E1F2', end_color='D9E1F2', fill_type='solid')
+    for col_idx in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.font = Font(bold=True)
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+
+    for encadrant in encadrants:
+        row = [f"{encadrant.nom} {encadrant.prenom}"]
+        for seance in seances:
+            row.append('x' if (encadrant.id, seance.id) in participations else '')
+        ws.append(row)
+
+    ws.column_dimensions['A'].width = 35
+    for col_idx in range(2, len(headers) + 1):
+        col_letter = get_column_letter(col_idx)
+        ws.column_dimensions[col_letter].width = 12
+
+    for row in ws.iter_rows(min_row=2, min_col=2, max_row=ws.max_row, max_col=ws.max_column):
+        for cell in row:
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    suffix = ''
+    if date_debut or date_fin:
+        suffix = f"_{date_debut or 'debut'}_{date_fin or 'fin'}"
+    response['Content-Disposition'] = f'attachment; filename="participations_encadrants{suffix}.xlsx"'
+    wb.save(response)
+    return response
+
 def affecter_section_masse(request):
     from django.contrib import messages
     from django.shortcuts import redirect
