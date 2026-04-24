@@ -60,7 +60,22 @@
                     </div>
                     <div class="row">
                         <div class="col-md-12">
+                            {{ form.fiche_securite_previsionnelle|as_crispy_field }}
+                            {% if object and object.fiche_securite_previsionnelle %}
+                            <a href="{{ object.fiche_securite_previsionnelle.url }}" target="_blank" class="btn btn-outline-success btn-sm mb-3">
+                                <i class="fas fa-file-download me-1"></i>Télécharger la fiche de sécu prévisionnelle existante
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
                             {{ form.fiche_securite_validee|as_crispy_field }}
+                            {% if object and object.fiche_securite_validee %}
+                            <a href="{{ object.fiche_securite_validee.url }}" target="_blank" class="btn btn-outline-success btn-sm mb-3">
+                                <i class="fas fa-file-download me-1"></i>Télécharger la fiche de sécu validée existante
+                            </a>
+                            {% endif %}
                         </div>
                     </div>
                     

@@ -67,10 +67,33 @@ from django.utils.html import strip_tags
 import html as html_lib
 
 # Corps HTML par défaut si aucun contenu n'a encore été mémorisé (équivalent à email_pdf_palanquee.txt)
-DEFAULT_CORPS_MAIL_PDF_PALANQUEES = """<p>Bonjour {{ palanquee.encadrant.prenom }},</p>
-<p>Je te prie de trouver en pièce jointe la fiche PDF de ta palanquée « {{ palanquee.nom }} » pour la séance du {{ seance.date|date:'d/m/Y' }}.</p>
-<p>Merci de ton engagement et bonne séance !</p>
-<p>Subaquatiquement,</p>"""
+DEFAULT_CORPS_MAIL_PDF_PALANQUEES = """<p>Salut {{ palanquee.encadrant.prenom }},</p>
+<p>Tu trouveras ci-joint la fiche de sécurité, le programme ainsi que la fiche de suivi de tes élèves pour la fosse du {{ seance.date|date:'d/m/Y' }}.</p>
+<p>Comme à chaque fosse, j’en profite également pour rappeler certains points :</p>
+<ol>
+  <li>
+    Il est impératif que nous soyons tous sorti de l’eau et sur le bord du bassin à 13h20 max en train de dégréer les blocs.<br>
+    On rend tout le matériel et on note ses paramètres et seulement après on débriefe.
+  </li>
+  <li>
+    Pour rappel il faut respecter rigoureusement le niveau de difficulté des exercices à faire réaliser contenus dans la fiche programme concernant sa palanquée.<br>
+    Il est possible d'éventuellement si nécessaire diminuer ce niveau de difficulté mais en aucun cas l’augmenté.<br>
+    Dans le cas où le plongeur réussi ses exercices avec aise tu peux me suggérer les évolutions par mail après fosse.<br>
+    Par exemple, ne pas faire enlever complètement le masque, que ce soit pour les débutants que pour les confirmés.
+  </li>
+  <li>
+    Je ne souhaite pas que l’on fasse travailler les élèves entre eux, d’autant quand ils sont débutants.<br>
+    Les pannes d’air se travaillent entre moniteur et élèves !<br>
+    Les remontées se travailles entre moniteurs et élèves les autres suivent.
+  </li>
+  <li>
+    Ne pas demander non plus aux plongeurs d’enlever les palmes sous l’eau.<br>
+    Je ne vois pas l’utilité pédagogique (hors MFT) avec une prise de risque inutile.
+  </li>
+</ol>
+<p>Je te remercie donc par avance de faire en sorte de bien respecter ces consignes.</p>
+<p>Pour finir et comme d’habitude je compte sur ton retour lorsque tu recevras le lien d'évaluation afin d’assurer le suivi des élèves.</p>
+<p>Bises et bonne fosse ...</p>"""
 
 # Vues d'accueil et de navigation
 @login_required
@@ -2535,19 +2558,7 @@ def _build_suivi_formation_pdf(eleve, progression, historiques):
     return buffer.getvalue()
 
 
-@login_required
-def suivi_formation_eleve_pdf(request, eleve_id):
-    """Génère un PDF du suivi de formation (ouvre dans un nouvel onglet)."""
-    if not peut_voir_suivi(request.user, int(eleve_id)):
-        if request.user.groups.filter(name='eleve').exists():
-            adherent = getattr(request.user, 'adherent_profile', None)
-            if adherent:
-                return redirect('suivi_formation_eleve', eleve_id=adherent.id)
-        elif request.user.groups.filter(name='encadrant').exists():
-            return redirect('eleve_list')
-        else:
-            return redirect('dashboard')
-    eleve = get_object_or_404(Adherent, pk=eleve_id)
+def _build_suivi_formation_data(eleve):
     sections = eleve.sections.all()
     groupes = GroupeCompetence.objects.filter(section__in=sections).prefetch_related('competences__exercices')
     evals = EvaluationExercice.objects.filter(eleve=eleve).order_by('-date_evaluation')
@@ -2555,12 +2566,17 @@ def suivi_formation_eleve_pdf(request, eleve_id):
     for e in evals:
         if e.exercice_id not in evals_dict:
             evals_dict[e.exercice_id] = e
+
     historiques = {}
     for ex in Exercice.objects.all():
-        historiques[ex.id] = list(EvaluationExercice.objects.filter(eleve=eleve, exercice=ex).order_by('-date_evaluation'))
+        historiques[ex.id] = list(
+            EvaluationExercice.objects.filter(eleve=eleve, exercice=ex).order_by('-date_evaluation')
+        )
+
     validation_dt_exercice_ids = set(
         EvaluationExercice.objects.filter(eleve=eleve, palanquee__isnull=True).values_list('exercice_id', flat=True)
     )
+
     progression = []
     for groupe in groupes:
         groupe_data = {'groupe': groupe, 'competences': [], 'etoile_groupe': True}
@@ -2585,6 +2601,24 @@ def suivi_formation_eleve_pdf(request, eleve_id):
             if not comp_data['etoile_competence']:
                 groupe_data['etoile_groupe'] = False
         progression.append(groupe_data)
+
+    return progression, historiques
+
+
+@login_required
+def suivi_formation_eleve_pdf(request, eleve_id):
+    """Génère un PDF du suivi de formation (ouvre dans un nouvel onglet)."""
+    if not peut_voir_suivi(request.user, int(eleve_id)):
+        if request.user.groups.filter(name='eleve').exists():
+            adherent = getattr(request.user, 'adherent_profile', None)
+            if adherent:
+                return redirect('suivi_formation_eleve', eleve_id=adherent.id)
+        elif request.user.groups.filter(name='encadrant').exists():
+            return redirect('eleve_list')
+        else:
+            return redirect('dashboard')
+    eleve = get_object_or_404(Adherent, pk=eleve_id)
+    progression, historiques = _build_suivi_formation_data(eleve)
     pdf_content = _build_suivi_formation_pdf(eleve, progression, historiques)
     response = HttpResponse(pdf_content, content_type='application/pdf')
     response['Content-Disposition'] = 'inline; filename="suivi_formation_{}.pdf"'.format(eleve.nom_complet.replace(' ', '_'))
@@ -2843,6 +2877,17 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
     cc = getattr(settings, 'EMAIL_CC_DEFAULT', [])
     signature_html = get_signature_html()
     signature_img_path = os.path.join(settings.BASE_DIR, 'static', 'Signature_mouss.png')
+    fiche_previsionnelle = None
+    if seance.fiche_securite_previsionnelle:
+        try:
+            with open(seance.fiche_securite_previsionnelle.path, 'rb') as f:
+                fiche_previsionnelle = (
+                    os.path.basename(seance.fiche_securite_previsionnelle.name),
+                    f.read(),
+                )
+        except Exception as e:
+            erreurs.append(f"Fiche de sécu prévisionnelle : impossible de joindre le fichier ({str(e)}).")
+
     for palanquee in palanquees:
         encadrant = palanquee.encadrant
         if not encadrant or not encadrant.email:
@@ -2896,6 +2941,21 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
             body_plain = strip_tags(body_html).strip() or '(message vide)'
         email = EmailMultiAlternatives(subject, body_plain, to=[encadrant.email], cc=cc)
         email.attach(f"fiche_palanquee_{palanquee.seance.date}_{palanquee.encadrant.nom_complet}.pdf", buffer.read(), 'application/pdf')
+        if fiche_previsionnelle:
+            email.attach(fiche_previsionnelle[0], fiche_previsionnelle[1], 'application/octet-stream')
+        for eleve in palanquee.eleves.all():
+            try:
+                progression_eleve, historiques_eleve = _build_suivi_formation_data(eleve)
+                pdf_suivi_eleve = _build_suivi_formation_pdf(eleve, progression_eleve, historiques_eleve)
+                email.attach(
+                    f"suivi_formation_{eleve.nom_complet.replace(' ', '_')}.pdf",
+                    pdf_suivi_eleve,
+                    'application/pdf'
+                )
+            except Exception as e:
+                erreurs.append(
+                    f"{encadrant.nom_complet} - {eleve.nom_complet} : impossible de générer le PDF de suivi ({str(e)})."
+                )
         email.attach_alternative(body_html, "text/html")
         if os.path.exists(signature_img_path):
             with open(signature_img_path, 'rb') as img:

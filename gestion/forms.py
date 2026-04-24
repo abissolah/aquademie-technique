@@ -121,7 +121,16 @@ class SeanceForm(forms.ModelForm):
     presence_president = forms.BooleanField(label="Présence du président", required=False)
     class Meta:
         model = Seance
-        fields = ['date', 'heure_debut', 'heure_fin', 'lieu', 'directeur_plongee', 'presence_president', 'fiche_securite_validee']
+        fields = [
+            'date',
+            'heure_debut',
+            'heure_fin',
+            'lieu',
+            'directeur_plongee',
+            'presence_president',
+            'fiche_securite_previsionnelle',
+            'fiche_securite_validee'
+        ]
         widgets = {
             'date': forms.DateInput(
                 attrs={'type': 'date'},

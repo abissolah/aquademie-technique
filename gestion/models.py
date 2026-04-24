@@ -187,6 +187,12 @@ class Seance(models.Model):
     presence_president = models.BooleanField("Présence du président", default=False)
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)
+    fiche_securite_previsionnelle = models.FileField(
+        upload_to='fiches_securite_previsionnelles/',
+        blank=True,
+        null=True,
+        verbose_name="Fiche de sécu prévisionnelle"
+    )
     fiche_securite_validee = models.FileField(
         upload_to='fiches_securite_validees/',
         blank=True,

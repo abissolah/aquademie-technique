@@ -209,6 +209,14 @@
                         </p>
                         <p><strong>Directeur de plongée :</strong> {% if seance.directeur_plongee %}{{ seance.directeur_plongee.nom_complet }} ({{ seance.directeur_plongee.get_niveau_display }}){% else %}<span class="text-muted">Non défini</span>{% endif %}</p>
                         <p><strong>Nombre de palanquées :</strong> {{ palanquees.count }}</p>
+                        {% if seance.fiche_securite_previsionnelle %}
+                        <p>
+                            <strong>Fiche de sécu prévisionnelle :</strong>
+                            <a href="{{ seance.fiche_securite_previsionnelle.url }}" target="_blank" class="btn btn-outline-success btn-sm ms-2">
+                                <i class="fas fa-file-download"></i> Télécharger
+                            </a>
+                        </p>
+                        {% endif %}
                         {% if seance.fiche_securite_validee %}
                         <p>
                             <strong>Fiche de sécu validée :</strong>
@@ -600,7 +608,15 @@
 {% block extra_js %}
 <script src="https://cdn.ckeditor.com/4.22.1/full/ckeditor.js"></script>
 <script>
+function getCsrfTokenFromCookie() {
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='));
+    return cookieValue ? decodeURIComponent(cookieValue.split('=')[1]) : '';
+}
+
 const PDF_PAL_EDITOR_ID = 'corps_mail_pdf_palanquees';
+const HAS_FICHE_SECURITE_PREVISIONNELLE = "{{ seance.fiche_securite_previsionnelle|yesno:'true,false' }}" === "true";
 const modalMailPdfPalanquees = document.getElementById('modalMailPdfPalanquees');
 if (modalMailPdfPalanquees) {
     modalMailPdfPalanquees.addEventListener('shown.bs.modal', function () {
@@ -658,6 +674,14 @@ if (modalMailPdfPalanquees) {
                 alert('Veuillez saisir un message.');
                 return;
             }
+            if (!HAS_FICHE_SECURITE_PREVISIONNELLE) {
+                const continuerSansFiche = confirm(
+                    "La fiche de sécu prévisionnelle n'a pas encore été chargée, souhaitez-vous envoyer les emails quand même ?"
+                );
+                if (!continuerSansFiche) {
+                    return;
+                }
+            }
             var btn = this;
             var feedbackEl = document.getElementById('pdf-pal-envoi-feedback');
             btn.disabled = true;
@@ -672,7 +696,7 @@ if (modalMailPdfPalanquees) {
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-CSRFToken': getCsrfTokenFromCookie(),
                 },
                 body: JSON.stringify({ corps_html: html }),
             })
