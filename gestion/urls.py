@@ -107,6 +107,23 @@ urlpatterns = [
     path('seances/<int:seance_id>/api/suivi-inscrits-section/', views.api_suivi_inscrits_section, name='api_suivi_inscrits_section'),
     path('api/historique-eleve-exercice/<int:eleve_id>/<int:exercice_id>/', views.api_historique_eleve_exercice, name='api_historique_eleve_exercice'),
     path('seances/<int:seance_id>/changer-role-inscription/', views.changer_role_inscription_seance, name='changer_role_inscription_seance'),
+
+    # Sorties en mer
+    path('sorties/', views.SortieListView.as_view(), name='sortie_list'),
+    path('sorties/<int:pk>/', views.SortieDetailView.as_view(), name='sortie_detail'),
+    path('sorties/nouvelle/', views.SortieCreateView.as_view(), name='sortie_create'),
+    path('sorties/<int:pk>/modifier/', views.SortieUpdateView.as_view(), name='sortie_update'),
+    path('sorties/<int:pk>/supprimer/', views.SortieDeleteView.as_view(), name='sortie_delete'),
+    path('sorties/<int:seance_id>/creer-palanquees/', views.creer_palanquees, name='sortie_creer_palanquees'),
+    path('sorties/<int:seance_id>/fiche-securite-excel/', views.generer_fiche_securite_excel, name='sortie_generer_fiche_securite_excel'),
+    path('sorties/<int:seance_id>/admin-inscription/', views.admin_inscription_seance, name='sortie_admin_inscription_seance'),
+    path('sorties/<int:seance_id>/envoyer-pdf-palanquees/', views.envoyer_pdf_palanquees_encadrants, name='sortie_envoyer_pdf_palanquees_encadrants'),
+    path('sorties/<int:seance_id>/envoyer-liens-evaluation/', views.envoyer_liens_evaluation_encadrants, name='sortie_envoyer_liens_evaluation_encadrants'),
+    path('sorties/<int:seance_id>/exporter-destinataires-evaluation/', views.exporter_destinataires_evaluation_excel, name='sortie_exporter_destinataires_evaluation_excel'),
+    path('sorties/<int:seance_id>/exporter-destinataires-pdf/', views.exporter_destinataires_pdf_excel, name='sortie_exporter_destinataires_pdf_excel'),
+    path('sorties/<int:seance_id>/changer-role-inscription/', views.changer_role_inscription_seance, name='sortie_changer_role_inscription_seance'),
+    path('sorties/<int:seance_id>/export-excel/', views.exporter_inscrits_seance_excel, name='sortie_exporter_inscrits_seance_excel'),
+    path('sorties/<int:seance_id>/evaluations/', views.sortie_evaluations, name='sortie_evaluations'),
     
     # Palanquées
     path('palanquees/', PalanqueeListView.as_view(), name='palanquee_list'),
@@ -144,6 +161,10 @@ urlpatterns = [
     path('exercices/nouveau/', views.ExerciceCreateView.as_view(), name='exercice_create'),
     path('exercices/<int:pk>/modifier/', views.ExerciceUpdateView.as_view(), name='exercice_update'),
     path('exercices/<int:pk>/supprimer/', views.ExerciceDeleteView.as_view(), name='exercice_delete'),
+    path('exercices-evaluation/', views.ExerciceEvaluationListView.as_view(), name='exercice_evaluation_list'),
+    path('exercices-evaluation/nouveau/', views.ExerciceEvaluationCreateView.as_view(), name='exercice_evaluation_create'),
+    path('exercices-evaluation/<int:pk>/modifier/', views.ExerciceEvaluationUpdateView.as_view(), name='exercice_evaluation_update'),
+    path('exercices-evaluation/<int:pk>/supprimer/', views.ExerciceEvaluationDeleteView.as_view(), name='exercice_evaluation_delete'),
     
     # APIs
     path('api/competences-section/', views.get_competences_section, name='get_competences_section'),

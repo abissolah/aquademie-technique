@@ -13,8 +13,8 @@
                 <i class="fas fa-users me-2"></i>
                 {% if form.instance.pk %}Modifier la Palanquée{% else %}Nouvelle Palanquée{% endif %}
             </h1>
-            <a href="{% if form.instance.pk and form.instance.seance %}{% url 'seance_detail' form.instance.seance.pk %}{% else %}{% url 'palanquee_list' %}{% endif %}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left me-2"></i>{% if form.instance.pk and form.instance.seance %}Retour à la séance{% else %}Retour à la liste{% endif %}
+            <a href="{% if seance_cible %}{% if is_sortie %}{% url 'sortie_detail' seance_cible.pk %}{% else %}{% url 'seance_detail' seance_cible.pk %}{% endif %}{% else %}{% url 'palanquee_list' %}{% endif %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>{% if seance_cible %}Retour à la séance{% else %}Retour à la liste{% endif %}
             </a>
         </div>
     </div>
@@ -86,8 +86,23 @@
                         </div>
                     </div>
                     
-                    {# Bloc de sélection des exercices groupés par compétence #}
+                    {# Bloc de sélection des exercices #}
                     <div class="mb-3">
+                        {% if form.is_sortie %}
+                        <label class="form-label"><strong>Exercices d'évaluation</strong></label>
+                        <div class="row">
+                            {% for exercice in form.fields.exercices_prevus.queryset %}
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input exercice-checkbox" type="checkbox" name="exercices_prevus" value="{{ exercice.id }}" id="ex_{{ exercice.id }}" {% if exercice in form.initial.exercices_prevus %}checked{% endif %}>
+                                    <label class="form-check-label" for="ex_{{ exercice.id }}">{{ exercice.nom }}</label>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <span class="text-muted">Aucun exercice d'évaluation disponible.</span>
+                            {% endfor %}
+                        </div>
+                        {% else %}
                         <label class="form-label"><strong>Exercices à réaliser (groupés par compétence)</strong></label>
                         {% for comp, exercices in form.competence_exercices %}
                             <div class="border rounded p-2 mb-2">
@@ -109,6 +124,7 @@
                         {% empty %}
                             <span class="text-muted">Aucun exercice disponible pour cette section.</span>
                         {% endfor %}
+                        {% endif %}
                     </div>
                     
                     {{ form.precision_exercices|as_crispy_field }}
@@ -123,7 +139,7 @@
                     </div>
                     
                     <div class="d-flex justify-content-between">
-                        <a href="{% if form.seance.value %}{% url 'seance_update' form.seance.value %}{% else %}{% url 'palanquee_list' %}{% endif %}" class="btn btn-outline-secondary">
+                        <a href="{% if seance_cible %}{% if is_sortie %}{% url 'sortie_update' seance_cible.pk %}{% else %}{% url 'seance_update' seance_cible.pk %}{% endif %}{% else %}{% url 'palanquee_list' %}{% endif %}" class="btn btn-outline-secondary">
                             <i class="fas fa-times me-2"></i>Annuler
                         </a>
                         <button type="submit" class="btn btn-primary">
@@ -150,7 +166,11 @@
                     <li>Sélectionnez la section appropriée</li>
                     <li>Choisissez l'encadrant responsable</li>
                     <li>Ajoutez les élèves participants</li>
+                    {% if is_sortie %}
+                    <li>Sélectionnez les exercices d'évaluation</li>
+                    {% else %}
                     <li>Sélectionnez les compétences à travailler</li>
+                    {% endif %}
                 </ol>
                 
                 <hr>

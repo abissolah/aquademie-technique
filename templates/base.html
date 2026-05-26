@@ -74,6 +74,11 @@
                                 </a>
                             </li>
                             <li class="nav-item">
+                                <a class="nav-link" href="{% url 'sortie_list' %}">
+                                    <i class="fas fa-water me-1"></i>Sorties
+                                </a>
+                            </li>
+                            <li class="nav-item">
                                 <a class="nav-link" href="{% url 'adherent_list' %}">
                                     <i class="fas fa-user-friends me-1"></i>Adhérents
                                 </a>
@@ -95,6 +100,7 @@
                                 <ul class="dropdown-menu" aria-labelledby="competenceDropdown">
                                     <li><a class="dropdown-item" href="{% url 'competence_list' %}"><i class="fas fa-star me-1"></i>Liste des compétences</a></li>
                                     <li><a class="dropdown-item" href="{% url 'exercice_list' %}"><i class="fas fa-dumbbell me-1"></i>Liste des exercices</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'exercice_evaluation_list' %}"><i class="fas fa-clipboard-check me-1"></i>Exercices d'évaluation</a></li>
                                     <li><a class="dropdown-item" href="{% url 'groupe_competence_list' %}"><i class="fas fa-object-group me-1"></i>Groupes de compétences</a></li>
                                 </ul>
                             </li>

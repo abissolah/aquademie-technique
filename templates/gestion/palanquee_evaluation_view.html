@@ -32,7 +32,7 @@
                             <div class="card-body">
                                 {% for comp in eleve_data.competences %}
                                     <div class="mb-3 p-2 border rounded competence-item">
-                                        <strong>{{ comp.competence.nom }}</strong><br>
+                                        <strong>{% if comp.competence %}{{ comp.competence.nom }}{% else %}Exercices d'évaluation{% endif %}</strong><br>
                                         {% for exo in comp.exercices %}
                                             <span class="ms-2"><i class="fas fa-dumbbell"></i> {{ exo.exercice.nom }}</span>
                                             <span class="ms-1">

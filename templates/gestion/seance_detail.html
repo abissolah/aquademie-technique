@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ seance.date|date:"d/m/Y" }} - {{ seance.lieu }} - Club de Plongée{% endblock %}
+{% block title %}{{ seance.date|date:"d/m/Y" }} - {{ seance.lieu|default:"" }} - Club de Plongée{% endblock %}
 
 {% block content %}
 {% if destinataires_invitation_envoyes %}
@@ -48,7 +48,7 @@
             </h5>
             <p class="mb-2">Les fiches palanquées ont été envoyées à <strong>{{ destinataires_pdf_envoyes|length }}</strong> encadrant(s) :</p>
         </div>
-        <a href="{% url 'exporter_destinataires_pdf_excel' seance.pk %}" class="btn btn-sm btn-outline-success ms-3">
+        <a href="{% url export_dest_pdf_url_name seance.pk %}" class="btn btn-sm btn-outline-success ms-3">
             <i class="fas fa-file-excel me-1"></i>Exporter en Excel
         </a>
     </div>
@@ -86,7 +86,7 @@
             </h5>
             <p class="mb-2">Les liens d'évaluation ont été envoyés à <strong>{{ destinataires_evaluation_envoyes|length }}</strong> encadrant(s) :</p>
         </div>
-        <a href="{% url 'exporter_destinataires_evaluation_excel' seance.pk %}" class="btn btn-sm btn-outline-success ms-3">
+        <a href="{% url export_dest_eval_url_name seance.pk %}" class="btn btn-sm btn-outline-success ms-3">
             <i class="fas fa-file-excel me-1"></i>Exporter en Excel
         </a>
     </div>
@@ -163,13 +163,13 @@
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>
-                <i class="fas fa-calendar-alt me-2"></i>Séance du {{ seance.date|date:"d/m/Y" }}
+                <i class="fas fa-calendar-alt me-2"></i>{{ titre_objet_du }} {{ seance.date|date:"d/m/Y" }}
             </h1>
             <div class="btn-group" role="group">
-                <a href="{% url 'seance_update' seance.pk %}" class="btn btn-warning">
+                <a href="{% url update_url_name seance.pk %}" class="btn btn-warning">
                     <i class="fas fa-edit me-2"></i>Modifier
                 </a>
-                <a href="{% url 'seance_delete' seance.pk %}" class="btn btn-danger">
+                <a href="{% url delete_url_name seance.pk %}" class="btn btn-danger">
                     <i class="fas fa-trash me-2"></i>Supprimer
                 </a>
                 {% if user.is_staff %}
@@ -183,8 +183,10 @@
             </div>
         </div>
         <p class="text-muted">
-            <i class="fas fa-map-marker-alt me-2"></i>{{ seance.lieu.nom }}<br>
+            <i class="fas fa-map-marker-alt me-2"></i>{{ seance.lieu.nom|default:"" }}<br>
+            {% if seance.lieu %}
             <span class="text-muted small">{{ seance.lieu.adresse }}, {{ seance.lieu.code_postal }} {{ seance.lieu.ville }}</span>
+            {% endif %}
         </p>
     </div>
 </div>
@@ -204,8 +206,10 @@
                         <p><strong>Date :</strong> {{ seance.date|date:"d/m/Y" }}<br>
                         <strong>Début :</strong> {{ seance.heure_debut|default:"-"|time:"H:i" }}<br>
                         <strong>Fin :</strong> {{ seance.heure_fin|default:"-"|time:"H:i" }}</p>
-                        <p><strong>Lieu :</strong> {{ seance.lieu.nom }}<br>
+                        <p><strong>Lieu :</strong> {{ seance.lieu.nom|default:"" }}<br>
+                            {% if seance.lieu %}
                             <span class="text-muted small">{{ seance.lieu.adresse }}, {{ seance.lieu.code_postal }} {{ seance.lieu.ville }}</span>
+                            {% endif %}
                         </p>
                         <p><strong>Directeur de plongée :</strong> {% if seance.directeur_plongee %}{{ seance.directeur_plongee.nom_complet }} ({{ seance.directeur_plongee.get_niveau_display }}){% else %}<span class="text-muted">Non défini</span>{% endif %}</p>
                         <p><strong>Nombre de palanquées :</strong> {{ palanquees.count }}</p>
@@ -333,9 +337,10 @@
                     <a href="{% url 'palanquee_create' %}?seance={{ seance.pk }}" class="btn btn-primary">
                         <i class="fas fa-plus me-2"></i>Nouvelle palanquée
                     </a>
-                    <a href="{% url 'seance_update' seance.pk %}" class="btn btn-outline-warning">
-                        <i class="fas fa-edit me-2"></i>Modifier la séance
+                    <a href="{% url update_url_name seance.pk %}" class="btn btn-outline-warning">
+                        <i class="fas fa-edit me-2"></i>Modifier la {{ titre_objet|lower }}
                     </a>
+                    {% if not is_sortie %}
                     <a href="{% url 'generer_lien_inscription_seance' seance.pk %}" class="btn btn-outline-info">
                         <i class="fas fa-link"></i> Générer le lien d'inscription
                     </a>
@@ -348,26 +353,34 @@
                     <a href="{% url 'envoyer_mail_invitation_seance' seance.pk %}" id="btn-envoyer-invitation" class="btn btn-outline-success">
                         <i class="fas fa-envelope"></i> Envoyer l'invitation par mail
                     </a>
-                    {% if seance.inscriptions.count > 0 %}
-                    <a href="{% url 'creer_palanquees' seance.pk %}" class="btn btn-success mb-2"><i class="fas fa-users"></i> Créer les palanquées</a>
                     {% endif %}
+                    {% if seance.inscriptions.count > 0 %}
+                    <a href="{% url create_palanquees_url_name seance.pk %}" class="btn btn-success mb-2"><i class="fas fa-users"></i> Créer les palanquées</a>
+                    {% endif %}
+                    {% if not is_sortie %}
                     <a href="{% url 'envoyer_mail_covoiturage' seance.pk %}" id="btn-envoyer-covoiturage" class="btn btn-outline-success">
                         <i class="fas fa-car"></i> Envoyer mail covoiturage
                     </a>
-                    <a href="{% url 'generer_fiche_securite_excel' seance.pk %}" class="btn btn-outline-danger">
+                    {% endif %}
+                    <a href="{% url fiche_securite_url_name seance.pk %}" class="btn btn-outline-danger">
                         <i class="fas fa-file-excel"></i> Éditer la fiche de sécurité
                     </a>
                     {% if user.is_staff %}
-                    <a href="{% url 'admin_inscription_seance' seance.pk %}" class="btn btn-outline-info">
+                    <a href="{% url admin_inscription_url_name seance.pk %}" class="btn btn-outline-info">
                         <i class="fas fa-user-plus"></i> Inscrire un adhérent/non adhérent
                     </a>
                     {% endif %}
                     <button type="button" class="btn btn-outline-info" id="btn-ouvrir-modal-pdf-palanquees" data-bs-toggle="modal" data-bs-target="#modalMailPdfPalanquees">
                         <i class="fas fa-file-pdf"></i> Générer et envoyer PDF à tous les encadrants
                     </button>
-                    <a href="{% url 'envoyer_liens_evaluation_encadrants' seance.pk %}" id="btn-envoyer-liens-evaluation" class="btn btn-outline-info">
+                    <a href="{% url envoyer_liens_evaluation_url_name seance.pk %}" id="btn-envoyer-liens-evaluation" class="btn btn-outline-info">
                         <i class="fas fa-link"></i> Générer et envoyer liens d'évaluation à tous les encadrants
                     </a>
+                    {% if is_sortie %}
+                    <a href="{% url evaluations_sortie_url_name seance.pk %}" class="btn btn-outline-primary">
+                        <i class="fas fa-clipboard-check"></i> Voir les évaluations envoyées
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -415,8 +428,8 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{% url 'seance_list' %}" class="btn btn-outline-secondary">
-                        <i class="fas fa-list me-2"></i>Toutes les séances
+                    <a href="{% url list_url_name %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-list me-2"></i>Toutes les {{ titre_objet|lower }}s
                     </a>
                     <a href="{% url 'palanquee_list' %}" class="btn btn-outline-info">
                         <i class="fas fa-users me-2"></i>Toutes les palanquées
@@ -429,9 +442,9 @@
 
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="fas fa-user-check me-2"></i>Inscrits à cette séance <span class="badge bg-primary ms-2">{{ nb_total_inscrits }}</span></h5>
+        <h5 class="mb-0"><i class="fas fa-user-check me-2"></i>Inscrits à cette {{ titre_objet|lower }} <span class="badge bg-primary ms-2">{{ nb_total_inscrits }}</span></h5>
         {% if user.is_staff %}
-        <a href="{% url 'exporter_inscrits_seance_excel' seance.pk %}" class="btn btn-success">
+        <a href="{% url export_inscrits_url_name seance.pk %}" class="btn btn-success">
             <i class="fas fa-file-excel me-2"></i>Exporter les inscrits (Excel)
         </a>
         {% endif %}
@@ -513,12 +526,13 @@
         {% else %}
         <div class="text-center text-muted py-3">
             <i class="fas fa-user-friends fa-2x mb-2"></i>
-            <p>Aucun inscrit pour cette séance pour le moment.</p>
+            <p>Aucun inscrit pour cette {{ titre_objet|lower }} pour le moment.</p>
         </div>
         {% endif %}
     </div>
 </div>
 
+{% if not is_sortie %}
 <div class="card mb-4">
     <div class="card-header bg-success text-white">
         <h5 class="mb-0"><i class="fas fa-car me-2"></i>Covoiturage</h5>
@@ -562,6 +576,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <!-- Modal : corps du mail avant envoi des PDF palanquées -->
 <div class="modal fade" id="modalMailPdfPalanquees" tabindex="-1" aria-labelledby="modalMailPdfPalanqueesLabel" aria-hidden="true">
@@ -598,8 +613,8 @@
 <!-- Retour à la liste -->
 <div class="row mt-4">
     <div class="col-12">
-        <a href="{% url 'seance_list' %}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left me-2"></i>Retour à la liste des séances
+        <a href="{% url list_url_name %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Retour à la liste des {{ titre_objet|lower }}s
         </a>
     </div>
 </div>
@@ -690,7 +705,7 @@ if (modalMailPdfPalanquees) {
                 feedbackEl.textContent = '';
                 feedbackEl.classList.remove('alert-success', 'alert-danger', 'alert-warning');
             }
-            fetch("{% url 'envoyer_pdf_palanquees_encadrants' seance.pk %}", {
+            fetch("{% url envoyer_pdf_url_name seance.pk %}", {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {
@@ -905,7 +920,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Désactiver le select pendant la requête
             selectElement.disabled = true;
             
-            fetch("{% url 'changer_role_inscription_seance' seance.pk %}", {
+            fetch("{% url changer_role_url_name seance.pk %}", {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1057,7 +1072,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <option value="">-- Choisir une séance --</option>
           {% for s in toutes_seances %}
             <option value="{{ s.id }}" {% if s.id == seance.id %}selected{% endif %}>
-              {{ s.date|date:"d/m/Y" }} - {{ s.lieu.nom }}
+              {{ s.date|date:"d/m/Y" }} - {{ s.lieu.nom|default:"" }}
             </option>
           {% endfor %}
         </select>

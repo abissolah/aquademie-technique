@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db.models import Q
 import uuid
 from django.contrib.auth import get_user_model
 
@@ -113,8 +114,16 @@ class Adherent(models.Model):
             self.user.groups.add(group)
 
 class Exercice(models.Model):
+    TYPE_CLASSIQUE = 'classique'
+    TYPE_EVALUATION = 'evaluation'
+    TYPE_CHOICES = [
+        (TYPE_CLASSIQUE, 'Exercice classique'),
+        (TYPE_EVALUATION, "Exercice d'évaluation"),
+    ]
+
     nom = models.CharField(max_length=200)
     description = models.TextField(blank=True)
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_CLASSIQUE)
 
     class Meta:
         verbose_name = "Exercice"
@@ -171,10 +180,18 @@ class Lieu(models.Model):
         return f"{self.nom} - {self.ville}"
 
 class Seance(models.Model):
+    TYPE_SEANCE = 'seance'
+    TYPE_SORTIE = 'sortie'
+    TYPE_CHOICES = [
+        (TYPE_SEANCE, 'Séance'),
+        (TYPE_SORTIE, 'Sortie en mer'),
+    ]
+
     date = models.DateField()
     heure_debut = models.TimeField(verbose_name="Heure de début", null=True, blank=True)
     heure_fin = models.TimeField(verbose_name="Heure de fin", null=True, blank=True)
-    lieu = models.ForeignKey(Lieu, on_delete=models.PROTECT, related_name='seances')
+    lieu = models.ForeignKey(Lieu, on_delete=models.PROTECT, related_name='seances', null=True, blank=True)
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_SEANCE)
     directeur_plongee = models.ForeignKey(
         Adherent,
         on_delete=models.SET_NULL,
@@ -204,13 +221,23 @@ class Seance(models.Model):
         verbose_name = "Séance"
         verbose_name_plural = "Séances"
         ordering = ['-date', 'lieu']
+        constraints = [
+            models.CheckConstraint(
+                check=Q(type='sortie') | Q(lieu__isnull=False),
+                name='seance_lieu_required_for_classic_seance',
+            ),
+        ]
     
     def __str__(self):
-        return f"{self.date} - {self.lieu}"
+        return f"{self.date} - {self.lieu or ''}".strip()
     
     @property
     def palanques_count(self):
         return self.palanques.count()
+
+    @property
+    def est_sortie(self):
+        return self.type == self.TYPE_SORTIE
 
 class Palanquee(models.Model):
     nom = models.CharField(max_length=200)

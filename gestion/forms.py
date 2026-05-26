@@ -101,6 +101,10 @@ class CompetenceForm(forms.ModelForm):
             'exercices': forms.SelectMultiple(),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['exercices'].queryset = Exercice.objects.filter(type=Exercice.TYPE_CLASSIQUE)
+
 class GroupeCompetenceForm(forms.ModelForm):
     class Meta:
         model = GroupeCompetence
@@ -147,6 +151,7 @@ class SeanceForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
+        self.seance_type = kwargs.pop('seance_type', Seance.TYPE_SEANCE)
         super().__init__(*args, **kwargs)
         # S'assurer que la date est formatée correctement pour l'affichage HTML
         if self.instance and self.instance.pk:
@@ -159,6 +164,7 @@ class SeanceForm(forms.ModelForm):
         self.fields['directeur_plongee'].queryset = Adherent.objects.filter(
             statut='encadrant'
         ).order_by('nom', 'prenom')
+        self.fields['lieu'].required = self.seance_type == Seance.TYPE_SEANCE
 
         def _label_directeur_plongee(obj):
             base = f"{obj.nom_complet} ({obj.get_niveau_display()})"
@@ -167,6 +173,12 @@ class SeanceForm(forms.ModelForm):
             return base
 
         self.fields['directeur_plongee'].label_from_instance = _label_directeur_plongee
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if self.seance_type == Seance.TYPE_SEANCE and not cleaned_data.get('lieu'):
+            self.add_error('lieu', "Le lieu est obligatoire pour une séance.")
+        return cleaned_data
 
 class PalanqueeForm(forms.ModelForm):
     exercices_prevus = forms.ModelMultipleChoiceField(
@@ -214,7 +226,24 @@ class PalanqueeForm(forms.ModelForm):
             if seance:
                 count = seance.palanques.count()
                 self.fields['nom'].initial = f"P{count+1}"
-        # Exercices groupés par compétence selon la section
+        # Déterminer le type de séance (séance classique ou sortie)
+        seance = None
+        if seance_id:
+            try:
+                seance = Seance.objects.get(pk=seance_id)
+            except Seance.DoesNotExist:
+                pass
+        elif self.instance and self.instance.pk:
+            seance = self.instance.seance
+        elif 'seance' in self.data:
+            try:
+                seance = Seance.objects.get(pk=self.data['seance'])
+            except Seance.DoesNotExist:
+                pass
+
+        self.is_sortie = bool(seance and seance.type == Seance.TYPE_SORTIE)
+
+        # Exercices groupés selon le type
         section = None
         if 'section' in self.data:
             try:
@@ -223,14 +252,21 @@ class PalanqueeForm(forms.ModelForm):
                 pass
         elif self.instance and self.instance.pk:
             section = self.instance.section
-        if section:
+
+        if self.is_sortie:
+            self.fields['exercices_prevus'].queryset = Exercice.objects.filter(type=Exercice.TYPE_EVALUATION).order_by('nom')
+            self.competence_exercices = []
+        elif section:
             competences = Competence.objects.filter(section=section).prefetch_related('exercices')
             exercices_ids = set()
             for comp in competences:
-                exercices_ids.update(comp.exercices.values_list('id', flat=True))
+                exercices_ids.update(comp.exercices.filter(type=Exercice.TYPE_CLASSIQUE).values_list('id', flat=True))
             self.fields['exercices_prevus'].queryset = Exercice.objects.filter(id__in=exercices_ids)
             # Pour le template : fournir la structure groupée par compétence
-            self.competence_exercices = [(comp, comp.exercices.all()) for comp in competences]
+            self.competence_exercices = [
+                (comp, comp.exercices.filter(type=Exercice.TYPE_CLASSIQUE))
+                for comp in competences
+            ]
         else:
             self.fields['exercices_prevus'].queryset = Exercice.objects.none()
             self.competence_exercices = []
@@ -370,6 +406,15 @@ class AdherentPublicForm(forms.ModelForm):
         return value
 
 class ExerciceForm(forms.ModelForm):
+    class Meta:
+        model = Exercice
+        fields = ['nom', 'description']
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 3}),
+        }
+
+
+class ExerciceEvaluationForm(forms.ModelForm):
     class Meta:
         model = Exercice
         fields = ['nom', 'description']

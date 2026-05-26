@@ -88,6 +88,17 @@ class PalanqueeCreateView(LoginRequiredMixin, CreateView):
             kwargs['seance_id'] = seance_id
         return kwargs
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        seance_id = self.request.GET.get('seance')
+        seance = None
+        if seance_id:
+            from .models import Seance
+            seance = Seance.objects.filter(pk=seance_id).first()
+        context['seance_cible'] = seance
+        context['is_sortie'] = bool(seance and seance.est_sortie)
+        return context
+
     def form_valid(self, form):
         # Forcer la séance même si le champ est hidden
         seance_id = self.request.GET.get('seance') or self.request.POST.get('seance')
@@ -104,7 +115,9 @@ class PalanqueeCreateView(LoginRequiredMixin, CreateView):
         seance_id = self.request.GET.get('seance') or self.request.POST.get('seance')
         if seance_id:
             from django.urls import reverse
-            return reverse('seance_detail', kwargs={'pk': seance_id})
+            seance = self.object.seance
+            detail_url_name = 'sortie_detail' if seance.est_sortie else 'seance_detail'
+            return reverse(detail_url_name, kwargs={'pk': seance_id})
         return reverse_lazy('palanquee_list')
 
 class PalanqueeUpdateView(LoginRequiredMixin, UpdateView):
@@ -128,6 +141,8 @@ class PalanqueeUpdateView(LoginRequiredMixin, UpdateView):
         eleves_seance_aptitudes = [(eleve, eleves_aptitudes.get(eleve.id, '')) for eleve in eleves_seance]
         context['eleves_seance_aptitudes'] = eleves_seance_aptitudes
         context['eleves_palanquee'] = eleves_palanquee
+        context['seance_cible'] = seance
+        context['is_sortie'] = seance.est_sortie
         return context
 
     def form_valid(self, form):
@@ -147,7 +162,8 @@ class PalanqueeUpdateView(LoginRequiredMixin, UpdateView):
     
     def get_success_url(self):
         # Rediriger vers la séance associée
-        return reverse_lazy('seance_update', kwargs={'pk': self.object.seance.pk})
+        update_url_name = 'sortie_update' if self.object.seance.est_sortie else 'seance_update'
+        return reverse_lazy(update_url_name, kwargs={'pk': self.object.seance.pk})
 
 class PalanqueeDeleteView(LoginRequiredMixin, DeleteView):
     model = Palanquee
@@ -155,7 +171,8 @@ class PalanqueeDeleteView(LoginRequiredMixin, DeleteView):
     
     def get_success_url(self):
         # Rediriger vers la séance associée
-        return reverse_lazy('seance_update', kwargs={'pk': self.object.seance.pk})
+        update_url_name = 'sortie_update' if self.object.seance.est_sortie else 'seance_update'
+        return reverse_lazy(update_url_name, kwargs={'pk': self.object.seance.pk})
 
 # Vues pour les évaluations des palanquées
 @login_required
@@ -201,12 +218,15 @@ def palanquee_evaluation_view(request, pk):
     palanquee = get_object_or_404(Palanquee, pk=pk)
     eleves = palanquee.eleves.all()
     exercices_prevus = palanquee.exercices_prevus.select_related().all()
-    # On regroupe les exercices par compétence
+    # On regroupe les exercices par compétence pour les séances classiques.
     from collections import defaultdict
     exercices_par_competence = defaultdict(list)
-    for exercice in exercices_prevus:
-        for comp in exercice.competences.all():
-            exercices_par_competence[comp].append(exercice)
+    if palanquee.seance.est_sortie:
+        exercices_par_competence[None] = list(exercices_prevus)
+    else:
+        for exercice in exercices_prevus:
+            for comp in exercice.competences.all():
+                exercices_par_competence[comp].append(exercice)
     # On prépare la structure : {eleve: {competence: [ {exercice, note, commentaire} ] } }
     evaluations = EvaluationExercice.objects.filter(palanquee=palanquee)
     eval_dict = {(e.eleve_id, e.exercice_id): e for e in evaluations}

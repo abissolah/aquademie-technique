@@ -2,7 +2,7 @@
 {% load crispy_forms_tags %}
 
 {% block title %}
-    {% if object %}Modifier la séance{% else %}Nouvelle séance{% endif %} - Club de Plongée
+    {% if object %}Modifier la {{ titre_formulaire }}{% else %}Nouvelle {{ titre_formulaire }}{% endif %} - Club de Plongée
 {% endblock %}
 
 {% block content %}
@@ -11,9 +11,9 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>
                 <i class="fas fa-calendar-alt me-2"></i>
-                {% if object %}Modifier la séance{% else %}Nouvelle séance{% endif %}
+                {% if object %}Modifier la {{ titre_formulaire }}{% else %}Nouvelle {{ titre_formulaire }}{% endif %}
             </h1>
-            <a href="{% url 'seance_list' %}" class="btn btn-outline-secondary">
+            <a href="{% url list_url_name %}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-2"></i>Retour à la liste
             </a>
         </div>
@@ -25,7 +25,7 @@
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">
-                    <i class="fas fa-info-circle me-2"></i>Informations de la séance
+                    <i class="fas fa-info-circle me-2"></i>Informations de la {{ titre_formulaire }}
                 </h5>
             </div>
             <div class="card-body">
@@ -80,7 +80,7 @@
                     </div>
                     
                     <div class="d-flex justify-content-between">
-                        <a href="{% url 'seance_list' %}" class="btn btn-outline-secondary">
+                        <a href="{% url list_url_name %}" class="btn btn-outline-secondary">
                             <i class="fas fa-times me-2"></i>Annuler
                         </a>
                         <button type="submit" class="btn btn-primary">
@@ -96,7 +96,7 @@
                 
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="mb-0">
-                        <i class="fas fa-users me-2"></i>Palanquées de cette séance
+                        <i class="fas fa-users me-2"></i>Palanquées de cette {{ titre_formulaire }}
                     </h6>
                     <a href="{% url 'palanquee_create' %}?seance={{ object.pk }}" class="btn btn-success btn-sm">
                         <i class="fas fa-plus me-2"></i>Nouvelle palanquée
@@ -147,7 +147,7 @@
                 {% else %}
                 <div class="text-center py-3 text-muted">
                     <i class="fas fa-users fa-2x mb-2"></i>
-                    <p>Aucune palanquée créée pour cette séance</p>
+                    <p>Aucune palanquée créée pour cette {{ titre_formulaire }}</p>
                     <a href="{% url 'palanquee_create' %}?seance={{ object.pk }}" class="btn btn-success">
                         <i class="fas fa-plus me-2"></i>Créer la première palanquée
                     </a>
@@ -166,23 +166,23 @@
                 </h5>
             </div>
             <div class="card-body">
-                <h6>Création d'une séance :</h6>
+                <h6>Création d'une {{ titre_formulaire }} :</h6>
                 <ol class="small">
-                    <li><strong>Date :</strong> Date prévue pour la séance</li>
-                    <li><strong>Lieu :</strong> Endroit où se déroulera la séance</li>
+                    <li><strong>Date :</strong> Date prévue pour la {{ titre_formulaire }}</li>
+                    <li><strong>Lieu :</strong> Endroit où se déroulera la {{ titre_formulaire }}</li>
                 </ol>
                 
                 <hr>
                 
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle me-2"></i>
-                    <strong>Note :</strong> Une fois la séance créée, vous pourrez y ajouter des palanquées avec les détails des exercices, encadrants et élèves.
+                    <strong>Note :</strong> Une fois la {{ titre_formulaire }} créée, vous pourrez y ajouter des palanquées avec les détails des exercices, encadrants et élèves.
                 </div>
                 
                 <h6>Workflow :</h6>
                 <ol class="small">
-                    <li>Créez d'abord la séance (date + lieu)</li>
-                    <li>Ajoutez ensuite des palanquées à cette séance</li>
+                    <li>Créez d'abord la {{ titre_formulaire }} (date + lieu)</li>
+                    <li>Ajoutez ensuite des palanquées à cette {{ titre_formulaire }}</li>
                     <li>Chaque palanquée aura ses propres détails</li>
                 </ol>
             </div>

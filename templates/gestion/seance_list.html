@@ -1,20 +1,22 @@
 {% extends 'base.html' %}
 
-{% block title %}Séances - Club de Plongée{% endblock %}
+{% block title %}{{ titre_page }} - Club de Plongée{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>
-                <i class="fas fa-calendar-alt me-2"></i>Séances
+                <i class="fas fa-calendar-alt me-2"></i>{{ titre_page }}
             </h1>
             <div class="d-flex gap-2">
+                {% if show_export_participations %}
                 <a href="{% url 'exporter_participations_encadrants_excel' %}?{{ request.GET.urlencode }}" class="btn btn-outline-success">
                     <i class="fas fa-file-excel me-2"></i>Export participations encadrants
                 </a>
-                <a href="{% url 'seance_create' %}" class="btn btn-primary">
-                    <i class="fas fa-plus me-2"></i>Nouvelle séance
+                {% endif %}
+                <a href="{% url create_url_name %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>{{ action_create_label }}
                 </a>
             </div>
         </div>
@@ -45,7 +47,7 @@
                             <button type="submit" class="btn btn-primary flex-fill">
                                 <i class="fas fa-search me-2"></i>Filtrer
                             </button>
-                            <a href="{% url 'seance_list' %}" class="btn btn-outline-secondary">
+                            <a href="{% url list_url_name %}" class="btn btn-outline-secondary">
                                 <i class="fas fa-times"></i>
                             </a>
                         </div>
@@ -82,7 +84,7 @@
                                 </td>
                                 <td>{{ seance.heure_debut|default:"-"|time:"H:i" }}</td>
                                 <td>{{ seance.heure_fin|default:"-"|time:"H:i" }}</td>
-                                <td>{{ seance.lieu.nom }} - {{ seance.lieu.ville }}</td>
+                                <td>{% if seance.lieu %}{{ seance.lieu.nom }} - {{ seance.lieu.ville }}{% endif %}</td>
                                 <td>
                                     <div class="small">
                                         {% if seance.palanques.exists %}
@@ -102,13 +104,13 @@
                                 </td>
                                 <td>
                                     <div class="btn-group" role="group">
-                                        <a href="{% url 'seance_detail' seance.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
+                                        <a href="{% url detail_url_name seance.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        <a href="{% url 'seance_update' seance.pk %}" class="btn btn-sm btn-outline-warning" title="Modifier">
+                                        <a href="{% url update_url_name seance.pk %}" class="btn btn-sm btn-outline-warning" title="Modifier">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <a href="{% url 'seance_delete' seance.pk %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
+                                        <a href="{% url delete_url_name seance.pk %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
                                             <i class="fas fa-trash"></i>
                                         </a>
                                     </div>
@@ -161,16 +163,16 @@
                 {% else %}
                 <div class="text-center py-5">
                     <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
-                    <h4 class="text-muted">Aucune séance trouvée</h4>
+                    <h4 class="text-muted">Aucune {{ titre_page|lower|slice:":-1" }} trouvée</h4>
                     <p class="text-muted">
                         {% if request.GET.date_debut or request.GET.date_fin %}
-                        Aucune séance ne correspond à vos critères de recherche.
+                        Aucune {{ titre_page|lower|slice:":-1" }} ne correspond à vos critères de recherche.
                         {% else %}
-                        Commencez par créer votre première séance.
+                        Commencez par créer votre première {{ titre_page|lower|slice:":-1" }}.
                         {% endif %}
                     </p>
-                    <a href="{% url 'seance_create' %}" class="btn btn-primary">
-                        <i class="fas fa-plus me-2"></i>Créer une séance
+                    <a href="{% url create_url_name %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>{{ action_create_label }}
                     </a>
                 </div>
                 {% endif %}

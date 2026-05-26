@@ -34,7 +34,7 @@ import logging
 import time
 
 from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation, Palanquee, Lieu, LienInscriptionSeance, InscriptionSeance, Exercice
-from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm, ExerciceForm, AdminInscriptionSeanceForm, AffectationSectionMasseForm, CommunicationSeanceForm, CommunicationAdherentsForm
+from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm, ExerciceForm, ExerciceEvaluationForm, AdminInscriptionSeanceForm, AffectationSectionMasseForm, CommunicationSeanceForm, CommunicationAdherentsForm
 from .utils import envoyer_lien_evaluation, envoyer_lien_evaluation_avec_cc
 from .models import PalanqueeEleve
 from gestion.models import EvaluationExercice, GroupeCompetence, Competence, Exercice, Adherent
@@ -94,6 +94,18 @@ DEFAULT_CORPS_MAIL_PDF_PALANQUEES = """<p>Salut {{ palanquee.encadrant.prenom }}
 <p>Je te remercie donc par avance de faire en sorte de bien respecter ces consignes.</p>
 <p>Pour finir et comme d’habitude je compte sur ton retour lorsque tu recevras le lien d'évaluation afin d’assurer le suivi des élèves.</p>
 <p>Bises et bonne fosse ...</p>"""
+
+
+def _is_sortie(seance):
+    return seance.type == Seance.TYPE_SORTIE
+
+
+def _detail_route_name_for_seance(seance):
+    return 'sortie_detail' if _is_sortie(seance) else 'seance_detail'
+
+
+def _list_route_name_for_seance(seance):
+    return 'sortie_list' if _is_sortie(seance) else 'seance_list'
 
 # Vues d'accueil et de navigation
 @login_required
@@ -442,9 +454,10 @@ class SeanceListView(LoginRequiredMixin, ListView):
     template_name = 'gestion/seance_list.html'
     context_object_name = 'seances'
     paginate_by = 10
+    seance_type = Seance.TYPE_SEANCE
     
     def get_queryset(self):
-        queryset = Seance.objects.prefetch_related('palanques')
+        queryset = Seance.objects.filter(type=self.seance_type).prefetch_related('palanques')
         date_debut = self.request.GET.get('date_debut')
         date_fin = self.request.GET.get('date_fin')
         
@@ -457,21 +470,41 @@ class SeanceListView(LoginRequiredMixin, ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        is_sortie = self.seance_type == Seance.TYPE_SORTIE
+        context['is_sortie'] = is_sortie
+        context['titre_page'] = 'Sorties' if is_sortie else 'Séances'
+        context['action_create_label'] = 'Nouvelle sortie' if is_sortie else 'Nouvelle séance'
+        context['list_url_name'] = 'sortie_list' if is_sortie else 'seance_list'
+        context['create_url_name'] = 'sortie_create' if is_sortie else 'seance_create'
+        context['detail_url_name'] = 'sortie_detail' if is_sortie else 'seance_detail'
+        context['update_url_name'] = 'sortie_update' if is_sortie else 'seance_update'
+        context['delete_url_name'] = 'sortie_delete' if is_sortie else 'seance_delete'
+        context['show_export_participations'] = not is_sortie
         return context
+
+
+@method_decorator(group_required('admin'), name='dispatch')
+class SortieListView(SeanceListView):
+    seance_type = Seance.TYPE_SORTIE
 
 @method_decorator(group_required('admin'), name='dispatch')
 class SeanceDetailView(LoginRequiredMixin, DetailView):
     model = Seance
     template_name = 'gestion/seance_detail.html'
     context_object_name = 'seance'
+    seance_type = Seance.TYPE_SEANCE
+
+    def get_queryset(self):
+        return Seance.objects.filter(type=self.seance_type)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         seance = self.get_object()
+        is_sortie = seance.type == Seance.TYPE_SORTIE
         palanquees_qs = seance.palanques.select_related('section', 'encadrant').prefetch_related('eleves', 'competences')
         context['palanquees'] = palanquees_qs
         # Ajouter toutes les séances pour la liste déroulante de duplication
-        context['toutes_seances'] = Seance.objects.all().order_by('-date', 'lieu')
+        context['toutes_seances'] = Seance.objects.filter(type=seance.type).order_by('-date', 'lieu')
         # Ajout pour affichage des inscrits et du covoiturage
         inscriptions = seance.inscriptions.select_related('personne').all()
         # Ajout de la propriété is_adherent pour chaque inscription
@@ -489,7 +522,24 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         context['covoiturage_propose'] = [i for i in inscriptions if i.covoiturage == 'propose']
         context['covoiturage_besoin'] = [i for i in inscriptions if i.covoiturage == 'besoin']
         # Ajouter toutes les séances pour la liste déroulante de duplication
-        context['toutes_seances'] = Seance.objects.all().order_by('-date', 'lieu')
+        context['toutes_seances'] = Seance.objects.filter(type=seance.type).order_by('-date', 'lieu')
+        context['is_sortie'] = is_sortie
+        context['titre_objet'] = 'Sortie' if is_sortie else 'Séance'
+        context['titre_objet_du'] = 'Sortie du' if is_sortie else 'Séance du'
+        context['list_url_name'] = 'sortie_list' if is_sortie else 'seance_list'
+        context['update_url_name'] = 'sortie_update' if is_sortie else 'seance_update'
+        context['delete_url_name'] = 'sortie_delete' if is_sortie else 'seance_delete'
+        context['detail_url_name'] = 'sortie_detail' if is_sortie else 'seance_detail'
+        context['create_palanquees_url_name'] = 'sortie_creer_palanquees' if is_sortie else 'creer_palanquees'
+        context['fiche_securite_url_name'] = 'sortie_generer_fiche_securite_excel' if is_sortie else 'generer_fiche_securite_excel'
+        context['admin_inscription_url_name'] = 'sortie_admin_inscription_seance' if is_sortie else 'admin_inscription_seance'
+        context['envoyer_pdf_url_name'] = 'sortie_envoyer_pdf_palanquees_encadrants' if is_sortie else 'envoyer_pdf_palanquees_encadrants'
+        context['envoyer_liens_evaluation_url_name'] = 'sortie_envoyer_liens_evaluation_encadrants' if is_sortie else 'envoyer_liens_evaluation_encadrants'
+        context['export_dest_eval_url_name'] = 'sortie_exporter_destinataires_evaluation_excel' if is_sortie else 'exporter_destinataires_evaluation_excel'
+        context['export_dest_pdf_url_name'] = 'sortie_exporter_destinataires_pdf_excel' if is_sortie else 'exporter_destinataires_pdf_excel'
+        context['export_inscrits_url_name'] = 'sortie_exporter_inscrits_seance_excel' if is_sortie else 'exporter_inscrits_seance_excel'
+        context['changer_role_url_name'] = 'sortie_changer_role_inscription_seance' if is_sortie else 'changer_role_inscription_seance'
+        context['evaluations_sortie_url_name'] = 'sortie_evaluations' if is_sortie else ''
         # Récupérer la liste des destinataires depuis la session (si disponible)
         if 'destinataires_invitation_envoyes' in self.request.session:
             context['destinataires_invitation_envoyes'] = self.request.session.pop('destinataires_invitation_envoyes')
@@ -504,12 +554,43 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
             context['destinataires_covoiturage_envoyes'] = self.request.session.pop('destinataires_covoiturage_envoyes')
         return context
 
+
+@method_decorator(group_required('admin'), name='dispatch')
+class SortieDetailView(SeanceDetailView):
+    seance_type = Seance.TYPE_SORTIE
+
 @method_decorator(group_required('admin'), name='dispatch')
 class SeanceCreateView(LoginRequiredMixin, CreateView):
     model = Seance
     form_class = SeanceForm
     template_name = 'gestion/seance_form.html'
     success_url = reverse_lazy('seance_list')
+    seance_type = Seance.TYPE_SEANCE
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['seance_type'] = self.seance_type
+        return kwargs
+
+    def form_valid(self, form):
+        form.instance.type = self.seance_type
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy('sortie_list' if self.seance_type == Seance.TYPE_SORTIE else 'seance_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        is_sortie = self.seance_type == Seance.TYPE_SORTIE
+        context['is_sortie'] = is_sortie
+        context['list_url_name'] = 'sortie_list' if is_sortie else 'seance_list'
+        context['titre_formulaire'] = 'sortie' if is_sortie else 'séance'
+        return context
+
+
+@method_decorator(group_required('admin'), name='dispatch')
+class SortieCreateView(SeanceCreateView):
+    seance_type = Seance.TYPE_SORTIE
 
 @method_decorator(group_required('admin'), name='dispatch')
 class SeanceUpdateView(LoginRequiredMixin, UpdateView):
@@ -517,12 +598,57 @@ class SeanceUpdateView(LoginRequiredMixin, UpdateView):
     form_class = SeanceForm
     template_name = 'gestion/seance_form.html'
     success_url = reverse_lazy('seance_list')
+    seance_type = Seance.TYPE_SEANCE
+
+    def get_queryset(self):
+        return Seance.objects.filter(type=self.seance_type)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['seance_type'] = self.seance_type
+        return kwargs
+
+    def get_success_url(self):
+        return reverse_lazy('sortie_list' if self.seance_type == Seance.TYPE_SORTIE else 'seance_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        is_sortie = self.seance_type == Seance.TYPE_SORTIE
+        context['is_sortie'] = is_sortie
+        context['list_url_name'] = 'sortie_list' if is_sortie else 'seance_list'
+        context['titre_formulaire'] = 'sortie' if is_sortie else 'séance'
+        return context
+
+
+@method_decorator(group_required('admin'), name='dispatch')
+class SortieUpdateView(SeanceUpdateView):
+    seance_type = Seance.TYPE_SORTIE
 
 @method_decorator(group_required('admin'), name='dispatch')
 class SeanceDeleteView(LoginRequiredMixin, DeleteView):
     model = Seance
     template_name = 'gestion/seance_confirm_delete.html'
     success_url = reverse_lazy('seance_list')
+    seance_type = Seance.TYPE_SEANCE
+
+    def get_queryset(self):
+        return Seance.objects.filter(type=self.seance_type)
+
+    def get_success_url(self):
+        return reverse_lazy('sortie_list' if self.seance_type == Seance.TYPE_SORTIE else 'seance_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        is_sortie = self.seance_type == Seance.TYPE_SORTIE
+        context['is_sortie'] = is_sortie
+        context['detail_url_name'] = 'sortie_detail' if is_sortie else 'seance_detail'
+        context['titre_objet'] = 'sortie' if is_sortie else 'séance'
+        return context
+
+
+@method_decorator(group_required('admin'), name='dispatch')
+class SortieDeleteView(SeanceDeleteView):
+    seance_type = Seance.TYPE_SORTIE
 
 # Vues pour les évaluations
 @login_required
@@ -1098,6 +1224,9 @@ class LieuDeleteView(LoginRequiredMixin, DeleteView):
 @login_required
 def generer_lien_inscription_seance(request, seance_id):
     seance = get_object_or_404(Seance, pk=seance_id)
+    if _is_sortie(seance):
+        messages.error(request, "Les liens d'inscription publique ne sont pas disponibles pour les sorties.")
+        return redirect(_detail_route_name_for_seance(seance), pk=seance.pk)
     # Calcul du mercredi précédent la date de la séance
     seance_date = seance.date
     weekday = seance_date.weekday()  # 0=lundi, 2=mercredi
@@ -1166,7 +1295,7 @@ def envoyer_mail_invitation_seance(request, seance_id):
         'destinataires': destinataires_envoyes,
         'seance_id': seance_id,
         'date_seance': seance.date.strftime('%d/%m/%Y'),
-        'lieu': str(seance.lieu.nom)
+        'lieu': str(seance.lieu.nom) if seance.lieu else ''
     }
     messages.success(request, f"Invitation envoyée à {len(emails)} adhérents.")
     return redirect('seance_detail', pk=seance_id)
@@ -1181,18 +1310,19 @@ def exporter_destinataires_evaluation_excel(request, seance_id):
     from django.http import HttpResponse
     
     seance = get_object_or_404(Seance, pk=seance_id)
+    detail_route_name = _detail_route_name_for_seance(seance)
     
     # Récupérer les destinataires depuis la session
     if 'destinataires_evaluation_export' not in request.session:
         messages.error(request, "Aucune liste de destinataires disponible pour l'export.")
-        return redirect('seance_detail', pk=seance_id)
+        return redirect(detail_route_name, pk=seance_id)
     
     export_data = request.session.get('destinataires_evaluation_export', {})
     destinataires = export_data.get('destinataires', [])
     
     if not destinataires:
         messages.error(request, "Aucun destinataire à exporter.")
-        return redirect('seance_detail', pk=seance_id)
+        return redirect(detail_route_name, pk=seance_id)
     
     # Création du workbook
     wb = openpyxl.Workbook()
@@ -1254,17 +1384,18 @@ def exporter_destinataires_pdf_excel(request, seance_id):
     from django.http import HttpResponse
 
     seance = get_object_or_404(Seance, pk=seance_id)
+    detail_route_name = _detail_route_name_for_seance(seance)
 
     if 'destinataires_pdf_export' not in request.session:
         messages.error(request, "Aucune liste de destinataires disponible pour l'export.")
-        return redirect('seance_detail', pk=seance_id)
+        return redirect(detail_route_name, pk=seance_id)
 
     export_data = request.session.get('destinataires_pdf_export', {})
     destinataires = export_data.get('destinataires', [])
 
     if not destinataires:
         messages.error(request, "Aucun destinataire à exporter.")
-        return redirect('seance_detail', pk=seance_id)
+        return redirect(detail_route_name, pk=seance_id)
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -1703,11 +1834,12 @@ def api_inscrire_non_membre(request):
 def supprimer_inscription_seance(request, inscription_id):
     from .models import InscriptionSeance
     inscription = get_object_or_404(InscriptionSeance, id=inscription_id)
-    seance_id = inscription.seance.id
+    seance = inscription.seance
+    seance_id = seance.id
     if request.method == 'POST':
         inscription.delete()
         messages.success(request, "Inscription supprimée avec succès.")
-        return redirect('seance_detail', pk=seance_id)
+        return redirect(_detail_route_name_for_seance(seance), pk=seance_id)
     return render(request, 'gestion/inscription_confirm_delete.html', {'inscription': inscription})
 
 @login_required
@@ -1808,12 +1940,34 @@ class ExerciceListView(LoginRequiredMixin, ListView):
     template_name = 'gestion/exercice_list.html'
     context_object_name = 'exercices'
 
+    def get_queryset(self):
+        return Exercice.objects.filter(type=Exercice.TYPE_CLASSIQUE)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_evaluation'] = False
+        context['titre_page'] = 'Exercices'
+        context['create_url_name'] = 'exercice_create'
+        context['update_url_name'] = 'exercice_update'
+        context['delete_url_name'] = 'exercice_delete'
+        return context
+
 @method_decorator(group_required('admin'), name='dispatch')
 class ExerciceCreateView(LoginRequiredMixin, CreateView):
     model = Exercice
     form_class = ExerciceForm
     template_name = 'gestion/exercice_form.html'
     success_url = reverse_lazy('exercice_list')
+
+    def form_valid(self, form):
+        form.instance.type = Exercice.TYPE_CLASSIQUE
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_evaluation'] = False
+        context['list_url_name'] = 'exercice_list'
+        return context
 
 @method_decorator(group_required('admin'), name='dispatch')
 class ExerciceUpdateView(LoginRequiredMixin, UpdateView):
@@ -1822,11 +1976,77 @@ class ExerciceUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'gestion/exercice_form.html'
     success_url = reverse_lazy('exercice_list')
 
+    def get_queryset(self):
+        return Exercice.objects.filter(type=Exercice.TYPE_CLASSIQUE)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_evaluation'] = False
+        context['list_url_name'] = 'exercice_list'
+        return context
+
 @method_decorator(group_required('admin'), name='dispatch')
 class ExerciceDeleteView(LoginRequiredMixin, DeleteView):
     model = Exercice
     template_name = 'gestion/exercice_confirm_delete.html'
     success_url = reverse_lazy('exercice_list')
+
+    def get_queryset(self):
+        return Exercice.objects.filter(type=Exercice.TYPE_CLASSIQUE)
+
+
+@method_decorator(group_required('admin'), name='dispatch')
+class ExerciceEvaluationListView(ExerciceListView):
+    def get_queryset(self):
+        return Exercice.objects.filter(type=Exercice.TYPE_EVALUATION)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_evaluation'] = True
+        context['titre_page'] = "Exercices d'évaluation"
+        context['create_url_name'] = 'exercice_evaluation_create'
+        context['update_url_name'] = 'exercice_evaluation_update'
+        context['delete_url_name'] = 'exercice_evaluation_delete'
+        return context
+
+
+@method_decorator(group_required('admin'), name='dispatch')
+class ExerciceEvaluationCreateView(ExerciceCreateView):
+    form_class = ExerciceEvaluationForm
+    success_url = reverse_lazy('exercice_evaluation_list')
+
+    def form_valid(self, form):
+        form.instance.type = Exercice.TYPE_EVALUATION
+        return CreateView.form_valid(self, form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_evaluation'] = True
+        context['list_url_name'] = 'exercice_evaluation_list'
+        return context
+
+
+@method_decorator(group_required('admin'), name='dispatch')
+class ExerciceEvaluationUpdateView(ExerciceUpdateView):
+    form_class = ExerciceEvaluationForm
+    success_url = reverse_lazy('exercice_evaluation_list')
+
+    def get_queryset(self):
+        return Exercice.objects.filter(type=Exercice.TYPE_EVALUATION)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_evaluation'] = True
+        context['list_url_name'] = 'exercice_evaluation_list'
+        return context
+
+
+@method_decorator(group_required('admin'), name='dispatch')
+class ExerciceEvaluationDeleteView(ExerciceDeleteView):
+    success_url = reverse_lazy('exercice_evaluation_list')
+
+    def get_queryset(self):
+        return Exercice.objects.filter(type=Exercice.TYPE_EVALUATION)
 
 @login_required
 def export_adherents_excel(request):
@@ -1952,11 +2172,12 @@ def importer_palanquees_seance(request, seance_id):
             messages.error(request, f"Erreur lors de l'import : {str(e)}")
     else:
         messages.error(request, "Aucun fichier fourni.")
-    return redirect('seance_detail', seance_id)
+    return redirect(_detail_route_name_for_seance(seance), seance_id)
 
 @login_required
 def creer_palanquees(request, seance_id):
     seance = get_object_or_404(Seance, pk=seance_id)
+    detail_route_name = _detail_route_name_for_seance(seance)
     inscrits = seance.inscriptions.select_related('personne').all()
     # Élèves : ceux qui ont le statut 'eleve' OU les encadrants passés en élève pour cette séance
     eleves = [i.personne for i in inscrits if i.personne.statut == 'eleve' or (i.personne.statut == 'encadrant' and i.role_pour_seance == 'eleve')]
@@ -2181,7 +2402,7 @@ def creer_palanquees(request, seance_id):
                         pal.delete()
             from django.contrib import messages
             messages.success(request, "Palanquées créées avec succès.")
-            return redirect('seance_detail', seance_id)
+            return redirect(detail_route_name, seance_id)
         except Exception as e:
             from django.contrib import messages
             error_message = str(e)
@@ -2220,7 +2441,7 @@ class PalanqueeDeleteView(LoginRequiredMixin, DeleteView):
     model = Palanquee
     template_name = 'gestion/palanquee_confirm_delete.html'
     def get_success_url(self):
-        return reverse_lazy('seance_detail', kwargs={'pk': self.object.seance.pk})
+        return reverse_lazy(_detail_route_name_for_seance(self.object.seance), kwargs={'pk': self.object.seance.pk})
 
 @login_required
 def generer_fiche_securite(request, seance_id):
@@ -2632,7 +2853,7 @@ def validation_dt_eleve_exercice(request, eleve_id, exercice_id):
     """Crée une évaluation à 3 étoiles pour l'élève et l'exercice (validation DT). Ne fait rien si une validation DT existe déjà."""
     from django.utils import timezone
     eleve = get_object_or_404(Adherent, pk=eleve_id)
-    exercice = get_object_or_404(Exercice, pk=exercice_id)
+    exercice = get_object_or_404(Exercice, pk=exercice_id, type=Exercice.TYPE_CLASSIQUE)
     if EvaluationExercice.objects.filter(eleve=eleve, exercice=exercice, palanquee__isnull=True).exists():
         messages.info(request, f"Une validation DT existe déjà pour l'exercice {exercice.nom}.")
         return redirect('suivi_formation_eleve', eleve_id=eleve_id)
@@ -2653,9 +2874,9 @@ def validation_dt_eleve_exercice(request, eleve_id, exercice_id):
 @login_required
 @staff_member_required
 def admin_inscription_seance(request, seance_id):
-    if not request.user.is_staff:
-        return redirect('seance_detail', pk=seance_id)
     seance = get_object_or_404(Seance, pk=seance_id)
+    if not request.user.is_staff:
+        return redirect(_detail_route_name_for_seance(seance), pk=seance_id)
     if request.method == 'POST':
         print('--- ADMIN INSCRIPTION DEBUG ---')
         print('POST:', dict(request.POST))
@@ -2726,10 +2947,19 @@ def admin_inscription_seance(request, seance_id):
                 messages.success(request, f"{personne.nom} {personne.prenom} inscrit à la séance.")
             else:
                 messages.info(request, f"{personne.nom} {personne.prenom} est déjà inscrit à cette séance.")
-            return redirect('seance_detail', pk=seance_id)
+            return redirect(_detail_route_name_for_seance(seance), pk=seance_id)
     else:
         form = AdminInscriptionSeanceForm()
-    return render(request, 'gestion/admin_inscription_seance.html', {'form': form, 'seance': seance})
+    return render(
+        request,
+        'gestion/admin_inscription_seance.html',
+        {
+            'form': form,
+            'seance': seance,
+            'titre_objet': 'Sortie' if _is_sortie(seance) else 'Séance',
+            'detail_url_name': _detail_route_name_for_seance(seance),
+        },
+    )
 
 @csrf_exempt
 @require_http_methods(["GET"])
@@ -2827,14 +3057,15 @@ def _envoi_pdf_palanquees_wants_json(request):
 def envoyer_pdf_palanquees_encadrants(request, seance_id):
     seance = get_object_or_404(Seance, pk=seance_id)
     wants_json = _envoi_pdf_palanquees_wants_json(request)
-    redirect_url = reverse('seance_detail', kwargs={'pk': seance_id})
+    detail_route_name = _detail_route_name_for_seance(seance)
+    redirect_url = reverse(detail_route_name, kwargs={'pk': seance_id})
 
     if request.method != 'POST':
         messages.warning(
             request,
             "Utilisez le bouton « Générer et envoyer PDF à tous les encadrants » sur la page de la séance pour rédiger le message.",
         )
-        return redirect('seance_detail', pk=seance_id)
+        return redirect(detail_route_name, pk=seance_id)
     try:
         payload = json.loads(request.body.decode('utf-8') or '{}')
     except json.JSONDecodeError:
@@ -2851,7 +3082,7 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
                 {'ok': False, 'messages': [msg], 'redirect_url': redirect_url},
                 status=400,
             )
-        return redirect('seance_detail', pk=seance_id)
+        return redirect(detail_route_name, pk=seance_id)
     # Valider la syntaxe du template Django une fois
     django_engine = engines['django']
     try:
@@ -2864,7 +3095,7 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
                 {'ok': False, 'messages': [msg], 'redirect_url': redirect_url},
                 status=400,
             )
-        return redirect('seance_detail', pk=seance_id)
+        return redirect(detail_route_name, pk=seance_id)
     # Mémoriser pour les prochaines séances
     singleton = CorpsMailPdfPalanquees.get_singleton()
     singleton.corps_html = corps_html
@@ -2980,7 +3211,7 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
             'destinataires': destinataires_envoyes,
             'seance_id': seance_id,
             'date_seance': seance.date.strftime('%d/%m/%Y'),
-            'lieu': str(seance.lieu.nom)
+            'lieu': str(seance.lieu.nom) if seance.lieu else ''
         }
     # Messages Django (affichés après rechargement de la page séance)
     confirmation_lignes = []
@@ -3010,7 +3241,7 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
                 'redirect_url': redirect_url,
             }
         )
-    return redirect('seance_detail', pk=seance_id)
+    return redirect(detail_route_name, pk=seance_id)
 
 @login_required
 def envoyer_mail_covoiturage(request, seance_id):
@@ -3097,7 +3328,7 @@ def envoyer_mail_covoiturage(request, seance_id):
             'destinataires': destinataires_envoyes,
             'seance_id': seance_id,
             'date_seance': seance.date.strftime('%d/%m/%Y'),
-            'lieu': str(seance.lieu.nom)
+            'lieu': str(seance.lieu.nom) if seance.lieu else ''
         }
 
     if nb_envoyes:
@@ -3202,13 +3433,13 @@ def envoyer_liens_evaluation_encadrants(request, seance_id):
             'destinataires': destinataires_envoyes,
             'seance_id': seance_id,
             'date_seance': seance.date.strftime('%d/%m/%Y'),
-            'lieu': str(seance.lieu.nom)
+            'lieu': str(seance.lieu.nom) if seance.lieu else ''
         }
     if nb_envoyes:
         messages.success(request, f"{nb_envoyes} mails de lien d'évaluation envoyés aux encadrants.")
     if erreurs:
         messages.error(request, "Erreurs lors de l'envoi : " + ", ".join(erreurs))
-    return redirect('seance_detail', pk=seance_id)
+    return redirect(_detail_route_name_for_seance(seance), pk=seance_id)
 
 def copier_caci(request, adherent_id):
     adherent = get_object_or_404(Adherent, pk=adherent_id)
@@ -3528,6 +3759,36 @@ def evaluations_list(request):
     }
     return render(request, 'gestion/evaluations_list.html', context)
 
+
+@login_required
+@group_required('admin')
+def sortie_evaluations(request, seance_id):
+    seance = get_object_or_404(Seance, pk=seance_id, type=Seance.TYPE_SORTIE)
+    palanquees = (
+        seance.palanques.select_related('encadrant')
+        .prefetch_related('eleves', 'evaluations_exercices')
+        .order_by('nom')
+    )
+    palanquees_data = []
+    for palanquee in palanquees:
+        evaluations = EvaluationExercice.objects.filter(palanquee=palanquee)
+        if not evaluations.exists():
+            continue
+        palanquees_data.append(
+            {
+                'palanquee': palanquee,
+                'nb_evaluations': evaluations.count(),
+                'nb_eleves_evalues': evaluations.values('eleve_id').distinct().count(),
+                'derniere_evaluation': evaluations.order_by('-date_evaluation').first(),
+            }
+        )
+
+    context = {
+        'seance': seance,
+        'palanquees_data': palanquees_data,
+    }
+    return render(request, 'gestion/sortie_evaluations.html', context)
+
 @require_GET
 @staff_member_required
 def api_modele_mail(request, modele_id):
@@ -3571,9 +3832,10 @@ def envoyer_pdf_palanquee_encadrant(request, palanquee_id):
     palanquee = get_object_or_404(Palanquee, pk=palanquee_id)
     encadrant = palanquee.encadrant
     seance = palanquee.seance
+    detail_route_name = _detail_route_name_for_seance(seance)
     if not encadrant or not encadrant.email:
         messages.error(request, "Aucun encadrant ou email pour cette palanquée.")
-        return redirect('seance_detail', pk=seance.pk)
+        return redirect(detail_route_name, pk=seance.pk)
     # Générer le PDF en mémoire
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
@@ -3629,7 +3891,7 @@ def envoyer_pdf_palanquee_encadrant(request, palanquee_id):
         messages.success(request, f"PDF envoyé à l'encadrant {encadrant.nom_complet}.")
     except Exception as e:
         messages.error(request, f"Erreur lors de l'envoi : {str(e)}")
-    return redirect('seance_detail', pk=seance.pk)
+    return redirect(detail_route_name, pk=seance.pk)
 
 #@method_decorator(staff_member_required, name='dispatch')
 class CommunicationAdherentsView(LoginRequiredMixin, View):
