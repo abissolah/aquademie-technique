@@ -119,9 +119,10 @@ def dashboard(request):
     
     context = {
         'total_adherents': Adherent.objects.filter(type_personne='adherent').count(),
-        'total_seances': Seance.objects.count(),
+        'total_seances': Seance.objects.filter(type=Seance.TYPE_SEANCE).count(),
+        'total_sorties': Seance.objects.filter(type=Seance.TYPE_SORTIE).count(),
         'total_palanquees': Palanquee.objects.count(),
-        'seances_recentes': Seance.objects.all()[:5],
+        'seances_recentes': Seance.objects.filter(type=Seance.TYPE_SEANCE)[:5],
         'palanquees_recentes': Palanquee.objects.select_related('seance', 'section').prefetch_related('eleves')[:5],
         'adherents_eleves': Adherent.objects.filter(type_personne='adherent', statut='eleve').count(),
         'adherents_encadrants': Adherent.objects.filter(type_personne='adherent', statut='encadrant').count(),
