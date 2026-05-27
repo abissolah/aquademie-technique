@@ -104,6 +104,29 @@ class CompetenceForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['exercices'].queryset = Exercice.objects.filter(type=Exercice.TYPE_CLASSIQUE)
+        self.fields['exercices_evaluation'] = forms.ModelMultipleChoiceField(
+            queryset=Exercice.objects.filter(type=Exercice.TYPE_EVALUATION),
+            required=False,
+            widget=forms.SelectMultiple(),
+            label="Exercices d'évaluation",
+        )
+        if self.instance and self.instance.pk:
+            self.fields['exercices'].initial = self.instance.exercices.filter(type=Exercice.TYPE_CLASSIQUE)
+            self.fields['exercices_evaluation'].initial = self.instance.exercices.filter(type=Exercice.TYPE_EVALUATION)
+
+    def save(self, commit=True):
+        competence = super().save(commit=commit)
+        exercices_classiques = self.cleaned_data.get('exercices', Exercice.objects.none())
+        exercices_evaluation = self.cleaned_data.get('exercices_evaluation', Exercice.objects.none())
+
+        def _save_m2m():
+            competence.exercices.set(list(exercices_classiques) + list(exercices_evaluation))
+
+        if commit:
+            _save_m2m()
+        else:
+            self._save_m2m = _save_m2m
+        return competence
 
 class GroupeCompetenceForm(forms.ModelForm):
     class Meta:
@@ -486,6 +509,12 @@ class AdminInscriptionSeanceForm(forms.Form):
         choices=[('eleve', 'Élève'), ('encadrant', 'Encadrant')],
         required=False,
         label="Statut"
+    )
+    sections = forms.ModelMultipleChoiceField(
+        queryset=Section.objects.all().order_by('nom'),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label="Sections",
     )
     covoiturage = forms.ChoiceField(
         choices=[('', '---'), ('none', 'Je ne souhaite pas de covoiturage'), ('propose', 'Je peux proposer du covoiturage'), ('besoin', "J'aurai besoin de covoiturage")],

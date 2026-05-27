@@ -62,6 +62,9 @@
                         <div class="col-md-6 mb-3">{{ form.statut|as_crispy_field }}</div>
                     </div>
                     <div class="row">
+                        <div class="col-md-12 mb-3">{{ form.sections|as_crispy_field }}</div>
+                    </div>
+                    <div class="row">
                         <div class="col-md-6 mb-3">{{ form.covoiturage|as_crispy_field }}</div>
                         <div class="col-md-6 mb-3">{{ form.lieu_covoiturage|as_crispy_field }}</div>
                     </div>
@@ -98,4 +101,115 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const adherentSelect = document.getElementById('id_adherent');
+    if (!adherentSelect) return;
+
+    const fields = {
+        nom: document.getElementById('id_nom'),
+        prenom: document.getElementById('id_prenom'),
+        dateNaissance: document.getElementById('id_date_naissance'),
+        adresse: document.getElementById('id_adresse'),
+        codePostal: document.getElementById('id_code_postal'),
+        ville: document.getElementById('id_ville'),
+        email: document.getElementById('id_email'),
+        telephone: document.getElementById('id_telephone'),
+        numeroLicence: document.getElementById('id_numero_licence'),
+        assurance: document.getElementById('id_assurance'),
+        dateDelivranceCaci: document.getElementById('id_date_delivrance_caci'),
+        niveau: document.getElementById('id_niveau'),
+        statut: document.getElementById('id_statut'),
+    };
+
+    function setValue(field, value) {
+        if (!field) return;
+        field.value = value || '';
+    }
+
+    function setSections(sectionIds) {
+        const ids = new Set((sectionIds || []).map(String));
+        document.querySelectorAll('input[name="sections"]').forEach((checkbox) => {
+            checkbox.checked = ids.has(checkbox.value);
+        });
+    }
+
+    function clearNonAdherentFields() {
+        setValue(fields.nom, '');
+        setValue(fields.prenom, '');
+        setValue(fields.dateNaissance, '');
+        setValue(fields.adresse, '');
+        setValue(fields.codePostal, '');
+        setValue(fields.ville, '');
+        setValue(fields.email, '');
+        setValue(fields.telephone, '');
+        setValue(fields.numeroLicence, '');
+        setValue(fields.assurance, '');
+        setValue(fields.dateDelivranceCaci, '');
+        setValue(fields.niveau, '');
+        setValue(fields.statut, '');
+        setSections([]);
+    }
+
+    function fillNonAdherentFields(data) {
+        setValue(fields.nom, data.nom);
+        setValue(fields.prenom, data.prenom);
+        setValue(fields.dateNaissance, data.date_naissance);
+        setValue(fields.adresse, data.adresse);
+        setValue(fields.codePostal, data.code_postal);
+        setValue(fields.ville, data.ville);
+        setValue(fields.email, data.email);
+        setValue(fields.telephone, data.telephone);
+        setValue(fields.numeroLicence, data.numero_licence);
+        setValue(fields.assurance, data.assurance);
+        setValue(fields.dateDelivranceCaci, data.date_delivrance_caci);
+        setValue(fields.niveau, data.niveau);
+        setValue(fields.statut, data.statut);
+        setSections(data.sections || []);
+    }
+
+    function fetchNonAdherentDetails(adherentId) {
+        const url = "{% url 'api_details_non_adherent' 0 %}".replace('/0/', '/' + adherentId + '/');
+        fetch(url, { headers: { 'Accept': 'application/json' } })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error('not_non_adherent');
+                }
+                return response.json();
+            })
+            .then((payload) => {
+                if (payload.success && payload.data) {
+                    fillNonAdherentFields(payload.data);
+                } else {
+                    clearNonAdherentFields();
+                }
+            })
+            .catch(() => {
+                // Si c'est un adhérent du club (ou valeur invalide), on ne pré-remplit pas.
+                clearNonAdherentFields();
+            });
+    }
+
+    adherentSelect.addEventListener('change', function () {
+        const selectedValue = this.value;
+        if (!selectedValue || selectedValue === '__sep__') {
+            clearNonAdherentFields();
+            return;
+        }
+        if (!/^\d+$/.test(selectedValue)) {
+            clearNonAdherentFields();
+            return;
+        }
+        fetchNonAdherentDetails(selectedValue);
+    });
+
+    // Pré-remplissage au chargement en cas de non-adhérent déjà sélectionné
+    if (adherentSelect.value && adherentSelect.value !== '__sep__' && /^\d+$/.test(adherentSelect.value)) {
+        fetchNonAdherentDetails(adherentSelect.value);
+    }
+});
+</script>
 {% endblock %}

@@ -380,6 +380,24 @@
                     <a href="{% url evaluations_sortie_url_name seance.pk %}" class="btn btn-outline-primary">
                         <i class="fas fa-clipboard-check"></i> Voir les évaluations envoyées
                     </a>
+                    {% if sorties_sources_duplication %}
+                    <form method="post" action="{% url dupliquer_inscrits_sortie_url_name seance.pk %}" class="mt-2">
+                        {% csrf_token %}
+                        <div class="input-group">
+                            <select class="form-select" name="sortie_source_id" required>
+                                <option value="">Dupliquer les inscrits depuis...</option>
+                                {% for sortie in sorties_sources_duplication %}
+                                <option value="{{ sortie.id }}">
+                                    {{ sortie.date|date:"d/m/Y" }}{% if sortie.lieu %} - {{ sortie.lieu.nom }}{% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-outline-dark">
+                                <i class="fas fa-copy"></i> Dupliquer
+                            </button>
+                        </div>
+                    </form>
+                    {% endif %}
                     {% endif %}
                 </div>
             </div>
@@ -512,6 +530,11 @@
                             <a href="{% url 'suivi_formation_eleve_pdf' ins.personne.pk %}" target="_blank" class="btn btn-sm btn-outline-danger me-1" title="PDF suivi élève">
                                 <i class="fas fa-file-pdf"></i>
                             </a>
+                            {% if is_sortie %}
+                            <a href="{% url 'suivi_evaluations_exercices_eleve_pdf' ins.personne.pk %}" target="_blank" class="btn btn-sm btn-outline-primary me-1" title="PDF évaluations exercices d'évaluation">
+                                <i class="fas fa-clipboard-check"></i>
+                            </a>
+                            {% endif %}
                             <form method="post" action="{% url 'supprimer_inscription_seance' ins.id %}" style="display:inline;">
                                 {% csrf_token %}
                                 <button class="btn btn-sm btn-outline-danger" title="Supprimer l'inscription"><i class="fas fa-trash"></i></button>

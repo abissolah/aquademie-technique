@@ -414,6 +414,13 @@ class CompetenceDetailView(LoginRequiredMixin, DetailView):
     template_name = 'gestion/competence_detail.html'
     context_object_name = 'competence'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        competence = self.get_object()
+        context['exercices_classiques'] = competence.exercices.filter(type=Exercice.TYPE_CLASSIQUE)
+        context['exercices_evaluation'] = competence.exercices.filter(type=Exercice.TYPE_EVALUATION)
+        return context
+
 # Vues pour les groupes de compétences
 @method_decorator(group_required('admin'), name='dispatch')
 class GroupeCompetenceListView(LoginRequiredMixin, ListView):
@@ -540,6 +547,11 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         context['export_inscrits_url_name'] = 'sortie_exporter_inscrits_seance_excel' if is_sortie else 'exporter_inscrits_seance_excel'
         context['changer_role_url_name'] = 'sortie_changer_role_inscription_seance' if is_sortie else 'changer_role_inscription_seance'
         context['evaluations_sortie_url_name'] = 'sortie_evaluations' if is_sortie else ''
+        context['dupliquer_inscrits_sortie_url_name'] = 'dupliquer_inscrits_sortie' if is_sortie else ''
+        if is_sortie:
+            context['sorties_sources_duplication'] = Seance.objects.filter(
+                type=Seance.TYPE_SORTIE
+            ).exclude(pk=seance.pk).order_by('-date', 'lieu')
         # Récupérer la liste des destinataires depuis la session (si disponible)
         if 'destinataires_invitation_envoyes' in self.request.session:
             context['destinataires_invitation_envoyes'] = self.request.session.pop('destinataires_invitation_envoyes')
@@ -1202,6 +1214,9 @@ class LieuCreateView(LoginRequiredMixin, CreateView):
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
         form.order_fields(['nom', 'adresse', 'code_postal', 'ville'])
+        form.fields['adresse'].required = False
+        form.fields['code_postal'].required = False
+        form.fields['ville'].required = False
         return form
 
 @method_decorator(group_required('admin'), name='dispatch')
@@ -1213,6 +1228,9 @@ class LieuUpdateView(LoginRequiredMixin, UpdateView):
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
         form.order_fields(['nom', 'adresse', 'code_postal', 'ville'])
+        form.fields['adresse'].required = False
+        form.fields['code_postal'].required = False
+        form.fields['ville'].required = False
         return form
 
 @method_decorator(group_required('admin'), name='dispatch')
@@ -2497,9 +2515,149 @@ def generer_fiche_securite(request, seance_id):
 @login_required
 def generer_fiche_securite_excel(request, seance_id):
     import openpyxl
-    from openpyxl.styles import PatternFill
+    from pathlib import Path
     from io import BytesIO
+
+    def _niveau_court(adherent):
+        mapping = {
+            'debutant': 'DEB',
+            'niveau1': 'N1',
+            'niveau2': 'N2',
+            'niveau3': 'N3',
+            'initiateur1': 'E1',
+            'initiateur2': 'E2',
+            'moniteur_federal1': 'E3',
+            'moniteur_federal2': 'E4',
+        }
+        return mapping.get(getattr(adherent, 'niveau', None), '-')
+
+    def _generate_sortie_security_sheet(seance):
+        """
+        Génère la fiche sécurité 'sortie' à partir du modèle ESTARTIT.
+        Grille: colonnes = palanquées/moniteurs, lignes = élèves, X = appartenance.
+        """
+        palanquees = list(
+            seance.palanques.select_related('encadrant').prefetch_related('eleves', 'palanqueeeleve_set__eleve')
+        )
+
+        # Localiser le modèle (gère l'espace insécable dans le nom de fichier).
+        model_candidates = sorted(Path('.').glob('ESTARTIT*securite.xlsx'))
+        if not model_candidates:
+            raise FileNotFoundError("Modèle ESTARTIT introuvable (ESTARTIT*securite.xlsx).")
+        wb = openpyxl.load_workbook(model_candidates[0])
+        ws = wb.active
+
+        # En-tête
+        ws['I1'] = seance.date.strftime('%d/%m/%Y')
+        ws['I3'] = seance.directeur_plongee.nom_complet if seance.directeur_plongee else '-'
+        if seance.lieu:
+            site_label = f"SITE : {seance.lieu.nom}"
+            if seance.lieu.ville:
+                site_label = f"{site_label} - {seance.lieu.ville}"
+            ws['V3'] = site_label
+        else:
+            ws['V3'] = "SITE :"
+
+        # Colonnes palanquées (14 max dans le modèle, 3 colonnes fusionnées par palanquée).
+        col_starts = ['U', 'X', 'AA', 'AD', 'AG', 'AJ', 'AM', 'AP', 'AS', 'AV', 'AY', 'BB', 'BE', 'BH']
+        max_palanquees = len(col_starts)
+        palanquees_export = palanquees[:max_palanquees]
+
+        # Nettoyage entête colonnes.
+        from openpyxl.styles import Alignment
+        for col in col_starts:
+            ws[f'{col}14'] = ''
+            ws[f'{col}15'] = ''
+            ws[f'{col}6'] = ''
+            ws[f'{col}7'] = ''
+
+        for idx, palanquee in enumerate(palanquees_export):
+            col = col_starts[idx]
+            encadrant_label = (
+                f"{palanquee.encadrant.nom} {palanquee.encadrant.prenom}"
+                if palanquee.encadrant
+                else 'AUTONOMES'
+            )
+            ws[f'{col}14'] = ''
+            ws[f'{col}15'] = encadrant_label
+            ws[f'{col}15'].alignment = Alignment(
+                text_rotation=90,
+                horizontal='center',
+                vertical='center',
+                wrap_text=True,
+            )
+            ws[f'{col}6'] = palanquee.profondeur_max if palanquee.profondeur_max is not None else ''
+            ws[f'{col}7'] = palanquee.duree if palanquee.duree is not None else ''
+
+        # Augmenter la hauteur de la ligne des noms moniteurs pour améliorer la lisibilité verticale.
+        ws.row_dimensions[15].height = 85
+
+        # Élèves en lignes (même logique que l'écran de création des palanquées).
+        inscriptions = seance.inscriptions.select_related('personne').all()
+        eleves = [
+            i.personne
+            for i in inscriptions
+            if i.personne.statut == 'eleve' or (i.personne.statut == 'encadrant' and i.role_pour_seance == 'eleve')
+        ]
+        eleves = sorted(eleves, key=lambda e: (e.nom.upper(), e.prenom.upper()))
+
+        row_start = 16
+        row_end = 41
+        row_capacity = row_end - row_start + 1
+        eleves_export = eleves[:row_capacity]
+
+        # Nettoyage de la zone élèves + matrice X
+        for row in range(row_start, row_end + 1):
+            ws[f'B{row}'] = ''
+            ws[f'D{row}'] = ''
+            ws[f'O{row}'] = ''
+            ws[f'R{row}'] = ''
+            for col in col_starts:
+                ws[f'{col}{row}'] = ''
+
+        # Index de ligne par élève
+        eleve_row = {}
+        for idx, eleve in enumerate(eleves_export, start=1):
+            row = row_start + idx - 1
+            eleve_row[eleve.id] = row
+            ws[f'B{row}'] = idx
+            ws[f'D{row}'] = f"{eleve.nom} {eleve.prenom}"
+            ws[f'O{row}'] = _niveau_court(eleve)
+
+        # Aptitudes + croix X par palanquée.
+        for col_idx, palanquee in enumerate(palanquees_export):
+            col = col_starts[col_idx]
+            for pal_eleve in palanquee.palanqueeeleve_set.select_related('eleve').all():
+                row = eleve_row.get(pal_eleve.eleve_id)
+                if not row:
+                    continue
+                ws[f'{col}{row}'] = 'X'
+                if pal_eleve.aptitude:
+                    ws[f'R{row}'] = pal_eleve.aptitude
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        return output
+
     seance = get_object_or_404(Seance, pk=seance_id)
+    if seance.est_sortie:
+        try:
+            output = _generate_sortie_security_sheet(seance)
+        except FileNotFoundError as exc:
+            messages.error(request, str(exc))
+            return redirect('sortie_detail', pk=seance.id)
+
+        response = HttpResponse(
+            output,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = (
+            f'attachment; filename="APP_Fiche-secu_sortie_{seance.date.strftime("%Y-%m-%d")}.xlsx"'
+        )
+        return response
+
+    from openpyxl.styles import PatternFill
     palanquees = list(seance.palanques.select_related('encadrant').prefetch_related('eleves'))
     wb = openpyxl.load_workbook('fiche_securite_modele.xlsx')
     ws = wb.active
@@ -2657,25 +2815,29 @@ def _suivi_formation_eleve(request, eleve_id):
     # Récupérer tous les groupes de compétences de ses sections
     groupes = GroupeCompetence.objects.filter(section__in=sections).prefetch_related('competences__exercices')
     # Récupérer toutes les évaluations exercices de l'élève (dernière par exercice = la plus récente)
-    evals = EvaluationExercice.objects.filter(eleve=eleve).order_by('-date_evaluation')
+    evals = EvaluationExercice.objects.filter(eleve=eleve, exercice__type=Exercice.TYPE_CLASSIQUE).order_by('-date_evaluation')
     evals_dict = {}
     for e in evals:
         if e.exercice_id not in evals_dict:
             evals_dict[e.exercice_id] = e
     # Historique par exercice
     historiques = {}
-    for ex in Exercice.objects.all():
+    for ex in Exercice.objects.filter(type=Exercice.TYPE_CLASSIQUE):
         historiques[ex.id] = list(EvaluationExercice.objects.filter(eleve=eleve, exercice=ex).order_by('-date_evaluation'))
     # Exercices qui ont déjà une validation DT (pour masquer le bouton)
     validation_dt_exercice_ids = set(
-        EvaluationExercice.objects.filter(eleve=eleve, palanquee__isnull=True).values_list('exercice_id', flat=True)
+        EvaluationExercice.objects.filter(
+            eleve=eleve,
+            palanquee__isnull=True,
+            exercice__type=Exercice.TYPE_CLASSIQUE,
+        ).values_list('exercice_id', flat=True)
     )
     progression = []
     for groupe in groupes:
         groupe_data = {'groupe': groupe, 'competences': [], 'etoile_groupe': True}
         for comp in groupe.competences.all():
             comp_data = {'competence': comp, 'exercices': [], 'etoile_competence': True}
-            for ex in comp.exercices.all():
+            for ex in comp.exercices.filter(type=Exercice.TYPE_CLASSIQUE):
                 eval_ex = evals_dict.get(ex.id)
                 etoiles = eval_ex.note if eval_ex and eval_ex.note else 0
                 commentaire = eval_ex.commentaire if eval_ex else ''
@@ -2719,8 +2881,8 @@ def _suivi_formation_eleve(request, eleve_id):
     return render(request, 'gestion/suivi_formation_eleve.html', context)
 
 
-def _build_suivi_formation_pdf(eleve, progression, historiques):
-    """Construit le contenu PDF du suivi de formation (même structure que la page)."""
+def _build_suivi_formation_pdf(eleve, progression, historiques, titre="SUIVI DE"):
+    """Construit le contenu PDF du suivi (même structure que la page)."""
     from django.utils import timezone
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=1.5*cm, rightMargin=1.5*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
@@ -2738,7 +2900,7 @@ def _build_suivi_formation_pdf(eleve, progression, historiques):
     date_gen = timezone.now().strftime('%d/%m/%Y à %H:%M')
     elements.append(Paragraph(f"Généré le : {date_gen}", date_style))
     elements.append(Spacer(1, 12))
-    elements.append(Paragraph(f"<b>SUIVI DE :</b> {eleve.nom_complet.upper()}", title_style))
+    elements.append(Paragraph(f"<b>{titre} :</b> {eleve.nom_complet.upper()}", title_style))
     sections_names = ", ".join(s.get_nom_display() for s in eleve.sections.all()) or "-"
     elements.append(Paragraph(f"<b>SECTION(S) :</b> {sections_names}", section_style))
     nb_groupes = len(progression)
@@ -2779,31 +2941,37 @@ def _build_suivi_formation_pdf(eleve, progression, historiques):
     return buffer.getvalue()
 
 
-def _build_suivi_formation_data(eleve):
+def _build_suivi_formation_data(eleve, exercice_type=Exercice.TYPE_CLASSIQUE):
     sections = eleve.sections.all()
     groupes = GroupeCompetence.objects.filter(section__in=sections).prefetch_related('competences__exercices')
-    evals = EvaluationExercice.objects.filter(eleve=eleve).order_by('-date_evaluation')
+    evals = EvaluationExercice.objects.filter(eleve=eleve, exercice__type=exercice_type).order_by('-date_evaluation')
     evals_dict = {}
     for e in evals:
         if e.exercice_id not in evals_dict:
             evals_dict[e.exercice_id] = e
 
     historiques = {}
-    for ex in Exercice.objects.all():
+    for ex in Exercice.objects.filter(type=exercice_type):
         historiques[ex.id] = list(
             EvaluationExercice.objects.filter(eleve=eleve, exercice=ex).order_by('-date_evaluation')
         )
 
-    validation_dt_exercice_ids = set(
-        EvaluationExercice.objects.filter(eleve=eleve, palanquee__isnull=True).values_list('exercice_id', flat=True)
-    )
+    validation_dt_exercice_ids = set()
+    if exercice_type == Exercice.TYPE_CLASSIQUE:
+        validation_dt_exercice_ids = set(
+            EvaluationExercice.objects.filter(
+                eleve=eleve,
+                palanquee__isnull=True,
+                exercice__type=Exercice.TYPE_CLASSIQUE,
+            ).values_list('exercice_id', flat=True)
+        )
 
     progression = []
     for groupe in groupes:
         groupe_data = {'groupe': groupe, 'competences': [], 'etoile_groupe': True}
         for comp in groupe.competences.all():
             comp_data = {'competence': comp, 'exercices': [], 'etoile_competence': True}
-            for ex in comp.exercices.all():
+            for ex in comp.exercices.filter(type=exercice_type):
                 eval_ex = evals_dict.get(ex.id)
                 etoiles = eval_ex.note if eval_ex and eval_ex.note else 0
                 commentaire = eval_ex.commentaire if eval_ex else ''
@@ -2843,6 +3011,33 @@ def suivi_formation_eleve_pdf(request, eleve_id):
     pdf_content = _build_suivi_formation_pdf(eleve, progression, historiques)
     response = HttpResponse(pdf_content, content_type='application/pdf')
     response['Content-Disposition'] = 'inline; filename="suivi_formation_{}.pdf"'.format(eleve.nom_complet.replace(' ', '_'))
+    return response
+
+
+@login_required
+def suivi_evaluations_exercices_eleve_pdf(request, eleve_id):
+    """Génère un PDF du suivi des exercices d'évaluation (ouvre dans un nouvel onglet)."""
+    if not peut_voir_suivi(request.user, int(eleve_id)):
+        if request.user.groups.filter(name='eleve').exists():
+            adherent = getattr(request.user, 'adherent_profile', None)
+            if adherent:
+                return redirect('suivi_formation_eleve', eleve_id=adherent.id)
+        elif request.user.groups.filter(name='encadrant').exists():
+            return redirect('eleve_list')
+        else:
+            return redirect('dashboard')
+    eleve = get_object_or_404(Adherent, pk=eleve_id)
+    progression, historiques = _build_suivi_formation_data(eleve, exercice_type=Exercice.TYPE_EVALUATION)
+    pdf_content = _build_suivi_formation_pdf(
+        eleve,
+        progression,
+        historiques,
+        titre="SUIVI ÉVALUATIONS",
+    )
+    response = HttpResponse(pdf_content, content_type='application/pdf')
+    response['Content-Disposition'] = 'inline; filename="suivi_evaluations_{}.pdf"'.format(
+        eleve.nom_complet.replace(' ', '_')
+    )
     return response
 
 
@@ -2933,6 +3128,9 @@ def admin_inscription_seance(request, seance_id):
                     print('personne.save() OK')
                 except Exception as e:
                     print('ERREUR personne.save():', e)
+                sections = form.cleaned_data.get('sections')
+                if sections is not None:
+                    personne.sections.set(sections)
             # Créer l'inscription si pas déjà inscrite
             from .models import InscriptionSeance
             covoiturage = form.cleaned_data.get('covoiturage', '')
@@ -3789,6 +3987,58 @@ def sortie_evaluations(request, seance_id):
     }
     return render(request, 'gestion/sortie_evaluations.html', context)
 
+
+@login_required
+@group_required('admin')
+@require_POST
+def dupliquer_inscrits_sortie(request, seance_id):
+    sortie_cible = get_object_or_404(Seance, pk=seance_id, type=Seance.TYPE_SORTIE)
+    sortie_source_id = request.POST.get('sortie_source_id')
+    if not sortie_source_id:
+        messages.error(request, "Veuillez sélectionner une sortie source.")
+        return redirect('sortie_detail', pk=sortie_cible.pk)
+
+    try:
+        sortie_source_id = int(sortie_source_id)
+    except (TypeError, ValueError):
+        messages.error(request, "La sortie source sélectionnée est invalide.")
+        return redirect('sortie_detail', pk=sortie_cible.pk)
+
+    if sortie_source_id == sortie_cible.pk:
+        messages.error(request, "La sortie source doit être différente de la sortie cible.")
+        return redirect('sortie_detail', pk=sortie_cible.pk)
+
+    sortie_source = get_object_or_404(Seance, pk=sortie_source_id, type=Seance.TYPE_SORTIE)
+    inscriptions_source = sortie_source.inscriptions.select_related('personne').all()
+
+    nb_creees = 0
+    nb_mises_a_jour = 0
+    for inscription_source in inscriptions_source:
+        inscription_cible, created = InscriptionSeance.objects.get_or_create(
+            seance=sortie_cible,
+            personne=inscription_source.personne,
+            defaults={
+                'covoiturage': inscription_source.covoiturage,
+                'lieu_covoiturage': inscription_source.lieu_covoiturage,
+                'role_pour_seance': inscription_source.role_pour_seance,
+            },
+        )
+        if created:
+            nb_creees += 1
+        else:
+            inscription_cible.covoiturage = inscription_source.covoiturage
+            inscription_cible.lieu_covoiturage = inscription_source.lieu_covoiturage
+            inscription_cible.role_pour_seance = inscription_source.role_pour_seance
+            inscription_cible.save(update_fields=['covoiturage', 'lieu_covoiturage', 'role_pour_seance'])
+            nb_mises_a_jour += 1
+
+    messages.success(
+        request,
+        f"Duplications terminées depuis la sortie du {sortie_source.date.strftime('%d/%m/%Y')} : "
+        f"{nb_creees} inscription(s) créée(s), {nb_mises_a_jour} mise(s) à jour.",
+    )
+    return redirect('sortie_detail', pk=sortie_cible.pk)
+
 @require_GET
 @staff_member_required
 def api_modele_mail(request, modele_id):
@@ -4236,7 +4486,7 @@ def api_suivi_inscrits_section(request, seance_id):
     competences = Competence.objects.filter(section=section).prefetch_related('exercices')
     exercices_ids = set()
     for comp in competences:
-        exercices_ids.update(comp.exercices.values_list('id', flat=True))
+        exercices_ids.update(comp.exercices.filter(type=Exercice.TYPE_CLASSIQUE).values_list('id', flat=True))
     
     exercices = Exercice.objects.filter(id__in=exercices_ids).order_by('nom')
     
@@ -4439,7 +4689,7 @@ def api_suivi_eleves_section(request):
     competences = Competence.objects.filter(section=section).prefetch_related('exercices')
     exercices_ids = set()
     for comp in competences:
-        exercices_ids.update(comp.exercices.values_list('id', flat=True))
+        exercices_ids.update(comp.exercices.filter(type=Exercice.TYPE_CLASSIQUE).values_list('id', flat=True))
     
     exercices = Exercice.objects.filter(id__in=exercices_ids).order_by('nom')
     

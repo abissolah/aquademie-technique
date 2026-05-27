@@ -51,6 +51,7 @@ urlpatterns = [
     path('eleves/api/suivi-section/', views.api_suivi_eleves_section, name='api_suivi_eleves_section'),
     path('eleves/<int:eleve_id>/suivi-formation/', views.suivi_formation_eleve, name='suivi_formation_eleve'),
     path('eleves/<int:eleve_id>/suivi-formation/pdf/', views.suivi_formation_eleve_pdf, name='suivi_formation_eleve_pdf'),
+    path('eleves/<int:eleve_id>/suivi-evaluations/pdf/', views.suivi_evaluations_exercices_eleve_pdf, name='suivi_evaluations_exercices_eleve_pdf'),
     path('eleves/<int:eleve_id>/validation-dt/<int:exercice_id>/', views.validation_dt_eleve_exercice, name='validation_dt_eleve_exercice'),
     
     # Encadrants
@@ -124,6 +125,7 @@ urlpatterns = [
     path('sorties/<int:seance_id>/changer-role-inscription/', views.changer_role_inscription_seance, name='sortie_changer_role_inscription_seance'),
     path('sorties/<int:seance_id>/export-excel/', views.exporter_inscrits_seance_excel, name='sortie_exporter_inscrits_seance_excel'),
     path('sorties/<int:seance_id>/evaluations/', views.sortie_evaluations, name='sortie_evaluations'),
+    path('sorties/<int:seance_id>/dupliquer-inscrits/', views.dupliquer_inscrits_sortie, name='dupliquer_inscrits_sortie'),
     
     # Palanquées
     path('palanquees/', PalanqueeListView.as_view(), name='palanquee_list'),

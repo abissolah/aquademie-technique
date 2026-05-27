@@ -14,14 +14,26 @@
             </div>
             <div class="mb-3">
                 <strong>Exercices associés :</strong>
-                {% if competence.exercices.all %}
+                {% if exercices_classiques %}
                     <ul>
-                    {% for exercice in competence.exercices.all %}
+                    {% for exercice in exercices_classiques %}
                         <li><strong>{{ exercice.nom }}</strong>{% if exercice.description %} : <span class="text-muted">{{ exercice.description }}</span>{% endif %}</li>
                     {% endfor %}
                     </ul>
                 {% else %}
                     <span class="text-muted">Aucun exercice associé</span>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                <strong>Exercices d'évaluation associés :</strong>
+                {% if exercices_evaluation %}
+                    <ul>
+                    {% for exercice in exercices_evaluation %}
+                        <li><strong>{{ exercice.nom }}</strong>{% if exercice.description %} : <span class="text-muted">{{ exercice.description }}</span>{% endif %}</li>
+                    {% endfor %}
+                    </ul>
+                {% else %}
+                    <span class="text-muted">Aucun exercice d'évaluation associé</span>
                 {% endif %}
             </div>
         </div>
