@@ -73,6 +73,8 @@ urlpatterns = [
     
     # Groupes de compétences
     path('groupes-competences/', views.GroupeCompetenceListView.as_view(), name='groupe_competence_list'),
+    path('groupes-competences/export-pdf/', views.exporter_groupes_competences_pdf, name='exporter_groupes_competences_pdf'),
+    path('groupes-competences/export-pdf-evaluation/', views.exporter_groupes_competences_evaluation_pdf, name='exporter_groupes_competences_evaluation_pdf'),
     path('groupes-competences/nouveau/', views.GroupeCompetenceCreateView.as_view(), name='groupe_competence_create'),
     path('groupes-competences/<int:pk>/modifier/', views.GroupeCompetenceUpdateView.as_view(), name='groupe_competence_update'),
     path('groupes-competences/<int:pk>/supprimer/', views.GroupeCompetenceDeleteView.as_view(), name='groupe_competence_delete'),

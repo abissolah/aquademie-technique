@@ -380,11 +380,10 @@
                     <a href="{% url evaluations_sortie_url_name seance.pk %}" class="btn btn-outline-primary">
                         <i class="fas fa-clipboard-check"></i> Voir les évaluations envoyées
                     </a>
-                    {% if sorties_sources_duplication %}
                     <form method="post" action="{% url dupliquer_inscrits_sortie_url_name seance.pk %}" class="mt-2">
                         {% csrf_token %}
                         <div class="input-group">
-                            <select class="form-select" name="sortie_source_id" required>
+                            <select class="form-select" name="sortie_source_id" required {% if not sorties_sources_duplication %}disabled{% endif %}>
                                 <option value="">Dupliquer les inscrits depuis...</option>
                                 {% for sortie in sorties_sources_duplication %}
                                 <option value="{{ sortie.id }}">
@@ -392,12 +391,14 @@
                                 </option>
                                 {% endfor %}
                             </select>
-                            <button type="submit" class="btn btn-outline-dark">
+                            <button type="submit" class="btn btn-outline-dark" {% if not sorties_sources_duplication %}disabled{% endif %}>
                                 <i class="fas fa-copy"></i> Dupliquer
                             </button>
                         </div>
+                        {% if not sorties_sources_duplication %}
+                        <small class="text-muted">Aucune autre sortie disponible comme source.</small>
+                        {% endif %}
                     </form>
-                    {% endif %}
                     {% endif %}
                 </div>
             </div>

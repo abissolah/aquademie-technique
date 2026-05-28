@@ -9,9 +9,17 @@
             <h1>
                 <i class="fas fa-object-group me-2"></i>Groupes de compétences
             </h1>
-            <a href="{% url 'groupe_competence_create' %}" class="btn btn-success">
-                <i class="fas fa-plus me-2"></i>Nouveau groupe
-            </a>
+            <div class="d-flex gap-2">
+                <a href="{% url 'exporter_groupes_competences_pdf' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-file-pdf me-2"></i>PDF exercices classiques
+                </a>
+                <a href="{% url 'exporter_groupes_competences_evaluation_pdf' %}" class="btn btn-outline-info">
+                    <i class="fas fa-file-pdf me-2"></i>PDF exercices d'évaluation
+                </a>
+                <a href="{% url 'groupe_competence_create' %}" class="btn btn-success">
+                    <i class="fas fa-plus me-2"></i>Nouveau groupe
+                </a>
+            </div>
         </div>
     </div>
 </div>

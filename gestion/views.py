@@ -455,6 +455,114 @@ class GroupeCompetenceDetailView(LoginRequiredMixin, DetailView):
     template_name = 'gestion/groupe_competence_detail.html'
     context_object_name = 'groupe'
 
+
+@login_required
+@group_required('admin')
+def exporter_groupes_competences_pdf(request):
+    """Export PDF de synthèse des groupes avec exercices classiques."""
+    return _export_groupes_competences_pdf_by_type(exercice_type=Exercice.TYPE_CLASSIQUE)
+
+
+@login_required
+@group_required('admin')
+def exporter_groupes_competences_evaluation_pdf(request):
+    """Export PDF de synthèse des groupes avec exercices d'évaluation."""
+    return _export_groupes_competences_pdf_by_type(exercice_type=Exercice.TYPE_EVALUATION)
+
+
+def _export_groupes_competences_pdf_by_type(exercice_type):
+    groupes = (
+        GroupeCompetence.objects
+        .select_related('section')
+        .prefetch_related('competences__exercices')
+        .order_by('section__nom', 'intitule')
+    )
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=1.5 * cm,
+        rightMargin=1.5 * cm,
+        topMargin=1.5 * cm,
+        bottomMargin=1.5 * cm,
+    )
+    elements = []
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'groupesTitle',
+        parent=styles['Heading1'],
+        fontSize=14,
+        spaceAfter=10,
+        alignment=TA_LEFT,
+    )
+    group_style = ParagraphStyle(
+        'groupesGroup',
+        parent=styles['Heading2'],
+        fontSize=11,
+        spaceBefore=10,
+        spaceAfter=4,
+    )
+    competence_style = ParagraphStyle(
+        'groupesCompetence',
+        parent=styles['Normal'],
+        fontSize=10,
+        leftIndent=12,
+        spaceBefore=4,
+        spaceAfter=2,
+    )
+    exercice_style = ParagraphStyle(
+        'groupesExercice',
+        parent=styles['Normal'],
+        fontSize=9,
+        leftIndent=26,
+        spaceAfter=1,
+    )
+
+    titre = (
+        "Synthèse groupes de compétences - Exercices d'évaluation"
+        if exercice_type == Exercice.TYPE_EVALUATION
+        else "Synthèse groupes de compétences - Exercices classiques"
+    )
+    elements.append(Paragraph(titre, title_style))
+    elements.append(Paragraph(f"Généré le {timezone.now().strftime('%d/%m/%Y à %H:%M')}", styles['Normal']))
+    elements.append(Spacer(1, 8))
+
+    type_label = "d'évaluation" if exercice_type == Exercice.TYPE_EVALUATION else "classiques"
+
+    for groupe in groupes:
+        elements.append(
+            Paragraph(
+                f"<b>{groupe.section.get_nom_display()}</b> - {groupe.intitule}",
+                group_style,
+            )
+        )
+        competences = list(groupe.competences.all().order_by('nom'))
+        if not competences:
+            elements.append(Paragraph("Aucune compétence liée.", competence_style))
+            continue
+
+        for competence in competences:
+            elements.append(Paragraph(f"- <b>{competence.nom}</b>", competence_style))
+            exercices = list(competence.exercices.filter(type=exercice_type).order_by('nom'))
+            if not exercices:
+                elements.append(Paragraph(f"Aucun exercice {type_label}.", exercice_style))
+                continue
+            for exercice in exercices:
+                elements.append(Paragraph(f"• {exercice.nom}", exercice_style))
+
+    doc.build(elements)
+    buffer.seek(0)
+
+    filename = (
+        "synthese_groupes_competences_exercices_evaluation.pdf"
+        if exercice_type == Exercice.TYPE_EVALUATION
+        else "synthese_groupes_competences_exercices_classiques.pdf"
+    )
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename=\"{filename}\"'
+    return response
+
 # Vues pour les séances
 @method_decorator(group_required('admin'), name='dispatch')
 class SeanceListView(LoginRequiredMixin, ListView):
