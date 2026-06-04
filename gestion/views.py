@@ -2820,6 +2820,85 @@ def generer_fiche_securite_excel(request, seance_id):
         }
         return mapping.get(getattr(adherent, 'niveau', None), '-')
 
+    def _safe_unmerge_cells(ws, range_string):
+        """Dé-fusionne une plage en créant les cellules manquantes (contournement KeyError openpyxl)."""
+        from openpyxl.utils import range_boundaries
+
+        min_col, min_row, max_col, max_row = range_boundaries(range_string)
+        for row in range(min_row, max_row + 1):
+            for col in range(min_col, max_col + 1):
+                if (row, col) not in ws._cells:
+                    ws.cell(row=row, column=col)
+        ws.unmerge_cells(range_string)
+
+    def _restructure_plongee_header(ws):
+        """Fusionne PLONGEE n°1/n°2 en « PLONGEE n° » + cellule numéro à côté (BE)."""
+        from openpyxl.styles import Alignment
+
+        to_unmerge = []
+        for merged_range in list(ws.merged_cells.ranges):
+            if merged_range.min_col >= 57 and merged_range.max_row <= 4:
+                to_unmerge.append(str(merged_range))
+        for ref in to_unmerge:
+            _safe_unmerge_cells(ws, ref)
+        ws.merge_cells('BE1:BF4')
+        ws.merge_cells('BG1:BK4')
+        ws['BG1'] = 'PLONGEE n°'
+        ws['BE1'] = ''
+        for cell_ref in ('BG1', 'BE1'):
+            ws[cell_ref].alignment = Alignment(horizontal='center', vertical='center')
+
+    def _set_aptitude_moniteurs_title(ws, row):
+        """Titre fusionné B:P sur la ligne des aptitudes moniteurs."""
+        from copy import copy
+        from openpyxl.styles import Alignment, Border
+
+        col_b, col_p = 2, 16
+        to_unmerge = []
+        for merged_range in list(ws.merged_cells.ranges):
+            if (
+                merged_range.min_row == row
+                and merged_range.max_row == row
+                and merged_range.min_col >= col_b
+                and merged_range.max_col <= col_p
+            ):
+                to_unmerge.append(str(merged_range))
+        for ref in to_unmerge:
+            _safe_unmerge_cells(ws, ref)
+        ws.merge_cells(f'B{row}:P{row}')
+
+        # Même fond que l'en-tête « Nom » (ligne 15), bordures gauche/droite comme la ligne élève suivante.
+        header_fill = copy(ws['D15'].fill)
+        ref_row_below = row + 1
+        left_side = copy(ws.cell(ref_row_below, col_b).border.left)
+        right_side = copy(ws.cell(ref_row_below, col_p).border.right)
+        for col in range(col_b, col_p + 1):
+            cell = ws.cell(row=row, column=col)
+            cell.fill = copy(header_fill)
+            cell.border = Border(
+                left=left_side if col == col_b else None,
+                right=right_side if col == col_p else None,
+            )
+
+        title_cell = ws[f'B{row}']
+        title_cell.value = 'Aptitude moniteurs'
+        title_cell.alignment = Alignment(horizontal='center', vertical='center')
+
+    def _apply_row_borders_from_below(ws, row, col_min, col_max):
+        """Reproduit les bordures de la ligne suivante (ex. colonnes R → fin palanquées)."""
+        from copy import copy
+        from openpyxl.styles import Border
+
+        ref_row = row + 1
+        for col in range(col_min, col_max + 1):
+            ref_border = ws.cell(ref_row, col).border
+            ws.cell(row, col).border = Border(
+                left=copy(ref_border.left) if ref_border.left else None,
+                right=copy(ref_border.right) if ref_border.right else None,
+                top=copy(ref_border.top) if ref_border.top else None,
+                bottom=copy(ref_border.bottom) if ref_border.bottom else None,
+            )
+
     def _generate_sortie_security_sheet(seance):
         """
         Génère la fiche sécurité 'sortie' à partir du modèle ESTARTIT.
@@ -2835,6 +2914,10 @@ def generer_fiche_securite_excel(request, seance_id):
             raise FileNotFoundError("Modèle ESTARTIT introuvable (ESTARTIT*securite.xlsx).")
         wb = openpyxl.load_workbook(model_candidates[0])
         ws = wb.active
+
+        _restructure_plongee_header(ws)
+        # Ligne 16 réservée aux aptitudes moniteurs (E1, E2, …) ; élèves décalés d'une ligne.
+        ws.insert_rows(16)
 
         # En-tête
         ws['I1'] = seance.date.strftime('%d/%m/%Y')
@@ -2854,9 +2937,12 @@ def generer_fiche_securite_excel(request, seance_id):
 
         # Nettoyage entête colonnes.
         from openpyxl.styles import Alignment
+        row_aptitudes_moniteurs = 16
+
         for col in col_starts:
             ws[f'{col}14'] = ''
             ws[f'{col}15'] = ''
+            ws[f'{col}{row_aptitudes_moniteurs}'] = ''
             ws[f'{col}6'] = ''
             ws[f'{col}7'] = ''
 
@@ -2875,8 +2961,24 @@ def generer_fiche_securite_excel(request, seance_id):
                 vertical='center',
                 wrap_text=True,
             )
+            if palanquee.encadrant:
+                ws[f'{col}{row_aptitudes_moniteurs}'] = _niveau_court(palanquee.encadrant)
+            else:
+                ws[f'{col}{row_aptitudes_moniteurs}'] = ''
+            ws[f'{col}{row_aptitudes_moniteurs}'].alignment = Alignment(
+                horizontal='center',
+                vertical='center',
+            )
             ws[f'{col}6'] = palanquee.profondeur_max if palanquee.profondeur_max is not None else ''
             ws[f'{col}7'] = palanquee.duree if palanquee.duree is not None else ''
+
+        _set_aptitude_moniteurs_title(ws, row_aptitudes_moniteurs)
+
+        # Bordures colonnes R → fin des palanquées (R16:T16, U16:W16, …), comme les lignes élèves.
+        from openpyxl.utils import column_index_from_string
+        col_r = column_index_from_string('R')
+        col_last_palanquee = column_index_from_string(col_starts[-1]) + 2
+        _apply_row_borders_from_below(ws, row_aptitudes_moniteurs, col_r, col_last_palanquee)
 
         # Augmenter la hauteur de la ligne des noms moniteurs pour améliorer la lisibilité verticale.
         ws.row_dimensions[15].height = 85
@@ -2890,8 +2992,8 @@ def generer_fiche_securite_excel(request, seance_id):
         ]
         eleves = sorted(eleves, key=lambda e: (e.nom.upper(), e.prenom.upper()))
 
-        row_start = 16
-        row_end = 41
+        row_start = 17
+        row_end = 42
         row_capacity = row_end - row_start + 1
         eleves_export = eleves[:row_capacity]
 
