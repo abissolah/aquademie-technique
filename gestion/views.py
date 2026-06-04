@@ -2175,6 +2175,186 @@ class ExerciceEvaluationDeleteView(ExerciceDeleteView):
     def get_queryset(self):
         return Exercice.objects.filter(type=Exercice.TYPE_EVALUATION)
 
+
+def _cell_str(value):
+    if value is None:
+        return ''
+    return str(value).strip()
+
+
+def _import_exercices_evaluation_from_workbook(wb):
+    """
+    Importe les exercices d'évaluation depuis un classeur type Programme.xlsx.
+    Colonne B : préfixe compétence (nom commence par cette valeur)
+    Colonne C + D : nom de l'exercice ({C}_{D})
+    Colonne E : description
+    """
+    created = 0
+    created_without_link = 0
+    skipped_exists = 0
+    linked_only = 0
+    errors = []
+    warnings = []
+    current_competence_code = None
+
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        for row_idx, row in enumerate(ws.iter_rows(values_only=True), start=1):
+            cells = list(row) if row else []
+            while len(cells) < 5:
+                cells.append(None)
+            col_b, col_c, col_d, col_e = (
+                _cell_str(cells[1]),
+                _cell_str(cells[2]),
+                _cell_str(cells[3]),
+                _cell_str(cells[4]),
+            )
+            if col_b:
+                current_competence_code = col_b
+            if not col_c or not col_d:
+                continue
+            nom = f"{col_c}_{col_d}"
+            if len(nom) > 200:
+                errors.append(
+                    f"Feuille {sheet_name}, ligne {row_idx} : nom trop long ({len(nom)} caractères, max 200)."
+                )
+                continue
+            description = col_e
+
+            competence = None
+            if not current_competence_code:
+                warnings.append(
+                    f"Feuille {sheet_name}, ligne {row_idx} : « {nom} » importé sans lien (aucune compétence en col. B)."
+                )
+            else:
+                competences = Competence.objects.filter(nom__startswith=current_competence_code)
+                competence_count = competences.count()
+                if competence_count == 0:
+                    warnings.append(
+                        f"Feuille {sheet_name}, ligne {row_idx} : « {nom} » importé sans lien "
+                        f"(compétence « {current_competence_code} » introuvable)."
+                    )
+                else:
+                    if competence_count > 1:
+                        warnings.append(
+                            f"Feuille {sheet_name}, ligne {row_idx} : plusieurs compétences pour "
+                            f"« {current_competence_code} », la première est utilisée."
+                        )
+                    competence = competences.first()
+
+            exercice = Exercice.objects.filter(nom=nom, type=Exercice.TYPE_EVALUATION).first()
+            if exercice:
+                skipped_exists += 1
+                if competence and not competence.exercices.filter(pk=exercice.pk).exists():
+                    competence.exercices.add(exercice)
+                    linked_only += 1
+                continue
+
+            exercice = Exercice.objects.create(
+                nom=nom,
+                description=description,
+                type=Exercice.TYPE_EVALUATION,
+            )
+            if competence:
+                competence.exercices.add(exercice)
+                created += 1
+            else:
+                created_without_link += 1
+
+    return {
+        'created': created,
+        'created_without_link': created_without_link,
+        'skipped_exists': skipped_exists,
+        'linked_only': linked_only,
+        'errors': errors,
+        'warnings': warnings,
+    }
+
+
+@login_required
+@group_required('admin')
+def import_exercices_evaluation_excel(request):
+    """Import des exercices d'évaluation depuis Programme.xlsx (colonnes B, C, D, E)."""
+    programme_path = os.path.join(settings.BASE_DIR, 'Programme.xlsx')
+    default_available = os.path.isfile(programme_path)
+
+    if request.method == 'POST':
+        use_default = request.POST.get('use_default') == '1'
+        try:
+            if use_default:
+                if not default_available:
+                    messages.error(request, "Le fichier Programme.xlsx est introuvable à la racine du projet.")
+                    return redirect('import_exercices_evaluation_excel')
+                wb = openpyxl.load_workbook(programme_path, read_only=True, data_only=True)
+            else:
+                excel_file = request.FILES.get('excel_file')
+                if not excel_file:
+                    messages.error(request, "Veuillez sélectionner un fichier Excel.")
+                    return redirect('import_exercices_evaluation_excel')
+                if not excel_file.name.endswith(('.xlsx', '.xls')):
+                    messages.error(request, "Veuillez sélectionner un fichier Excel (.xlsx ou .xls).")
+                    return redirect('import_exercices_evaluation_excel')
+                wb = openpyxl.load_workbook(excel_file, read_only=True, data_only=True)
+
+            stats = _import_exercices_evaluation_from_workbook(wb)
+            wb.close()
+
+            if stats['created']:
+                messages.success(
+                    request,
+                    f"{stats['created']} exercice(s) d'évaluation créé(s) et lié(s) aux compétences.",
+                )
+            if stats['created_without_link']:
+                messages.success(
+                    request,
+                    f"{stats['created_without_link']} exercice(s) créé(s) sans lien compétence "
+                    f"(compétence absente ou introuvable).",
+                )
+            if stats['skipped_exists']:
+                messages.info(
+                    request,
+                    f"{stats['skipped_exists']} exercice(s) déjà existant(s) (non recréés).",
+                )
+            if stats['linked_only']:
+                messages.info(
+                    request,
+                    f"{stats['linked_only']} exercice(s) existant(s) relié(s) à une compétence.",
+                )
+            for err in stats['errors'][:20]:
+                messages.error(request, err)
+            if len(stats['errors']) > 20:
+                messages.error(
+                    request,
+                    f"... et {len(stats['errors']) - 20} autre(s) erreur(s).",
+                )
+            for warn in stats['warnings'][:20]:
+                messages.warning(request, warn)
+            if len(stats['warnings']) > 20:
+                messages.warning(
+                    request,
+                    f"... et {len(stats['warnings']) - 20} autre(s) avertissement(s) (sans lien).",
+                )
+            if (
+                not stats['created']
+                and not stats['created_without_link']
+                and not stats['linked_only']
+                and not stats['errors']
+            ):
+                messages.warning(request, "Aucune ligne d'exercice importable trouvée dans le fichier.")
+        except Exception as e:
+            messages.error(request, f"Erreur lors de l'import : {e}")
+        return redirect('exercice_evaluation_list')
+
+    return render(
+        request,
+        'gestion/import_exercices_evaluation_excel.html',
+        {
+            'default_available': default_available,
+            'programme_filename': 'Programme.xlsx',
+        },
+    )
+
+
 @login_required
 def export_adherents_excel(request):
     import pandas as pd

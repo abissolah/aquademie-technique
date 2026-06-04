@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}Import Excel - Exercices d'évaluation{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-file-excel me-2"></i>Import Excel - Exercices d'évaluation</h1>
+        <a href="{% url 'exercice_evaluation_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Retour à la liste
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-upload me-2"></i>Importer des exercices</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Format attendu (modèle <strong>{{ programme_filename }}</strong>) :
+                    </p>
+                    <ul class="small text-muted mb-4">
+                        <li><strong>Colonne B</strong> : code compétence (l'exercice est lié à la compétence dont le nom commence par cette valeur)</li>
+                        <li><strong>Colonne C + D</strong> : nom de l'exercice = <code>{C}_{D}</code></li>
+                        <li><strong>Colonne E</strong> : description</li>
+                    </ul>
+                    <p class="small text-muted mb-3">
+                        Les exercices déjà présents (même nom) ne sont pas recréés ; le lien vers la compétence est ajouté si besoin.
+                        Si la compétence n'existe pas encore, l'exercice est tout de même importé, sans lien.
+                    </p>
+
+                    {% if default_available %}
+                    <form method="post" class="mb-4">
+                        {% csrf_token %}
+                        <input type="hidden" name="use_default" value="1">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-file-import me-2"></i>Importer depuis {{ programme_filename }} (projet)
+                        </button>
+                    </form>
+                    <hr>
+                    <p class="mb-2">Ou téléverser un autre fichier :</p>
+                    {% endif %}
+
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="excel_file" class="form-label">Fichier Excel (.xlsx)</label>
+                            <input type="file" class="form-control" id="excel_file" name="excel_file" accept=".xlsx,.xls" {% if not default_available %}required{% endif %}>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-2"></i>Importer le fichier
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

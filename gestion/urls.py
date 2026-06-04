@@ -169,6 +169,7 @@ urlpatterns = [
     path('exercices-evaluation/nouveau/', views.ExerciceEvaluationCreateView.as_view(), name='exercice_evaluation_create'),
     path('exercices-evaluation/<int:pk>/modifier/', views.ExerciceEvaluationUpdateView.as_view(), name='exercice_evaluation_update'),
     path('exercices-evaluation/<int:pk>/supprimer/', views.ExerciceEvaluationDeleteView.as_view(), name='exercice_evaluation_delete'),
+    path('exercices-evaluation/import-excel/', views.import_exercices_evaluation_excel, name='import_exercices_evaluation_excel'),
     
     # APIs
     path('api/competences-section/', views.get_competences_section, name='get_competences_section'),
