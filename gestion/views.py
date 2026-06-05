@@ -657,6 +657,7 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         context['changer_role_url_name'] = 'sortie_changer_role_inscription_seance' if is_sortie else 'changer_role_inscription_seance'
         context['evaluations_sortie_url_name'] = 'sortie_evaluations' if is_sortie else ''
         context['dupliquer_inscrits_sortie_url_name'] = 'dupliquer_inscrits_sortie' if is_sortie else ''
+        context['dupliquer_inscrits_palanquees_sortie_url_name'] = 'dupliquer_inscrits_palanquees_sortie' if is_sortie else ''
         if is_sortie:
             context['sorties_sources_duplication'] = Seance.objects.filter(
                 type=Seance.TYPE_SORTIE
@@ -4379,29 +4380,27 @@ def sortie_evaluations(request, seance_id):
     return render(request, 'gestion/sortie_evaluations.html', context)
 
 
-@login_required
-@group_required('admin')
-@require_POST
-def dupliquer_inscrits_sortie(request, seance_id):
-    sortie_cible = get_object_or_404(Seance, pk=seance_id, type=Seance.TYPE_SORTIE)
+def _get_sortie_source_pour_duplication(request, sortie_cible):
     sortie_source_id = request.POST.get('sortie_source_id')
     if not sortie_source_id:
         messages.error(request, "Veuillez sélectionner une sortie source.")
-        return redirect('sortie_detail', pk=sortie_cible.pk)
+        return None
 
     try:
         sortie_source_id = int(sortie_source_id)
     except (TypeError, ValueError):
         messages.error(request, "La sortie source sélectionnée est invalide.")
-        return redirect('sortie_detail', pk=sortie_cible.pk)
+        return None
 
     if sortie_source_id == sortie_cible.pk:
         messages.error(request, "La sortie source doit être différente de la sortie cible.")
-        return redirect('sortie_detail', pk=sortie_cible.pk)
+        return None
 
-    sortie_source = get_object_or_404(Seance, pk=sortie_source_id, type=Seance.TYPE_SORTIE)
+    return get_object_or_404(Seance, pk=sortie_source_id, type=Seance.TYPE_SORTIE)
+
+
+def _dupliquer_inscriptions_depuis_sortie(sortie_cible, sortie_source):
     inscriptions_source = sortie_source.inscriptions.select_related('personne').all()
-
     nb_creees = 0
     nb_mises_a_jour = 0
     for inscription_source in inscriptions_source:
@@ -4422,11 +4421,80 @@ def dupliquer_inscrits_sortie(request, seance_id):
             inscription_cible.role_pour_seance = inscription_source.role_pour_seance
             inscription_cible.save(update_fields=['covoiturage', 'lieu_covoiturage', 'role_pour_seance'])
             nb_mises_a_jour += 1
+    return nb_creees, nb_mises_a_jour
 
+
+def _dupliquer_palanquees_depuis_sortie(sortie_cible, sortie_source, avec_exercices=False):
+    sortie_cible.palanques.all().delete()
+    inscrits_ids = set(sortie_cible.inscriptions.values_list('personne_id', flat=True))
+    palanquees_source = sortie_source.palanques.prefetch_related(
+        'competences', 'exercices_prevus', 'palanqueeeleve_set'
+    ).order_by('id')
+    nb_palanquees = 0
+    for pal_source in palanquees_source:
+        pal_cible = Palanquee.objects.create(
+            nom=pal_source.nom,
+            seance=sortie_cible,
+            section=pal_source.section,
+            encadrant=pal_source.encadrant,
+            precision_exercices=pal_source.precision_exercices,
+            duree=pal_source.duree,
+            profondeur_max=pal_source.profondeur_max,
+        )
+        pal_cible.competences.set(pal_source.competences.all())
+        if avec_exercices:
+            pal_cible.exercices_prevus.set(pal_source.exercices_prevus.all())
+        for pal_eleve in pal_source.palanqueeeleve_set.all():
+            if pal_eleve.eleve_id in inscrits_ids:
+                PalanqueeEleve.objects.create(
+                    palanquee=pal_cible,
+                    eleve_id=pal_eleve.eleve_id,
+                    aptitude=pal_eleve.aptitude,
+                )
+        nb_palanquees += 1
+    return nb_palanquees
+
+
+@login_required
+@group_required('admin')
+@require_POST
+def dupliquer_inscrits_sortie(request, seance_id):
+    sortie_cible = get_object_or_404(Seance, pk=seance_id, type=Seance.TYPE_SORTIE)
+    sortie_source = _get_sortie_source_pour_duplication(request, sortie_cible)
+    if not sortie_source:
+        return redirect('sortie_detail', pk=sortie_cible.pk)
+
+    nb_creees, nb_mises_a_jour = _dupliquer_inscriptions_depuis_sortie(sortie_cible, sortie_source)
     messages.success(
         request,
         f"Duplications terminées depuis la sortie du {sortie_source.date.strftime('%d/%m/%Y')} : "
         f"{nb_creees} inscription(s) créée(s), {nb_mises_a_jour} mise(s) à jour.",
+    )
+    return redirect('sortie_detail', pk=sortie_cible.pk)
+
+
+@login_required
+@group_required('admin')
+@require_POST
+def dupliquer_inscrits_palanquees_sortie(request, seance_id):
+    from django.db import transaction
+
+    sortie_cible = get_object_or_404(Seance, pk=seance_id, type=Seance.TYPE_SORTIE)
+    sortie_source = _get_sortie_source_pour_duplication(request, sortie_cible)
+    if not sortie_source:
+        return redirect('sortie_detail', pk=sortie_cible.pk)
+
+    avec_exercices = request.POST.get('avec_exercices') == '1'
+    with transaction.atomic():
+        nb_creees, nb_mises_a_jour = _dupliquer_inscriptions_depuis_sortie(sortie_cible, sortie_source)
+        nb_palanquees = _dupliquer_palanquees_depuis_sortie(sortie_cible, sortie_source, avec_exercices=avec_exercices)
+
+    exercices_label = "avec" if avec_exercices else "sans"
+    messages.success(
+        request,
+        f"Recopie terminée depuis la sortie du {sortie_source.date.strftime('%d/%m/%Y')} : "
+        f"{nb_creees} inscription(s) créée(s), {nb_mises_a_jour} mise(s) à jour, "
+        f"{nb_palanquees} palanquée(s) recréée(s) ({exercices_label} exercices).",
     )
     return redirect('sortie_detail', pk=sortie_cible.pk)
 

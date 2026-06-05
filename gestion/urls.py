@@ -128,6 +128,7 @@ urlpatterns = [
     path('sorties/<int:seance_id>/export-excel/', views.exporter_inscrits_seance_excel, name='sortie_exporter_inscrits_seance_excel'),
     path('sorties/<int:seance_id>/evaluations/', views.sortie_evaluations, name='sortie_evaluations'),
     path('sorties/<int:seance_id>/dupliquer-inscrits/', views.dupliquer_inscrits_sortie, name='dupliquer_inscrits_sortie'),
+    path('sorties/<int:seance_id>/dupliquer-inscrits-palanquees/', views.dupliquer_inscrits_palanquees_sortie, name='dupliquer_inscrits_palanquees_sortie'),
     
     # Palanquées
     path('palanquees/', PalanqueeListView.as_view(), name='palanquee_list'),

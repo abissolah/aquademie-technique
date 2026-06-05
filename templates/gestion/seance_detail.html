@@ -399,6 +399,25 @@
                         <small class="text-muted">Aucune autre sortie disponible comme source.</small>
                         {% endif %}
                     </form>
+                    <form method="post" action="{% url dupliquer_inscrits_palanquees_sortie_url_name seance.pk %}" class="mt-2">
+                        {% csrf_token %}
+                        <select class="form-select mb-2" name="sortie_source_id" required {% if not sorties_sources_duplication %}disabled{% endif %}>
+                            <option value="">Recopier inscrits et palanquées depuis...</option>
+                            {% for sortie in sorties_sources_duplication %}
+                            <option value="{{ sortie.id }}">
+                                {{ sortie.date|date:"d/m/Y" }}{% if sortie.lieu %} - {{ sortie.lieu.nom }}{% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="d-flex flex-column gap-2">
+                            <button type="submit" name="avec_exercices" value="0" class="btn btn-outline-dark text-start" {% if not sorties_sources_duplication %}disabled{% endif %}>
+                                <i class="fas fa-copy"></i> Recopier les inscrits et les palanquées sans les exercices depuis une autre sortie
+                            </button>
+                            <button type="submit" name="avec_exercices" value="1" class="btn btn-outline-dark text-start" {% if not sorties_sources_duplication %}disabled{% endif %}>
+                                <i class="fas fa-copy"></i> Recopier les inscrits et les palanquées avec les exercices depuis une autre sortie
+                            </button>
+                        </div>
+                    </form>
                     {% endif %}
                 </div>
             </div>
