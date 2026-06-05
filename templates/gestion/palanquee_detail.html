@@ -84,9 +84,9 @@
                     <h6 class="m-0 font-weight-bold text-primary">Exercices prévus</h6>
                 </div>
                 <div class="card-body">
-                    {% if palanquee.exercices_prevus.all %}
+                    {% if palanquee.exercices_prevus_pour_seance %}
                     <div class="row">
-                        {% for exercice in palanquee.exercices_prevus.all %}
+                        {% for exercice in palanquee.exercices_prevus_pour_seance %}
                         <div class="col-md-6 mb-3">
                             <div class="card border-left-success">
                                 <div class="card-body">

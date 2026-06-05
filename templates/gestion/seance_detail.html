@@ -268,8 +268,8 @@
                                         {% endfor %}
                                     {% else %}-{% endif %}<br>
                                     <strong>Exercices :</strong> 
-                                    {% if palanquee.exercices_prevus.all %}
-                                        {% for ex in palanquee.exercices_prevus.all %}
+                                    {% if palanquee.exercices_prevus_pour_seance %}
+                                        {% for ex in palanquee.exercices_prevus_pour_seance %}
                                             {{ ex.nom }}{% if not forloop.last %}, {% endif %}
                                         {% endfor %}
                                     {% else %}-{% endif %}

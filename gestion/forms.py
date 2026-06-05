@@ -203,6 +203,36 @@ class SeanceForm(forms.ModelForm):
             self.add_error('lieu', "Le lieu est obligatoire pour une séance.")
         return cleaned_data
 
+def _resoudre_seance_palanquee_form(seance_id=None, instance=None, data=None):
+    if seance_id:
+        try:
+            return Seance.objects.get(pk=seance_id)
+        except Seance.DoesNotExist:
+            return None
+    if instance and instance.pk:
+        return instance.seance
+    if data and 'seance' in data:
+        try:
+            return Seance.objects.get(pk=data['seance'])
+        except Seance.DoesNotExist:
+            return None
+    return None
+
+
+def exercices_disponibles_pour_palanquee(seance, section=None):
+    if seance and seance.est_sortie:
+        return Exercice.objects.filter(type=Exercice.TYPE_EVALUATION).order_by('nom')
+    if section:
+        competences = Competence.objects.filter(section=section).prefetch_related('exercices')
+        exercices_ids = set()
+        for comp in competences:
+            exercices_ids.update(
+                comp.exercices.filter(type=Exercice.TYPE_CLASSIQUE).values_list('id', flat=True)
+            )
+        return Exercice.objects.filter(id__in=exercices_ids).order_by('nom')
+    return Exercice.objects.none()
+
+
 class PalanqueeForm(forms.ModelForm):
     exercices_prevus = forms.ModelMultipleChoiceField(
         queryset=Exercice.objects.none(),
@@ -249,24 +279,13 @@ class PalanqueeForm(forms.ModelForm):
             if seance:
                 count = seance.palanques.count()
                 self.fields['nom'].initial = f"P{count+1}"
-        # Déterminer le type de séance (séance classique ou sortie)
-        seance = None
-        if seance_id:
-            try:
-                seance = Seance.objects.get(pk=seance_id)
-            except Seance.DoesNotExist:
-                pass
-        elif self.instance and self.instance.pk:
-            seance = self.instance.seance
-        elif 'seance' in self.data:
-            try:
-                seance = Seance.objects.get(pk=self.data['seance'])
-            except Seance.DoesNotExist:
-                pass
+        seance = _resoudre_seance_palanquee_form(
+            seance_id=seance_id,
+            instance=self.instance,
+            data=self.data if hasattr(self, 'data') else None,
+        )
+        self.is_sortie = bool(seance and seance.est_sortie)
 
-        self.is_sortie = bool(seance and seance.type == Seance.TYPE_SORTIE)
-
-        # Exercices groupés selon le type
         section = None
         if 'section' in self.data:
             try:
@@ -276,23 +295,36 @@ class PalanqueeForm(forms.ModelForm):
         elif self.instance and self.instance.pk:
             section = self.instance.section
 
+        self.fields['exercices_prevus'].queryset = exercices_disponibles_pour_palanquee(seance, section)
         if self.is_sortie:
-            self.fields['exercices_prevus'].queryset = Exercice.objects.filter(type=Exercice.TYPE_EVALUATION).order_by('nom')
             self.competence_exercices = []
         elif section:
             competences = Competence.objects.filter(section=section).prefetch_related('exercices')
-            exercices_ids = set()
-            for comp in competences:
-                exercices_ids.update(comp.exercices.filter(type=Exercice.TYPE_CLASSIQUE).values_list('id', flat=True))
-            self.fields['exercices_prevus'].queryset = Exercice.objects.filter(id__in=exercices_ids)
-            # Pour le template : fournir la structure groupée par compétence
             self.competence_exercices = [
-                (comp, comp.exercices.filter(type=Exercice.TYPE_CLASSIQUE))
+                (comp, comp.exercices.filter(type=Exercice.TYPE_CLASSIQUE).order_by('nom'))
                 for comp in competences
             ]
         else:
-            self.fields['exercices_prevus'].queryset = Exercice.objects.none()
             self.competence_exercices = []
+
+        self.exercices_prevus_selectionnes = set()
+        if self.instance.pk:
+            self.exercices_prevus_selectionnes = set(
+                self.instance.exercices_prevus_pour_seance().values_list('id', flat=True)
+            )
+
+    def clean_exercices_prevus(self):
+        exercices = self.cleaned_data.get('exercices_prevus')
+        if not exercices:
+            return exercices
+        seance = _resoudre_seance_palanquee_form(
+            instance=self.instance,
+            data=self.data,
+        )
+        if not seance:
+            return exercices
+        type_attendu = Exercice.TYPE_EVALUATION if seance.est_sortie else Exercice.TYPE_CLASSIQUE
+        return exercices.filter(type=type_attendu)
 
 class EvaluationForm(forms.ModelForm):
     class Meta:
@@ -333,7 +365,7 @@ class EvaluationExerciceBulkForm(forms.Form):
         self.palanquee = palanquee
         # Pour chaque élève et exercice prévu, créer un champ note (1-3 étoiles) et un champ commentaire
         for eleve in palanquee.eleves.all():
-            for exercice in palanquee.exercices_prevus.all():
+            for exercice in palanquee.exercices_prevus_pour_seance():
                 field_name = f"eval_{eleve.id}_{exercice.id}"
                 self.fields[field_name] = forms.ChoiceField(
                     choices=[(1, '1 étoile'), (2, '2 étoiles'), (3, '3 étoiles')],

@@ -2900,6 +2900,55 @@ def generer_fiche_securite_excel(request, seance_id):
                 bottom=copy(ref_border.bottom) if ref_border.bottom else None,
             )
 
+    def _unmerge_cells_on_row(ws, row, col_min, col_max):
+        """Dé-fusionne les plages qui chevauchent une ligne et une bande de colonnes."""
+        to_unmerge = []
+        for merged_range in list(ws.merged_cells.ranges):
+            if (
+                merged_range.min_row <= row <= merged_range.max_row
+                and merged_range.min_col <= col_max
+                and merged_range.max_col >= col_min
+            ):
+                to_unmerge.append(str(merged_range))
+        for ref in to_unmerge:
+            _safe_unmerge_cells(ws, ref)
+
+    def _row_has_eleve_merges(ws, row):
+        for merged_range in ws.merged_cells.ranges:
+            if (
+                merged_range.min_row == row
+                and merged_range.max_row == row
+                and merged_range.min_col == 2
+                and merged_range.max_col == 3
+            ):
+                return True
+        return False
+
+    def _apply_ligne_eleve_merges(ws, row, col_starts_palanquees):
+        """
+        Réapplique les fusions d'une ligne élève (B:C, O:P, R:T, palanquées par 3 colonnes).
+        Nécessaire pour la dernière ligne après insert_rows, qui perd ses fusions avec openpyxl.
+        """
+        from openpyxl.utils import column_index_from_string, get_column_letter
+
+        _unmerge_cells_on_row(ws, row, 2, 62)
+        for start_col, end_col in (('B', 'C'), ('O', 'P'), ('R', 'T')):
+            ws.merge_cells(f'{start_col}{row}:{end_col}{row}')
+        for col_start in col_starts_palanquees:
+            end_col = get_column_letter(column_index_from_string(col_start) + 2)
+            ws.merge_cells(f'{col_start}{row}:{end_col}{row}')
+
+    def _copy_row_styles_from_reference(ws, row, ref_row, col_min, col_max):
+        """Copie bordures et fond depuis une ligne de référence (ligne au-dessus)."""
+        from copy import copy
+
+        for col in range(col_min, col_max + 1):
+            ref_cell = ws.cell(ref_row, col)
+            cell = ws.cell(row, col)
+            if ref_cell.has_style:
+                cell.border = copy(ref_cell.border)
+                cell.fill = copy(ref_cell.fill)
+
     def _generate_sortie_security_sheet(seance):
         """
         Génère la fiche sécurité 'sortie' à partir du modèle ESTARTIT.
@@ -3026,6 +3075,16 @@ def generer_fiche_securite_excel(request, seance_id):
                 ws[f'{col}{row}'] = 'X'
                 if pal_eleve.aptitude:
                     ws[f'R{row}'] = pal_eleve.aptitude
+
+        # insert_rows(16) ne reporte pas les fusions sur la dernière ligne élève (42).
+        from openpyxl.utils import column_index_from_string
+        col_b = 2
+        col_last_palanquee = column_index_from_string(col_starts[-1]) + 2
+        for row in range(row_start, row_end + 1):
+            if not _row_has_eleve_merges(ws, row):
+                ref_row = row - 1 if row > row_start else row + 1
+                _apply_ligne_eleve_merges(ws, row, col_starts)
+                _copy_row_styles_from_reference(ws, row, ref_row, col_b, col_last_palanquee)
 
         output = BytesIO()
         wb.save(output)
@@ -3584,7 +3643,7 @@ def dupliquer_exercices_palanquee(request):
         source_id = int(data.get('source'))
         cibles = [int(cid) for cid in data.get('cibles', [])]
         source = Palanquee.objects.get(pk=source_id)
-        exercices = list(source.exercices_prevus.all())
+        exercices = list(source.exercices_prevus_pour_seance())
         for cible_id in cibles:
             cible = Palanquee.objects.get(pk=cible_id)
             cible.exercices_prevus.set(exercices)
@@ -3739,7 +3798,7 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
         elements.append(Paragraph(f"<b>Participants :</b> {', '.join(eleves_list)}", normal_style))
         elements.append(Spacer(1, 12))
         elements.append(Paragraph("Exercices prévus", heading_style))
-        exercices_list = [ex.nom for ex in palanquee.exercices_prevus.all()]
+        exercices_list = [ex.nom for ex in palanquee.exercices_prevus_pour_seance()]
         for i, exercice in enumerate(exercices_list, 1):
             elements.append(Paragraph(f"{i}. {exercice}", normal_style))
         elements.append(Spacer(1, 12))
@@ -4443,7 +4502,7 @@ def _dupliquer_palanquees_depuis_sortie(sortie_cible, sortie_source, avec_exerci
         )
         pal_cible.competences.set(pal_source.competences.all())
         if avec_exercices:
-            pal_cible.exercices_prevus.set(pal_source.exercices_prevus.all())
+            pal_cible.exercices_prevus.set(pal_source.exercices_prevus_pour_seance())
         for pal_eleve in pal_source.palanqueeeleve_set.all():
             if pal_eleve.eleve_id in inscrits_ids:
                 PalanqueeEleve.objects.create(
@@ -4571,7 +4630,7 @@ def envoyer_pdf_palanquee_encadrant(request, palanquee_id):
     elements.append(Paragraph(f"<b>Participants :</b> {', '.join(eleves_list)}", normal_style))
     elements.append(Spacer(1, 12))
     elements.append(Paragraph("Exercices prévus", heading_style))
-    exercices_list = [ex.nom for ex in palanquee.exercices_prevus.all()]
+    exercices_list = [ex.nom for ex in palanquee.exercices_prevus_pour_seance()]
     for i, exercice in enumerate(exercices_list, 1):
         elements.append(Paragraph(f"{i}. {exercice}", normal_style))
     elements.append(Spacer(1, 12))

@@ -83,20 +83,21 @@ class PalanqueeCreateView(LoginRequiredMixin, CreateView):
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        seance_id = self.request.GET.get('seance')
+        seance_id = self.request.GET.get('seance') or self.request.POST.get('seance')
         if seance_id:
             kwargs['seance_id'] = seance_id
         return kwargs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        seance_id = self.request.GET.get('seance')
+        form = context.get('form')
+        seance_id = self.request.GET.get('seance') or self.request.POST.get('seance')
         seance = None
         if seance_id:
             from .models import Seance
             seance = Seance.objects.filter(pk=seance_id).first()
         context['seance_cible'] = seance
-        context['is_sortie'] = bool(seance and seance.est_sortie)
+        context['is_sortie'] = form.is_sortie if form and hasattr(form, 'is_sortie') else bool(seance and seance.est_sortie)
         return context
 
     def form_valid(self, form):
@@ -126,6 +127,12 @@ class PalanqueeUpdateView(LoginRequiredMixin, UpdateView):
     template_name = 'gestion/palanquee_form.html'
     success_url = reverse_lazy('palanquee_list')
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        if self.object:
+            kwargs['seance_id'] = self.object.seance_id
+        return kwargs
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         palanquee = self.object
@@ -141,8 +148,9 @@ class PalanqueeUpdateView(LoginRequiredMixin, UpdateView):
         eleves_seance_aptitudes = [(eleve, eleves_aptitudes.get(eleve.id, '')) for eleve in eleves_seance]
         context['eleves_seance_aptitudes'] = eleves_seance_aptitudes
         context['eleves_palanquee'] = eleves_palanquee
+        form = context.get('form')
         context['seance_cible'] = seance
-        context['is_sortie'] = seance.est_sortie
+        context['is_sortie'] = form.is_sortie if form and hasattr(form, 'is_sortie') else seance.est_sortie
         return context
 
     def form_valid(self, form):
@@ -217,7 +225,7 @@ def palanquee_evaluation_view(request, pk):
     """Voir les évaluations d'une palanquée (par exercice, groupé par compétence)"""
     palanquee = get_object_or_404(Palanquee, pk=pk)
     eleves = palanquee.eleves.all()
-    exercices_prevus = palanquee.exercices_prevus.select_related().all()
+    exercices_prevus = list(palanquee.exercices_prevus_pour_seance())
     # On regroupe les exercices par compétence pour les séances classiques.
     from collections import defaultdict
     exercices_par_competence = defaultdict(list)
@@ -307,10 +315,11 @@ def evaluation_publique(request, token):
         form = EvaluationExerciceBulkForm(palanquee, request.POST)
         if form.is_valid():
             evaluations_sauvegardees = 0
-            total_evaluations_attendues = palanquee.eleves.count() * palanquee.exercices_prevus.count()
+            exercices_palanquee = palanquee.exercices_prevus_pour_seance()
+            total_evaluations_attendues = palanquee.eleves.count() * exercices_palanquee.count()
             encadrant = palanquee.encadrant
             for eleve in palanquee.eleves.all():
-                for exercice in palanquee.exercices_prevus.all():
+                for exercice in exercices_palanquee:
                     note = form.cleaned_data.get(f'eval_{eleve.id}_{exercice.id}')
                     commentaire = form.cleaned_data.get(f'comment_{eleve.id}_{exercice.id}')
                     raison = form.cleaned_data.get(f'raison_{eleve.id}_{exercice.id}')
@@ -385,7 +394,7 @@ def evaluation_publique(request, token):
     eleves_exercices = []
     for eleve in palanquee.eleves.all():
         exos = []
-        for exercice in palanquee.exercices_prevus.all():
+        for exercice in palanquee.exercices_prevus_pour_seance():
             field_name = f"eval_{eleve.id}_{exercice.id}"
             comment_field = f"comment_{eleve.id}_{exercice.id}"
             raison_field = f"raison_{eleve.id}_{exercice.id}"
@@ -461,7 +470,7 @@ def generer_fiche_palanquee_pdf(request, pk):
     
     # Exercices prévus
     elements.append(Paragraph("Exercices prévus", heading_style))
-    exercices_list = [ex.nom for ex in palanquee.exercices_prevus.all()]
+    exercices_list = [ex.nom for ex in palanquee.exercices_prevus_pour_seance()]
     for i, exercice in enumerate(exercices_list, 1):
         elements.append(Paragraph(f"{i}. {exercice}", normal_style))
     elements.append(Spacer(1, 12))

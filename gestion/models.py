@@ -261,6 +261,12 @@ class Palanquee(models.Model):
     def __str__(self):
         return f"{self.seance.date} - {self.nom} - {self.encadrant.nom_complet}"
 
+    def type_exercice_attendu(self):
+        return Exercice.TYPE_EVALUATION if self.seance.est_sortie else Exercice.TYPE_CLASSIQUE
+
+    def exercices_prevus_pour_seance(self):
+        return self.exercices_prevus.filter(type=self.type_exercice_attendu()).order_by('nom')
+
 class Evaluation(models.Model):
     palanquee = models.ForeignKey(Palanquee, on_delete=models.CASCADE, related_name='evaluations')
     eleve = models.ForeignKey(Adherent, on_delete=models.CASCADE, related_name='evaluations_recues', limit_choices_to={'statut': 'eleve'})
