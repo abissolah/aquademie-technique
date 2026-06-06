@@ -379,8 +379,11 @@
                     {% if is_sortie %}
                     {% if palanquees %}
                     <a href="{% url programmes_palanquees_pdf_url_name seance.pk %}" class="btn btn-outline-secondary">
-                        <i class="fas fa-download"></i> Télécharger les programmes de toutes les palanquées
+                        <i class="fas fa-download"></i> Télécharger tous les programmes (1 PDF)
                     </a>
+                    <button type="button" class="btn btn-outline-secondary" id="btn-telecharger-programmes-par-palanquee">
+                        <i class="fas fa-download"></i> Télécharger tous les programmes (1 fichier par palanquée)
+                    </button>
                     {% endif %}
                     <a href="{% url evaluations_sortie_url_name seance.pk %}" class="btn btn-outline-primary">
                         <i class="fas fa-clipboard-check"></i> Voir les évaluations envoyées
@@ -1087,6 +1090,73 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Protection contre les doubles clics pour l'envoi de mail de covoiturage
+    {% if is_sortie and palanquees %}
+    const palanqueesPdfUrls = [
+        {% for palanquee in palanquees %}
+        "{% url 'generer_fiche_palanquee_pdf' palanquee.pk %}",
+        {% endfor %}
+    ];
+
+    function parsePdfFilename(contentDisposition) {
+        if (!contentDisposition) {
+            return 'programme.pdf';
+        }
+        const utf8Match = /filename\*=UTF-8''([^;]+)/i.exec(contentDisposition);
+        if (utf8Match) {
+            return decodeURIComponent(utf8Match[1]);
+        }
+        const asciiMatch = /filename="([^"]+)"/i.exec(contentDisposition);
+        if (asciiMatch) {
+            return asciiMatch[1];
+        }
+        return 'programme.pdf';
+    }
+
+    async function telechargerProgrammesParPalanquee(btn) {
+        if (!palanqueesPdfUrls.length) {
+            return;
+        }
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        let errors = 0;
+        for (let i = 0; i < palanqueesPdfUrls.length; i++) {
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Téléchargement '
+                + (i + 1) + '/' + palanqueesPdfUrls.length + '…';
+            try {
+                const response = await fetch(palanqueesPdfUrls[i], { credentials: 'same-origin' });
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status);
+                }
+                const blob = await response.blob();
+                const filename = parsePdfFilename(response.headers.get('Content-Disposition'));
+                const objectUrl = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = objectUrl;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                URL.revokeObjectURL(objectUrl);
+                await new Promise(function (resolve) { setTimeout(resolve, 400); });
+            } catch (err) {
+                errors += 1;
+            }
+        }
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+        if (errors) {
+            alert('Erreur lors du téléchargement de ' + errors + ' fichier(s).');
+        }
+    }
+
+    const btnTelechargerParPalanquee = document.getElementById('btn-telecharger-programmes-par-palanquee');
+    if (btnTelechargerParPalanquee) {
+        btnTelechargerParPalanquee.addEventListener('click', function () {
+            telechargerProgrammesParPalanquee(this);
+        });
+    }
+    {% endif %}
+
     const btnEnvoyerCovoiturage = document.getElementById('btn-envoyer-covoiturage');
     if (btnEnvoyerCovoiturage) {
         btnEnvoyerCovoiturage.addEventListener('click', function(e) {

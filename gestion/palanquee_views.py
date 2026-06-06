@@ -8,6 +8,7 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from django.urls import reverse_lazy
 from django.utils import timezone
 from datetime import timedelta
+import re
 from io import BytesIO
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
@@ -484,6 +485,27 @@ def write_palanquee_pdf(buffer, palanquee):
     doc.build(build_palanquee_pdf_elements(palanquee))
 
 
+def _palanquee_pdf_filename(palanquee):
+    encadrant_part = (
+        palanquee.encadrant.nom_complet.replace(' ', '_')
+        if palanquee.encadrant
+        else palanquee.nom.replace(' ', '_')
+    )
+    encadrant_part = re.sub(r'[^\w\-]+', '_', encadrant_part, flags=re.UNICODE).strip('_')
+    section_part = re.sub(
+        r'[^\w\-]+', '_', palanquee.section.get_nom_display(), flags=re.UNICODE
+    ).strip('_')
+    return f"fiche_palanquee_{palanquee.seance.date}_{section_part}_{encadrant_part}.pdf"
+
+
+def _palanquees_sortie_queryset(seance):
+    return (
+        seance.palanques.select_related('seance', 'section', 'encadrant')
+        .prefetch_related('eleves')
+        .order_by('id')
+    )
+
+
 # Vues pour la génération de PDF
 @login_required
 def generer_fiche_palanquee_pdf(request, pk):
@@ -493,10 +515,7 @@ def generer_fiche_palanquee_pdf(request, pk):
         pk=pk,
     )
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = (
-        f'attachment; filename="fiche_palanquee_{palanquee.seance.date}_'
-        f'{palanquee.section.get_nom_display()}.pdf"'
-    )
+    response['Content-Disposition'] = f'attachment; filename="{_palanquee_pdf_filename(palanquee)}"'
     write_palanquee_pdf(response, palanquee)
     return response
 
@@ -507,11 +526,7 @@ def generer_programmes_palanquees_sortie_pdf(request, seance_id):
     from .models import Seance
 
     seance = get_object_or_404(Seance, pk=seance_id, type=Seance.TYPE_SORTIE)
-    palanquees = list(
-        seance.palanques.select_related('seance', 'section', 'encadrant')
-        .prefetch_related('eleves')
-        .order_by('id')
-    )
+    palanquees = list(_palanquees_sortie_queryset(seance))
     if not palanquees:
         messages.warning(request, "Aucune palanquée à exporter pour cette sortie.")
         return redirect('sortie_detail', pk=seance_id)
@@ -531,6 +546,7 @@ def generer_programmes_palanquees_sortie_pdf(request, seance_id):
         f'attachment; filename="programmes_palanquees_sortie_{seance.date.strftime("%Y-%m-%d")}.pdf"'
     )
     return response
+
 
 # Vues utilitaires
 @login_required
