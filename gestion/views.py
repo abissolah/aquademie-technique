@@ -41,7 +41,7 @@ from gestion.models import EvaluationExercice, GroupeCompetence, Competence, Exe
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.mail import EmailMessage
 import tempfile
-from gestion.palanquee_views import generer_fiche_palanquee_pdf
+from gestion.palanquee_views import generer_fiche_palanquee_pdf, write_palanquee_pdf
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
@@ -658,6 +658,7 @@ class SeanceDetailView(LoginRequiredMixin, DetailView):
         context['evaluations_sortie_url_name'] = 'sortie_evaluations' if is_sortie else ''
         context['dupliquer_inscrits_sortie_url_name'] = 'dupliquer_inscrits_sortie' if is_sortie else ''
         context['dupliquer_inscrits_palanquees_sortie_url_name'] = 'dupliquer_inscrits_palanquees_sortie' if is_sortie else ''
+        context['programmes_palanquees_pdf_url_name'] = 'sortie_programmes_palanquees_pdf' if is_sortie else ''
         if is_sortie:
             context['sorties_sources_duplication'] = Seance.objects.filter(
                 type=Seance.TYPE_SORTIE
@@ -3702,6 +3703,8 @@ def _envoi_pdf_palanquees_wants_json(request):
     return 'application/json' in accept
 
 
+@csrf_exempt
+@require_POST
 @login_required
 def envoyer_pdf_palanquees_encadrants(request, seance_id):
     seance = get_object_or_404(Seance, pk=seance_id)
@@ -3772,40 +3775,8 @@ def envoyer_pdf_palanquees_encadrants(request, seance_id):
         encadrant = palanquee.encadrant
         if not encadrant or not encadrant.email:
             continue
-        # Générer le PDF en mémoire (même contenu que generer_fiche_palanquee_pdf)
         buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4)
-        elements = []
-        styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            'CustomTitle', parent=styles['Heading1'], fontSize=16, spaceAfter=30, alignment=TA_CENTER
-        )
-        heading_style = ParagraphStyle(
-            'CustomHeading', parent=styles['Heading2'], fontSize=14, spaceAfter=12, spaceBefore=20
-        )
-        normal_style = styles['Normal']
-        encadrant_nom = palanquee.encadrant.nom_complet if palanquee.encadrant else "-"
-        elements.append(Paragraph(f"Palanquée : {encadrant_nom}", title_style))
-        elements.append(Spacer(1, 20))
-        elements.append(Paragraph("Informations générales", heading_style))
-        elements.append(Paragraph(f"<b>Date :</b> {palanquee.seance.date.strftime('%d/%m/%Y')}", normal_style))
-        elements.append(Paragraph(f"<b>Lieu :</b> {palanquee.seance.lieu}", normal_style))
-        elements.append(Paragraph(f"<b>Encadrant :</b> {encadrant_nom}", normal_style))
-        elements.append(Paragraph(f"<b>Section :</b> {palanquee.section.get_nom_display()}", normal_style))
-        elements.append(Spacer(1, 12))
-        elements.append(Paragraph("Élèves", heading_style))
-        eleves_list = [eleve.nom_complet for eleve in palanquee.eleves.all()]
-        elements.append(Paragraph(f"<b>Participants :</b> {', '.join(eleves_list)}", normal_style))
-        elements.append(Spacer(1, 12))
-        elements.append(Paragraph("Exercices prévus", heading_style))
-        exercices_list = [ex.nom for ex in palanquee.exercices_prevus_pour_seance()]
-        for i, exercice in enumerate(exercices_list, 1):
-            elements.append(Paragraph(f"{i}. {exercice}", normal_style))
-        elements.append(Spacer(1, 12))
-        if palanquee.precision_exercices:
-            elements.append(Paragraph("Nota", heading_style))
-            elements.append(Paragraph(palanquee.precision_exercices, normal_style))
-        doc.build(elements)
+        write_palanquee_pdf(buffer, palanquee)
         buffer.seek(0)
         # Corps du mail : template Django + signature
         subject = f"Fiche palanquée - {palanquee.nom} ({seance.date})"

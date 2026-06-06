@@ -5,7 +5,9 @@ from .palanquee_views import (
     PalanqueeUpdateView, PalanqueeDeleteView,
     palanquee_evaluation, palanquee_evaluation_view,
     generer_lien_evaluation, evaluation_publique,
-    generer_fiche_palanquee_pdf, envoyer_lien_par_email
+    generer_fiche_palanquee_pdf,
+    generer_programmes_palanquees_sortie_pdf,
+    envoyer_lien_par_email
 )
 from .views import evaluations_list
 from .seance_views import CommunicationSeanceView
@@ -129,6 +131,11 @@ urlpatterns = [
     path('sorties/<int:seance_id>/evaluations/', views.sortie_evaluations, name='sortie_evaluations'),
     path('sorties/<int:seance_id>/dupliquer-inscrits/', views.dupliquer_inscrits_sortie, name='dupliquer_inscrits_sortie'),
     path('sorties/<int:seance_id>/dupliquer-inscrits-palanquees/', views.dupliquer_inscrits_palanquees_sortie, name='dupliquer_inscrits_palanquees_sortie'),
+    path(
+        'sorties/<int:seance_id>/programmes-palanquees-pdf/',
+        generer_programmes_palanquees_sortie_pdf,
+        name='sortie_programmes_palanquees_pdf',
+    ),
     
     # Palanquées
     path('palanquees/', PalanqueeListView.as_view(), name='palanquee_list'),

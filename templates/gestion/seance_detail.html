@@ -377,6 +377,11 @@
                         <i class="fas fa-link"></i> Générer et envoyer liens d'évaluation à tous les encadrants
                     </a>
                     {% if is_sortie %}
+                    {% if palanquees %}
+                    <a href="{% url programmes_palanquees_pdf_url_name seance.pk %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-download"></i> Télécharger les programmes de toutes les palanquées
+                    </a>
+                    {% endif %}
                     <a href="{% url evaluations_sortie_url_name seance.pk %}" class="btn btn-outline-primary">
                         <i class="fas fa-clipboard-check"></i> Voir les évaluations envoyées
                     </a>
@@ -632,6 +637,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
             </div>
             <div class="modal-body">
+                {% csrf_token %}
                 <div id="pdf-pal-envoi-feedback" class="alert d-none mb-3" role="alert" style="white-space: pre-wrap;"></div>
                 <p class="text-muted small mb-2">
                     Le texte est mémorisé pour les prochaines séances. Chaque encadrant reçoit sa fiche PDF en pièce jointe.
@@ -671,6 +677,18 @@ function getCsrfTokenFromCookie() {
         .split('; ')
         .find(row => row.startsWith('csrftoken='));
     return cookieValue ? decodeURIComponent(cookieValue.split('=')[1]) : '';
+}
+
+function getCsrfToken() {
+    const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (input && input.value) {
+        return input.value;
+    }
+    const fromCookie = getCsrfTokenFromCookie();
+    if (fromCookie) {
+        return fromCookie;
+    }
+    return '{{ csrf_token }}';
 }
 
 const PDF_PAL_EDITOR_ID = 'corps_mail_pdf_palanquees';
@@ -754,7 +772,7 @@ if (modalMailPdfPalanquees) {
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
-                    'X-CSRFToken': getCsrfTokenFromCookie(),
+                    'X-CSRFToken': getCsrfToken(),
                 },
                 body: JSON.stringify({ corps_html: html }),
             })

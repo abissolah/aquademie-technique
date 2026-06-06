@@ -8,8 +8,9 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from django.urls import reverse_lazy
 from django.utils import timezone
 from datetime import timedelta
+from io import BytesIO
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 
@@ -65,7 +66,11 @@ class PalanqueeDetailView(LoginRequiredMixin, DetailView):
         
         context['lien_actif'] = lien_actif
         context['liens_utilises'] = liens_utilises
-        
+        context['is_sortie'] = palanquee.seance.est_sortie
+        context['seance_detail_url_name'] = (
+            'sortie_detail' if palanquee.seance.est_sortie else 'seance_detail'
+        )
+
         return context
 
 class PalanqueeCreateView(LoginRequiredMixin, CreateView):
@@ -417,70 +422,114 @@ def evaluation_publique(request, token):
     }
     return render(request, 'gestion/evaluation_publique.html', context)
 
+def _get_palanquee_pdf_styles():
+    styles = getSampleStyleSheet()
+    return {
+        'title': ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            spaceAfter=30,
+            alignment=TA_CENTER,
+        ),
+        'heading': ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=14,
+            spaceAfter=12,
+            spaceBefore=20,
+        ),
+        'normal': styles['Normal'],
+    }
+
+
+def build_palanquee_pdf_elements(palanquee):
+    """Construit le contenu PDF d'une fiche palanquée (réutilisable pour envoi mail / export groupé)."""
+    styles = _get_palanquee_pdf_styles()
+    title_style = styles['title']
+    heading_style = styles['heading']
+    normal_style = styles['normal']
+
+    encadrant_nom = palanquee.encadrant.nom_complet if palanquee.encadrant else "-"
+    elements = [
+        Paragraph(f"Palanquée : {encadrant_nom}", title_style),
+        Spacer(1, 20),
+        Paragraph("Informations générales", heading_style),
+        Paragraph(f"<b>Date :</b> {palanquee.seance.date.strftime('%d/%m/%Y')}", normal_style),
+        Paragraph(f"<b>Lieu :</b> {palanquee.seance.lieu}", normal_style),
+        Paragraph(f"<b>Encadrant :</b> {encadrant_nom}", normal_style),
+        Paragraph(f"<b>Section :</b> {palanquee.section.get_nom_display()}", normal_style),
+        Spacer(1, 12),
+        Paragraph("Élèves", heading_style),
+        Paragraph(
+            f"<b>Participants :</b> {', '.join(eleve.nom_complet for eleve in palanquee.eleves.all())}",
+            normal_style,
+        ),
+        Spacer(1, 12),
+        Paragraph("Exercices prévus", heading_style),
+    ]
+    for i, exercice in enumerate(
+        [ex.nom for ex in palanquee.exercices_prevus_pour_seance()], start=1
+    ):
+        elements.append(Paragraph(f"{i}. {exercice}", normal_style))
+    elements.append(Spacer(1, 12))
+    if palanquee.precision_exercices:
+        elements.append(Paragraph("Nota", heading_style))
+        elements.append(Paragraph(palanquee.precision_exercices, normal_style))
+    return elements
+
+
+def write_palanquee_pdf(buffer, palanquee):
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    doc.build(build_palanquee_pdf_elements(palanquee))
+
+
 # Vues pour la génération de PDF
 @login_required
 def generer_fiche_palanquee_pdf(request, pk):
     """Générer la fiche PDF d'une palanquée"""
-    palanquee = get_object_or_404(Palanquee, pk=pk)
-    
-    # Créer le PDF
+    palanquee = get_object_or_404(
+        Palanquee.objects.select_related('seance', 'section', 'encadrant').prefetch_related('eleves'),
+        pk=pk,
+    )
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="fiche_palanquee_{palanquee.seance.date}_{palanquee.section.get_nom_display()}.pdf"'
-    
-    doc = SimpleDocTemplate(response, pagesize=A4)
+    response['Content-Disposition'] = (
+        f'attachment; filename="fiche_palanquee_{palanquee.seance.date}_'
+        f'{palanquee.section.get_nom_display()}.pdf"'
+    )
+    write_palanquee_pdf(response, palanquee)
+    return response
+
+
+@login_required
+def generer_programmes_palanquees_sortie_pdf(request, seance_id):
+    """Télécharge un PDF regroupant le programme de chaque palanquée d'une sortie."""
+    from .models import Seance
+
+    seance = get_object_or_404(Seance, pk=seance_id, type=Seance.TYPE_SORTIE)
+    palanquees = list(
+        seance.palanques.select_related('seance', 'section', 'encadrant')
+        .prefetch_related('eleves')
+        .order_by('id')
+    )
+    if not palanquees:
+        messages.warning(request, "Aucune palanquée à exporter pour cette sortie.")
+        return redirect('sortie_detail', pk=seance_id)
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
     elements = []
-    
-    # Styles
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=16,
-        spaceAfter=30,
-        alignment=TA_CENTER
-    )
-    heading_style = ParagraphStyle(
-        'CustomHeading',
-        parent=styles['Heading2'],
-        fontSize=14,
-        spaceAfter=12,
-        spaceBefore=20
-    )
-    normal_style = styles['Normal']
-    
-    # Titre
-    encadrant_nom = palanquee.encadrant.nom_complet if palanquee.encadrant else "-"
-    elements.append(Paragraph(f"Palanquée : {encadrant_nom}", title_style))
-    elements.append(Spacer(1, 20))
-    
-    # Informations générales
-    elements.append(Paragraph("Informations générales", heading_style))
-    elements.append(Paragraph(f"<b>Date :</b> {palanquee.seance.date.strftime('%d/%m/%Y')}", normal_style))
-    elements.append(Paragraph(f"<b>Lieu :</b> {palanquee.seance.lieu}", normal_style))
-    elements.append(Paragraph(f"<b>Encadrant :</b> {palanquee.encadrant.nom_complet}", normal_style))
-    elements.append(Paragraph(f"<b>Section :</b> {palanquee.section.get_nom_display()}", normal_style))
-    elements.append(Spacer(1, 12))
-    
-    # Élèves
-    elements.append(Paragraph("Élèves", heading_style))
-    eleves_list = [eleve.nom_complet for eleve in palanquee.eleves.all()]
-    elements.append(Paragraph(f"<b>Participants :</b> {', '.join(eleves_list)}", normal_style))
-    elements.append(Spacer(1, 12))
-    
-    # Exercices prévus
-    elements.append(Paragraph("Exercices prévus", heading_style))
-    exercices_list = [ex.nom for ex in palanquee.exercices_prevus_pour_seance()]
-    for i, exercice in enumerate(exercices_list, 1):
-        elements.append(Paragraph(f"{i}. {exercice}", normal_style))
-    elements.append(Spacer(1, 12))
-    
-    # Nota (anciennement Précisions des exercices)
-    if palanquee.precision_exercices:
-        elements.append(Paragraph("Nota", heading_style))
-        elements.append(Paragraph(palanquee.precision_exercices, normal_style))
-    
-    # Construire le PDF
+    for index, palanquee in enumerate(palanquees):
+        if index > 0:
+            elements.append(PageBreak())
+        elements.extend(build_palanquee_pdf_elements(palanquee))
     doc.build(elements)
+    buffer.seek(0)
+
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = (
+        f'attachment; filename="programmes_palanquees_sortie_{seance.date.strftime("%Y-%m-%d")}.pdf"'
+    )
     return response
 
 # Vues utilitaires
