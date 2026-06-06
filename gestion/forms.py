@@ -219,18 +219,33 @@ def _resoudre_seance_palanquee_form(seance_id=None, instance=None, data=None):
     return None
 
 
-def exercices_disponibles_pour_palanquee(seance, section=None):
+def _type_exercice_pour_seance(seance):
     if seance and seance.est_sortie:
-        return Exercice.objects.filter(type=Exercice.TYPE_EVALUATION).order_by('nom')
-    if section:
-        competences = Competence.objects.filter(section=section).prefetch_related('exercices')
-        exercices_ids = set()
-        for comp in competences:
-            exercices_ids.update(
-                comp.exercices.filter(type=Exercice.TYPE_CLASSIQUE).values_list('id', flat=True)
-            )
-        return Exercice.objects.filter(id__in=exercices_ids).order_by('nom')
-    return Exercice.objects.none()
+        return Exercice.TYPE_EVALUATION
+    return Exercice.TYPE_CLASSIQUE
+
+
+def competence_exercices_pour_palanquee(seance, section=None):
+    if not section:
+        return []
+    type_exercice = _type_exercice_pour_seance(seance)
+    competences = Competence.objects.filter(section=section).prefetch_related('exercices')
+    return [
+        (comp, comp.exercices.filter(type=type_exercice).order_by('nom'))
+        for comp in competences
+    ]
+
+
+def exercices_disponibles_pour_palanquee(seance, section=None):
+    if not section:
+        return Exercice.objects.none()
+    type_exercice = _type_exercice_pour_seance(seance)
+    exercices_ids = set()
+    for comp in Competence.objects.filter(section=section).prefetch_related('exercices'):
+        exercices_ids.update(
+            comp.exercices.filter(type=type_exercice).values_list('id', flat=True)
+        )
+    return Exercice.objects.filter(id__in=exercices_ids).order_by('nom')
 
 
 class PalanqueeForm(forms.ModelForm):
@@ -296,16 +311,7 @@ class PalanqueeForm(forms.ModelForm):
             section = self.instance.section
 
         self.fields['exercices_prevus'].queryset = exercices_disponibles_pour_palanquee(seance, section)
-        if self.is_sortie:
-            self.competence_exercices = []
-        elif section:
-            competences = Competence.objects.filter(section=section).prefetch_related('exercices')
-            self.competence_exercices = [
-                (comp, comp.exercices.filter(type=Exercice.TYPE_CLASSIQUE).order_by('nom'))
-                for comp in competences
-            ]
-        else:
-            self.competence_exercices = []
+        self.competence_exercices = competence_exercices_pour_palanquee(seance, section)
 
         self.exercices_prevus_selectionnes = set()
         if self.instance.pk:
@@ -321,10 +327,18 @@ class PalanqueeForm(forms.ModelForm):
             instance=self.instance,
             data=self.data,
         )
-        if not seance:
-            return exercices
-        type_attendu = Exercice.TYPE_EVALUATION if seance.est_sortie else Exercice.TYPE_CLASSIQUE
-        return exercices.filter(type=type_attendu)
+        section = self.cleaned_data.get('section')
+        if not section and self.instance.pk:
+            section = self.instance.section
+        if seance and section:
+            allowed_ids = set(
+                exercices_disponibles_pour_palanquee(seance, section).values_list('id', flat=True)
+            )
+            return exercices.filter(id__in=allowed_ids)
+        if seance:
+            type_attendu = _type_exercice_pour_seance(seance)
+            return exercices.filter(type=type_attendu)
+        return exercices
 
 class EvaluationForm(forms.ModelForm):
     class Meta:

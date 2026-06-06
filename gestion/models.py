@@ -265,7 +265,13 @@ class Palanquee(models.Model):
         return Exercice.TYPE_EVALUATION if self.seance.est_sortie else Exercice.TYPE_CLASSIQUE
 
     def exercices_prevus_pour_seance(self):
-        return self.exercices_prevus.filter(type=self.type_exercice_attendu()).order_by('nom')
+        type_exercice = self.type_exercice_attendu()
+        exercices_ids = set()
+        for comp in self.section.competences.prefetch_related('exercices'):
+            exercices_ids.update(
+                comp.exercices.filter(type=type_exercice).values_list('id', flat=True)
+            )
+        return self.exercices_prevus.filter(id__in=exercices_ids).order_by('nom')
 
 class Evaluation(models.Model):
     palanquee = models.ForeignKey(Palanquee, on_delete=models.CASCADE, related_name='evaluations')

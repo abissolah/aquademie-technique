@@ -226,14 +226,13 @@ def palanquee_evaluation_view(request, pk):
     palanquee = get_object_or_404(Palanquee, pk=pk)
     eleves = palanquee.eleves.all()
     exercices_prevus = list(palanquee.exercices_prevus_pour_seance())
-    # On regroupe les exercices par compétence pour les séances classiques.
     from collections import defaultdict
     exercices_par_competence = defaultdict(list)
-    if palanquee.seance.est_sortie:
-        exercices_par_competence[None] = list(exercices_prevus)
-    else:
-        for exercice in exercices_prevus:
-            for comp in exercice.competences.all():
+    prevus_ids = {ex.id for ex in exercices_prevus}
+    type_exercice = palanquee.type_exercice_attendu()
+    for comp in palanquee.section.competences.prefetch_related('exercices').order_by('nom'):
+        for exercice in comp.exercices.filter(type=type_exercice):
+            if exercice.id in prevus_ids:
                 exercices_par_competence[comp].append(exercice)
     # On prépare la structure : {eleve: {competence: [ {exercice, note, commentaire} ] } }
     evaluations = EvaluationExercice.objects.filter(palanquee=palanquee)

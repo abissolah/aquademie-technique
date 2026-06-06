@@ -88,22 +88,7 @@
                     
                     {# Bloc de sélection des exercices #}
                     <div class="mb-3">
-                        {% if is_sortie %}
-                        <label class="form-label"><strong>Exercices d'évaluation</strong></label>
-                        <div class="row">
-                            {% for exercice in form.fields.exercices_prevus.queryset %}
-                            <div class="col-md-6">
-                                <div class="form-check">
-                                    <input class="form-check-input exercice-checkbox" type="checkbox" name="exercices_prevus" value="{{ exercice.id }}" id="ex_{{ exercice.id }}" {% if exercice.id in form.exercices_prevus_selectionnes %}checked{% endif %}>
-                                    <label class="form-check-label" for="ex_{{ exercice.id }}">{{ exercice.nom }}</label>
-                                </div>
-                            </div>
-                            {% empty %}
-                            <span class="text-muted">Aucun exercice d'évaluation disponible.</span>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <label class="form-label"><strong>Exercices à réaliser (groupés par compétence)</strong></label>
+                        <label class="form-label"><strong>{% if is_sortie %}Exercices d'évaluation (groupés par compétence){% else %}Exercices à réaliser (groupés par compétence){% endif %}</strong></label>
                         {% for comp, exercices in form.competence_exercices %}
                             <div class="border rounded p-2 mb-2">
                                 <div class="form-check mb-1">
@@ -118,13 +103,14 @@
                                                 <label class="form-check-label" for="ex_{{ exercice.id }}">{{ exercice.nom }}</label>
                                             </div>
                                         </div>
+                                    {% empty %}
+                                        <span class="text-muted ms-2">Aucun exercice{% if is_sortie %} d'évaluation{% endif %} pour cette compétence.</span>
                                     {% endfor %}
                                 </div>
                             </div>
                         {% empty %}
-                            <span class="text-muted">Aucun exercice disponible pour cette section.</span>
+                            <span class="text-muted">Aucun exercice{% if is_sortie %} d'évaluation{% endif %} disponible pour cette section.</span>
                         {% endfor %}
-                        {% endif %}
                     </div>
                     
                     {{ form.precision_exercices|as_crispy_field }}
