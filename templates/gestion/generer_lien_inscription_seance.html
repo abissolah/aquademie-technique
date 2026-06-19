@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Générer le lien d'inscription - Club de Plongée{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-link me-2"></i>
+                Générer le lien d'inscription
+            </h1>
+            <a href="{% url detail_url_name seance.pk %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Retour à la {{ titre_objet|lower }}
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    {{ titre_objet }} du {{ seance.date|date:'d/m/Y' }} — {{ seance.lieu.nom }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Par défaut, le lien expire le mercredi précédant la séance à 23:59. Vous pouvez modifier cette date et heure si besoin.
+                </div>
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    {{ form.non_field_errors }}
+                    <div class="mb-3">
+                        {{ form.date_expiration|as_crispy_field }}
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url detail_url_name seance.pk %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Annuler
+                        </a>
+                        <button type="submit" class="btn btn-info">
+                            <i class="fas fa-link me-2"></i>Générer le lien
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -34,7 +34,7 @@ import logging
 import time
 
 from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation, Palanquee, Lieu, LienInscriptionSeance, InscriptionSeance, Exercice
-from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm, ExerciceForm, ExerciceEvaluationForm, AdminInscriptionSeanceForm, AffectationSectionMasseForm, CommunicationSeanceForm, CommunicationAdherentsForm
+from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm, ExerciceForm, ExerciceEvaluationForm, AdminInscriptionSeanceForm, AffectationSectionMasseForm, CommunicationSeanceForm, CommunicationAdherentsForm, GenererLienInscriptionForm
 from .utils import envoyer_lien_evaluation, envoyer_lien_evaluation_avec_cc
 from .models import PalanqueeEleve
 from gestion.models import EvaluationExercice, GroupeCompetence, Competence, Exercice, Adherent
@@ -1356,19 +1356,29 @@ def generer_lien_inscription_seance(request, seance_id):
     if _is_sortie(seance):
         messages.error(request, "Les liens d'inscription publique ne sont pas disponibles pour les sorties.")
         return redirect(_detail_route_name_for_seance(seance), pk=seance.pk)
-    # Calcul du mercredi précédent la date de la séance
-    seance_date = seance.date
-    weekday = seance_date.weekday()  # 0=lundi, 2=mercredi
-    days_since_wed = (weekday - 2) % 7
-    expiration_date = seance_date - timedelta(days=days_since_wed)
-    # Heure d'expiration : 23:59
-    expiration = timezone.make_aware(datetime.combine(expiration_date, datetime.max.time().replace(hour=23, minute=59, second=0, microsecond=0)))
-    lien, created = LienInscriptionSeance.objects.update_or_create(
-        seance=seance,
-        defaults={'date_expiration': expiration}
+
+    if request.method == 'POST':
+        form = GenererLienInscriptionForm(seance, request.POST)
+        if form.is_valid():
+            LienInscriptionSeance.objects.update_or_create(
+                seance=seance,
+                defaults={'date_expiration': form.cleaned_data['date_expiration']},
+            )
+            messages.success(request, "Lien d'inscription généré !")
+            return redirect('seance_detail', pk=seance.pk)
+    else:
+        form = GenererLienInscriptionForm(seance)
+
+    return render(
+        request,
+        'gestion/generer_lien_inscription_seance.html',
+        {
+            'form': form,
+            'seance': seance,
+            'titre_objet': 'Sortie' if _is_sortie(seance) else 'Séance',
+            'detail_url_name': _detail_route_name_for_seance(seance),
+        },
     )
-    messages.success(request, "Lien d'inscription généré !")
-    return redirect('seance_detail', pk=seance.pk)
 
 @login_required
 def envoyer_mail_invitation_seance(request, seance_id):

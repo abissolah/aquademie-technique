@@ -1,5 +1,7 @@
 from django import forms
+from django.utils import timezone
 from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, Lieu, Exercice, ModeleMailSeance, ModeleMailAdherents
+from .utils import calculer_date_expiration_lien_inscription_defaut
 from ckeditor_uploader.widgets import CKEditorUploadingWidget
 
 DESTINATAIRES_CHOICES = [
@@ -767,5 +769,29 @@ class CommunicationAdherentsForm(forms.Form):
             for liste in listes_diffusion:
                 choices.append((f"liste_{liste.id}", f"📋 {liste.nom} ({liste.adherents.count()} adhérent(s))"))
         self.fields['destinataires'].choices = choices
+
+
+class GenererLienInscriptionForm(forms.Form):
+    date_expiration = forms.DateTimeField(
+        label="Date et heure d'expiration",
+        help_text="Le lien d'inscription sera valable jusqu'à cette date.",
+        widget=forms.DateTimeInput(
+            attrs={'type': 'datetime-local', 'class': 'form-control'},
+            format='%Y-%m-%dT%H:%M',
+        ),
+        input_formats=['%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M:%S', '%d/%m/%Y %H:%M'],
+    )
+
+    def __init__(self, seance=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if seance and not self.is_bound:
+            expiration = timezone.localtime(calculer_date_expiration_lien_inscription_defaut(seance))
+            self.fields['date_expiration'].initial = expiration.strftime('%Y-%m-%dT%H:%M')
+
+    def clean_date_expiration(self):
+        dt = self.cleaned_data['date_expiration']
+        if timezone.is_naive(dt):
+            dt = timezone.make_aware(dt, timezone.get_current_timezone())
+        return dt
 
  

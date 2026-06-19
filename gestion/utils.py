@@ -1,13 +1,30 @@
+from datetime import datetime, timedelta
+
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.conf import settings
 from django.urls import reverse
+from django.utils import timezone
 from .models import LienEvaluation
 from django.templatetags.static import static
 from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import redirect
 from functools import wraps
+
+
+def calculer_date_expiration_lien_inscription_defaut(seance):
+    """Date d'expiration par défaut : mercredi précédant la séance, à 23:59."""
+    seance_date = seance.date
+    weekday = seance_date.weekday()  # 0=lundi, 2=mercredi
+    days_since_wed = (weekday - 2) % 7
+    expiration_date = seance_date - timedelta(days=days_since_wed)
+    return timezone.make_aware(
+        datetime.combine(
+            expiration_date,
+            datetime.max.time().replace(hour=23, minute=59, second=0, microsecond=0),
+        )
+    )
 
 
 def envoyer_lien_evaluation(lien_evaluation, request=None):

@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# Usage : db_restore NOM_BASE FICHIER.backup
+# Exemple : ./scripts/db_restore aquademie_db /tmp/aquademie_db.backup
+#
+# Optionnel : DB_OWNER (defaut: aquademie_user si base=aquademie_db, sinon NOM_user)
+#             AQUADEMIE_SERVICE=aquademie pour stop/start gunicorn (defaut: aquademie)
+
+set -euo pipefail
+
+DB_NAME="${1:-}"
+BACKUP_FILE="${2:-}"
+
+if [[ -z "${DB_NAME}" || -z "${BACKUP_FILE}" ]]; then
+  echo "Usage: $0 NOM_BASE FICHIER.backup" >&2
+  echo "Exemple: $0 aquademie_db /tmp/aquademie_db.backup" >&2
+  exit 1
+fi
+
+if [[ ! -f "${BACKUP_FILE}" ]]; then
+  echo "Fichier introuvable : ${BACKUP_FILE}" >&2
+  exit 1
+fi
+
+if [[ "${DB_NAME}" == "aquademie_db" ]]; then
+  DB_OWNER="${DB_OWNER:-aquademie_user}"
+else
+  DB_OWNER="${DB_OWNER:-${DB_NAME}_user}"
+fi
+
+AQUADEMIE_SERVICE="${AQUADEMIE_SERVICE:-aquademie}"
+PGHOST="${PGHOST:-localhost}"
+PGPORT="${PGPORT:-5432}"
+export PGHOST PGPORT
+
+psql_admin() { sudo -u postgres psql "$@"; }
+pg_restore_admin() { sudo -u postgres pg_restore "$@"; }
+
+echo "=== db_restore : ${DB_NAME} <= ${BACKUP_FILE} ==="
+read -r -p "La base '${DB_NAME}' sera supprimee et recreee. Continuer ? (o/N) " ok
+[[ "${ok}" =~ ^[oO]$ ]] || exit 0
+
+if systemctl is-active --quiet "${AQUADEMIE_SERVICE}" 2>/dev/null; then
+  echo "Arret ${AQUADEMIE_SERVICE}..."
+  sudo systemctl stop "${AQUADEMIE_SERVICE}"
+  RESTART_SERVICE=1
+else
+  RESTART_SERVICE=0
+fi
+
+psql_admin -d postgres -v ON_ERROR_STOP=1 -c \
+  "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${DB_NAME}' AND pid <> pg_backend_pid();"
+psql_admin -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS ${DB_NAME};"
+psql_admin -d postgres -v ON_ERROR_STOP=1 -c \
+  "CREATE DATABASE ${DB_NAME} OWNER ${DB_OWNER} ENCODING 'UTF8' TEMPLATE template0;"
+
+set +e
+pg_restore_admin -d "${DB_NAME}" --no-owner --role="${DB_OWNER}" "${BACKUP_FILE}"
+code=$?
+set -e
+
+psql_admin -d postgres -v ON_ERROR_STOP=1 -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_OWNER};"
+psql_admin -d "${DB_NAME}" -v ON_ERROR_STOP=1 -c \
+  "GRANT ALL ON SCHEMA public TO ${DB_OWNER};
+   GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${DB_OWNER};
+   GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ${DB_OWNER};"
+
+if [[ "${RESTART_SERVICE}" == "1" ]]; then
+  echo "Demarrage ${AQUADEMIE_SERVICE}..."
+  sudo systemctl start "${AQUADEMIE_SERVICE}"
+fi
+
+if [[ ${code} -ge 2 ]]; then
+  echo "Erreur pg_restore (code ${code})." >&2
+  exit "${code}"
+fi
+
+echo "Termine."
+[[ ${code} -eq 1 ]] && echo "(Avertissements pg_restore — souvent sans gravite.)"
+exit "${code}"
