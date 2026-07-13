@@ -5,6 +5,7 @@ Ce guide détaille les étapes pour déployer l'application Django Aquadémie Pa
 ## 📋 Table des matières
 
 - [Prérequis](#prérequis)
+- [Déploiement Docker sur Synology](#déploiement-docker-sur-synology)
 - [Déploiement Linux (Ubuntu/Debian)](#déploiement-linux-ubuntudebian)
 - [Déploiement Windows Server](#déploiement-windows-server)
 - [Configuration de la base de données](#configuration-de-la-base-de-données)
@@ -26,6 +27,21 @@ Ce guide détaille les étapes pour déployer l'application Django Aquadémie Pa
 - PostgreSQL 12+ (recommandé) ou SQLite (développement)
 - Nginx ou Apache
 - Git
+
+---
+
+## 🐳 Déploiement Docker sur Synology (production)
+
+Pour un déploiement conteneurisé en **production** sur NAS Synology, avec **domaine OVH**, **IP fixe Orange Business** et **HTTPS** :
+
+**[DEPLOIEMENT_DOCKER_SYNOLOGY.md](DEPLOIEMENT_DOCKER_SYNOLOGY.md)**
+
+Ce guide couvre :
+- Configuration DNS OVH et NAT box Orange
+- Déploiement Docker (PostgreSQL + Gunicorn + Nginx)
+- Certificat Let's Encrypt et Reverse Proxy DSM
+- Fichier `.env` production
+- Sauvegardes et mises à jour
 
 ---
 

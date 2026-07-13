@@ -21,16 +21,33 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-your-secret-key-here'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-your-secret-key-here')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes')
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
-CSRF_TRUSTED_ORIGINS = [
-    'http://127.0.0.1:8000',
-    'http://localhost:8000',
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+    if host.strip()
 ]
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        'DJANGO_CSRF_TRUSTED_ORIGINS',
+        'http://127.0.0.1:8000,http://localhost:8000',
+    ).split(',')
+    if origin.strip()
+]
+
+# Production derrière reverse proxy Synology / Nginx (HTTPS terminé en amont)
+if os.getenv('DJANGO_BEHIND_PROXY', 'False').lower() in ('1', 'true', 'yes'):
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    USE_X_FORWARDED_HOST = True
+
+if not DEBUG:
+    SESSION_COOKIE_SECURE = os.getenv('DJANGO_SESSION_COOKIE_SECURE', 'True').lower() in ('1', 'true', 'yes')
+    CSRF_COOKIE_SECURE = os.getenv('DJANGO_CSRF_COOKIE_SECURE', 'True').lower() in ('1', 'true', 'yes')
 
 
 # Application definition
@@ -51,6 +68,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+]
+if os.getenv('DJANGO_USE_WHITENOISE', 'False').lower() in ('1', 'true', 'yes'):
+    MIDDLEWARE.append('whitenoise.middleware.WhiteNoiseMiddleware')
+MIDDLEWARE += [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -89,6 +110,18 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+if os.getenv('POSTGRES_DB'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('POSTGRES_DB'),
+            'USER': os.getenv('POSTGRES_USER', 'postgres'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD', ''),
+            'HOST': os.getenv('POSTGRES_HOST', 'db'),
+            'PORT': os.getenv('POSTGRES_PORT', '5432'),
+        }
+    }
 
 
 # Password validation
@@ -150,28 +183,35 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
 
 # Configuration Email
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'ssl0.ovh.net' #'smtp.gmail.com'  # À configurer selon votre fournisseur
-EMAIL_PORT = 465#587
-EMAIL_USE_TLS = False
-EMAIL_USE_SSL = True
-EMAIL_HOST_USER = 'contact@app-suivitech.fr' #'ab.issolah@gmail.com'  # À configurer
-EMAIL_HOST_PASSWORD = 'az9^e5Wzox'  # À configurer
-DEFAULT_FROM_EMAIL = 'Aquadémie Paris Plongée <contact@app-suivitech.fr>'
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'ssl0.ovh.net')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '465'))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'False').lower() in ('1', 'true', 'yes')
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'True').lower() in ('1', 'true', 'yes')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'contact@app-suivitech.fr')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'az9^e5Wzox')
+DEFAULT_FROM_EMAIL = os.getenv(
+    'DEFAULT_FROM_EMAIL',
+    'Aquadémie Paris Plongée <contact@app-suivitech.fr>',
+)
 
 # Adresses en copie par défaut
 EMAIL_CC_DEFAULT = [
-    'ab.issolah@gmail.com',  # À configurer
+    email.strip()
+    for email in os.getenv('EMAIL_CC_DEFAULT', 'ab.issolah@gmail.com').split(',')
+    if email.strip()
 ]
 EMAIL_CC_COVOIT = [
-    'ab.issolah@gmail.com', # À configurer
+    email.strip()
+    for email in os.getenv('EMAIL_CC_COVOIT', 'ab.issolah@gmail.com').split(',')
+    if email.strip()
 ]
 
-CHEMIN_SFTP = 'c:\mine\work'
+CHEMIN_SFTP = os.getenv('CHEMIN_SFTP', r'c:\mine\work')
 
 # Configuration du site
-SITE_NAME = 'Aquadémie Paris Plongée'
-SITE_URL = 'http://127.0.0.1:8000'  # À configurer en production
+SITE_NAME = os.getenv('SITE_NAME', 'Aquadémie Paris Plongée')
+SITE_URL = os.getenv('DJANGO_SITE_URL', 'http://127.0.0.1:8000')
 
 # CKEditor config
 CKEDITOR_UPLOAD_PATH = "uploads/"
