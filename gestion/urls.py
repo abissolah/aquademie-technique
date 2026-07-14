@@ -16,6 +16,7 @@ from .views import supprimer_modele_mail
 from .views import envoyer_pdf_palanquee_encadrant
 from .views import CommunicationAdherentsView
 from .views import supprimer_modele_mail_adherents
+from . import inscription_views
 
 urlpatterns = [
     # URLs d'authentification
@@ -35,8 +36,12 @@ urlpatterns = [
     path('adherents/import-excel/', views.import_adherents_excel, name='import_adherents_excel'),
     path('adherents/telecharger-modele/', views.download_excel_template, name='download_excel_template'),
     path('adherents/export-excel/', views.export_adherents_excel, name='export_adherents_excel'),
-    path('adherents/inscription-2025-2026/', views.AdherentPublicCreateView.as_view(), name='adherent_public_create'),
-    path('adherents/inscription-2025-2026/success/', views.dashboard, name='adherent_public_success'),
+    path('adherents/inscription-2025-2026/', inscription_views.inscription_saison_fermee, name='adherent_public_create'),
+    path('adherents/inscription-2025-2026/success/', inscription_views.inscription_saison_fermee, name='adherent_public_success'),
+    path('adherents/inscription-2026-2027/', inscription_views.inscription_saison_etape1, name='adherent_public_inscription_etape1'),
+    path('adherents/inscription-2026-2027/formulaire/', inscription_views.AdherentPublicCreateView2026.as_view(), name='adherent_public_create_2026_2027'),
+    path('api/anciens-adherents/recherche/', inscription_views.api_recherche_anciens_adherents, name='api_recherche_anciens_adherents'),
+    path('webhooks/helloasso/', inscription_views.helloasso_webhook, name='helloasso_webhook'),
     path('adherents/<int:adherent_id>/valider-caci/', views.valider_caci, name='valider_caci'),
     path('adherents/<int:adherent_id>/copier-caci/', views.copier_caci, name='copier_caci'),
     path('adherents/copier-tous-caci/', views.copier_tous_caci, name='copier_tous_caci'),
@@ -193,7 +198,7 @@ urlpatterns = [
     path('api/inscrire-non-membre/', views.api_inscrire_non_membre, name='api_inscrire_non_membre'),
     path('inscription/<int:inscription_id>/supprimer/', views.supprimer_inscription_seance, name='supprimer_inscription_seance'),
     path('envoyer-mail-inscription/', views.envoyer_mail_inscription, name='envoyer_mail_inscription'),
-    path('adherents/inscription/2025-2026/', views.AdherentPublicCreateView.as_view(), {'inscription_2025_2026': True}, name='adherent_public_create_2025_2026'),
+    path('adherents/inscription/2025-2026/', inscription_views.inscription_saison_fermee, name='adherent_public_create_2025_2026'),
     # Export Excel des inscrits (admin)
     path('seances/<int:seance_id>/export-excel/', views.exporter_inscrits_seance_excel, name='exporter_inscrits_seance_excel'),
     path('api/modele-mail/<int:modele_id>/', api_modele_mail, name='api_modele_mail'),

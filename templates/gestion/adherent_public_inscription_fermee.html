@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block title %}Inscription fermée - Club de Plongée{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card mt-4">
+            <div class="card-header text-center">
+                <img src="/static/bandeau_aquademie.png" alt="Bannière Aquademie" class="img-fluid mb-3" style="max-height:120px;object-fit:cover;">
+                <h3 class="mb-0">Inscription {{ saison_fermee }} — fermée</h3>
+            </div>
+            <div class="card-body text-center">
+                <p class="lead">Les inscriptions pour la saison {{ saison_fermee }} sont terminées.</p>
+                <p>Pour la nouvelle campagne d'adhésion, utilisez le formulaire de la saison en cours :</p>
+                <a href="{{ nouvelle_url }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-user-plus me-2"></i>Inscription 2026-2027
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

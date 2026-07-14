@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, LienEvaluation, Lieu, PalanqueeEleve, CorpsMailPdfPalanquees
+from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, LienEvaluation, Lieu, PalanqueeEleve, CorpsMailPdfPalanquees, AncienAdherent
 from django.contrib.auth.models import User
 
 @admin.register(Adherent)
@@ -16,10 +16,30 @@ class AdherentAdmin(admin.ModelAdmin):
             'fields': ('nom', 'prenom', 'date_naissance', 'adresse', 'email', 'telephone', 'photo')
         }),
         ('Informations de plongée', {
-            'fields': ('date_delivrance_caci', 'niveau', 'statut')
+            'fields': ('date_delivrance_caci', 'niveau', 'statut', 'inscription_hello_asso', 'ancien_adherent')
         }),
         ('Métadonnées', {
             'fields': ('date_creation', 'date_modification'),
+            'classes': ('collapse',)
+        }),
+    )
+
+@admin.register(AncienAdherent)
+class AncienAdherentAdmin(admin.ModelAdmin):
+    list_display = ('nom', 'prenom', 'saison', 'email', 'date_archivage')
+    search_fields = ('nom', 'prenom', 'email')
+    list_filter = ('saison', 'statut', 'niveau')
+    filter_horizontal = ('sections',)
+    
+    fieldsets = (
+        ('Informations personnelles', {
+            'fields': ('saison', 'nom', 'prenom', 'date_naissance', 'adresse', 'code_postal', 'ville', 'email', 'telephone', 'photo')
+        }),
+        ('Informations de plongée', {
+            'fields': ('date_delivrance_caci', 'caci_fichier', 'niveau', 'statut', 'numero_licence', 'assurance', 'sections')
+        }),
+        ('Métadonnées', {
+            'fields': ('date_archivage',),
             'classes': ('collapse',)
         }),
     )

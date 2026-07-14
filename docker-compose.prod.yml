@@ -2,19 +2,25 @@
 # Usage: docker compose -f docker-compose.prod.yml up -d --build
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # PG 18+ : monter sur /var/lib/postgresql (JAMAIS /data)
+      # Volume renommé postgres18_data pour éviter les restes d'une ancienne config PG 16
+      - postgres18_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      # $$ = variables lues dans le conteneur (évite les soucis de substitution Compose sur Synology)
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\" || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 12
+      start_period: 40s
 
   web:
     build: .
@@ -51,6 +57,6 @@ services:
       - web
 
 volumes:
-  postgres_data:
+  postgres18_data:
   media_data:
   static_data:

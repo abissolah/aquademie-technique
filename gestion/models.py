@@ -81,6 +81,18 @@ class Adherent(models.Model):
     date_modification = models.DateTimeField(auto_now=True)
     user = models.OneToOneField(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='adherent_profile')
     actif = models.BooleanField(default=True, verbose_name="Actif")
+    ancien_adherent = models.ForeignKey(
+        'AncienAdherent',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='reinscriptions',
+        verbose_name="Ancien adhérent (saison précédente)",
+    )
+    inscription_hello_asso = models.BooleanField(
+        default=False,
+        verbose_name="Inscription Hello Asso réalisée",
+    )
     
     class Meta:
         verbose_name = "Adhérent"
@@ -93,6 +105,22 @@ class Adherent(models.Model):
     @property
     def nom_complet(self):
         return f"{self.nom} {self.prenom}"
+
+    @property
+    def caci_fichier_effectif(self):
+        if self.caci_fichier:
+            return self.caci_fichier
+        if self.ancien_adherent and self.ancien_adherent.caci_fichier:
+            return self.ancien_adherent.caci_fichier
+        return None
+
+    @property
+    def caci_fichier_effectif_url(self):
+        fichier = self.caci_fichier_effectif
+        return fichier.url if fichier else None
+
+    def a_fichier_caci(self):
+        return self.caci_fichier_effectif is not None
 
     def save(self, *args, **kwargs):
         if self.nom:
@@ -112,6 +140,53 @@ class Adherent(models.Model):
             group, _ = Group.objects.get_or_create(name=group_name)
             self.user.groups.clear()
             self.user.groups.add(group)
+
+
+class AncienAdherent(models.Model):
+    """Archive des adhérents d'une saison passée (ex. 2025-2026)."""
+    saison = models.CharField(max_length=20, default='2025-2026', verbose_name="Saison")
+    caci_fichier = models.FileField(
+        upload_to='anciens_adherents/caci/',
+        blank=True,
+        null=True,
+        verbose_name="Fichier CACI",
+    )
+    nom = models.CharField(max_length=100)
+    prenom = models.CharField(max_length=100)
+    date_naissance = models.DateField()
+    adresse = models.TextField()
+    code_postal = models.CharField(max_length=10, blank=True, verbose_name="Code postal")
+    ville = models.CharField(max_length=100, blank=True, verbose_name="Ville")
+    email = models.EmailField()
+    telephone = models.CharField(max_length=20)
+    photo = models.ImageField(upload_to='anciens_adherents/photos/', blank=True, null=True)
+    numero_licence = models.CharField(max_length=50, blank=True, null=True, verbose_name="Numéro de licence")
+    assurance = models.CharField(max_length=20, choices=Adherent.ASSURANCE_CHOICES, blank=True, default='', verbose_name="Assurance")
+    date_delivrance_caci = models.DateField(verbose_name="Date de délivrance du CACI", null=True, blank=True)
+    niveau = models.CharField(max_length=20, choices=Adherent.NIVEAUX_CHOICES)
+    statut = models.CharField(max_length=10, choices=Adherent.STATUT_CHOICES, default='eleve')
+    sections = models.ManyToManyField(Section, related_name='anciens_adherents', blank=True, verbose_name="Sections")
+    date_archivage = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Ancien adhérent"
+        verbose_name_plural = "Anciens adhérents"
+        ordering = ['nom', 'prenom']
+
+    def __str__(self):
+        return f"{self.nom} {self.prenom} ({self.saison})"
+
+    @property
+    def nom_complet(self):
+        return f"{self.nom} {self.prenom}"
+
+    def save(self, *args, **kwargs):
+        if self.nom:
+            self.nom = self.nom.upper()
+        if self.prenom:
+            self.prenom = self.prenom.capitalize()
+        super().save(*args, **kwargs)
+
 
 class Exercice(models.Model):
     TYPE_CLASSIQUE = 'classique'

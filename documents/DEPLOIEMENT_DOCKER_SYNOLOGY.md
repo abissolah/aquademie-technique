@@ -543,6 +543,36 @@ Les migrations Django sont appliquées automatiquement au démarrage.
 | Conteneurs | `docker compose -f docker-compose.prod.yml ps` |
 | Logs | `docker compose -f docker-compose.prod.yml logs web` |
 
+### Erreur « Container is unhealthy » (web ne démarre pas)
+
+Le service `web` attend que PostgreSQL (`db`) soit **healthy**. L'erreur concerne presque toujours **`db`**.
+
+```bash
+cd /volume1/docker/aquademie
+sudo docker compose -f docker-compose.prod.yml ps -a
+sudo docker compose -f docker-compose.prod.yml logs db
+```
+
+**Causes fréquentes :**
+
+1. **Fichier `.env` manquant ou incomplet** — vérifier `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
+2. **Chemin volume PostgreSQL 18 incorrect** — PG 18+ exige `/var/lib/postgresql` (plus `/data`). Un mauvais chemin provoque un **Restarting** en boucle.
+3. **Ancien volume PG 16** sur une image PG 18 — supprimer le volume et relancer
+
+```bash
+# Repartir de zéro sur la BDD (⚠️ efface les données)
+sudo docker compose -f docker-compose.prod.yml down
+sudo docker volume ls | grep postgres
+sudo docker volume rm aquademie-technique_postgres_data   # adapter le nom affiché
+
+# Mettre à jour le code (git pull) pour avoir le bon chemin volume PG 18
+sudo docker compose -p aquademie-technique -f docker-compose.prod.yml up -d db
+sudo docker compose -f docker-compose.prod.yml logs -f db
+# Attendre : "database system is ready to accept connections"
+
+sudo docker compose -p aquademie-technique -f docker-compose.prod.yml up -d --build
+```
+
 ### Erreur « DisallowedHost »
 
 Ajouter le domaine dans `DJANGO_ALLOWED_HOSTS` du `.env`, puis :
@@ -632,4 +662,5 @@ docker compose up -d --build
 - [Container Manager Synology](https://www.synology.com/fr-fr/dsm/feature/docker)
 - [Zone DNS OVH](https://help.ovhcloud.com/csm/fr-dns-edit-dns-zone)
 - [Django — Déploiement](https://docs.djangoproject.com/en/5.2/howto/deployment/)
-- Déploiement sans Docker : `DEPLOIEMENT.md`
+- Déploiement sans Docker : voir [DEPLOIEMENT.md](DEPLOIEMENT.md)
+- Bascule de saison : voir [BASCULE_SAISON.md](BASCULE_SAISON.md)

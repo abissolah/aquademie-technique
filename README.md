@@ -233,6 +233,15 @@ Pour toute question ou problème :
 - Consulter la documentation Django
 - Contacter l'équipe de développement
 
+## 📚 Documentation
+
+Guides détaillés dans le dossier **[documents/](documents/)** :
+
+- [Déploiement](documents/DEPLOIEMENT.md)
+- [Docker / Synology production](documents/DEPLOIEMENT_DOCKER_SYNOLOGY.md)
+- [Bascule de saison](documents/BASCULE_SAISON.md)
+- [Dev Windows + PostgreSQL](documents/INSTALL_DEV_WINDOWS_POSTGRES.md)
+
 ## 🔄 Mises à jour
 
 Pour mettre à jour l'application :

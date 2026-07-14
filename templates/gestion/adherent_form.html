@@ -81,6 +81,13 @@
 
                     {{ form.caci_fichier|as_crispy_field }}
                     {{ form.caci_valide|as_crispy_field }}
+                    {{ form.inscription_hello_asso|as_crispy_field }}
+                    {% if object and object.caci_fichier_effectif and not object.caci_fichier %}
+                        <div class="mb-3">
+                            <label class="form-label">CACI référencé (saison précédente) :</label>
+                            <a href="{{ object.caci_fichier_effectif.url }}" target="_blank" class="btn btn-sm btn-outline-secondary ms-2">Télécharger</a>
+                        </div>
+                    {% endif %}
                     {% if object and object.caci_fichier %}
                         <div class="mb-3">
                             <label class="form-label">Fichier CACI actuel :</label>

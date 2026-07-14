@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Inscription adhérent {{ saison_courante }} - Club de Plongée{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card mt-4">
+            <div class="card-header text-center" style="background: none; border-bottom: none;">
+                <img src="/static/bandeau_aquademie.png" alt="Bannière Aquademie" class="img-fluid mb-3" style="max-height:120px;object-fit:cover;">
+                <h3 class="mb-0"><i class="fas fa-user-plus me-2"></i>Adhésion Aquademie {{ saison_courante }}</h3>
+            </div>
+            <div class="card-body">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+
+                {% if inscription_success %}
+                    <div class="alert alert-success text-center">
+                        <span class="fs-4 text-success">L'étape 1 est complète, passez à l'étape 2.<br><br></span>
+                        <span class="fs-1 text-success fw-bold">Étape 2 :</span><br><br>
+                        <span class="fs-5 text-success">Revenez sur HelloAsso — choisissez votre tarif, n'oubliez pas votre option à l'étape 2.<br>
+                            En application des obligations légales, la licence FFESSM inclut automatiquement une Assurance Responsabilité Civile. Tout licencié est ainsi
+                            assuré pour les dommages corporels, matériels et/ou immatériels dont il serait responsable vis à vis d'autrui, dans le cadre de la pratique des
+                            activités fédérales, dans le monde entier. Mais la licence permet également, si vous le désirez, de souscrire une Assurance Individuelle
+                            Accident Loisir 1, Loisir 2, Loisir 3... Cette assurance optionnelle couvre le licencié pour ses propres dommages corporels sans tiers
+                            responsable identifié. Renseignements supplémentaires sur le site :
+                            <a href="https://www.assurdiving.com/" target="_blank">https://www.assurdiving.com/</a><br><br>
+                            L'option Loisir1 est recommandée par APP.<br>
+                            Remplissez le formulaire et réglez !</span>
+                    </div>
+                    {% if hello_asso_url %}
+                    <div class="text-center mt-4">
+                        <a href="{{ hello_asso_url }}" target="_blank" class="btn btn-primary btn-lg">
+                            <i class="fas fa-arrow-right me-2"></i>Continuer mon inscription sur HelloAsso
+                        </a>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    {% if ancien_adherent %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Fiche retrouvée : <strong>{{ ancien_adherent.nom|upper }} {{ ancien_adherent.prenom|capfirst }}</strong>
+                        (saison {{ ancien_adherent.saison }}). Vérifiez et mettez à jour vos informations ci-dessous.
+                    </div>
+                    {% endif %}
+
+                    <div class="text-center mt-2 mb-3" style="color:#0c5460;background:#d1ecf1;padding:8px;border-radius:4px;">
+                        Tous les champs marqués * doivent être remplis pour valider l'inscription.
+                    </div>
+
+                    <form method="post" enctype="multipart/form-data" novalidate id="adherent-public-form">
+                        {% csrf_token %}
+                        {{ form.ancien_adherent_id }}
+                        {{ form|crispy }}
+
+                        {% if photo_ancien_url %}
+                        <div class="mb-3">
+                            <label class="form-label">Photo actuelle (saison précédente)</label><br>
+                            <img src="{{ photo_ancien_url }}" alt="Photo actuelle" class="rounded mb-2" style="max-height:120px;">
+                            <p class="text-muted small mb-0">Vous pouvez conserver cette photo ou en téléverser une nouvelle ci-dessus.</p>
+                        </div>
+                        {% endif %}
+
+                        {% if caci_ancien_url %}
+                        <div class="card mb-3 border-info">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-file-medical me-2"></i>CACI enregistré (saison précédente)</h6>
+                                <p class="mb-2">
+                                    <strong>Date de délivrance :</strong>
+                                    <span id="caci-date-affichage">{{ form.date_delivrance_caci.value|default:ancien_adherent.date_delivrance_caci|date:'d/m/Y' }}</span>
+                                </p>
+                                <p class="mb-2">
+                                    <strong>Date d'expiration estimée :</strong>
+                                    <span id="caci-expiration-affichage">—</span>
+                                </p>
+                                <a href="{{ caci_ancien_url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-download me-1"></i>Télécharger mon CACI actuel
+                                </a>
+                                <p class="text-muted small mt-2 mb-0">
+                                    Si votre CACI est encore valide, vous n'êtes pas obligé de le retéléverser.
+                                    Sinon, mettez à jour la date et uploadez un nouveau fichier CACI.
+                                </p>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="d-flex justify-content-between align-items-end mt-3 flex-wrap gap-2">
+                            <a href="{% url 'adherent_public_inscription_etape1' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Retour
+                            </a>
+                            <div class="flex-grow-1">
+                                <div id="caci-message" class="mb-2 w-100"></div>
+                                <button type="submit" class="btn btn-primary float-end" id="submit-btn">
+                                    <i class="fas fa-save me-2"></i>Valider mon inscription
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const dateInput = document.getElementById('id_date_delivrance_caci');
+                        const messageDiv = document.getElementById('caci-message');
+                        const submitBtn = document.getElementById('submit-btn');
+                        const expirationSpan = document.getElementById('caci-expiration-affichage');
+
+                        function formatDate(d) {
+                            return d.toLocaleDateString('fr-FR');
+                        }
+
+                        function checkCaciValidity() {
+                            messageDiv.innerHTML = '';
+                            submitBtn.disabled = false;
+                            if (!dateInput || !dateInput.value) return;
+                            const delivrance = new Date(dateInput.value);
+                            if (isNaN(delivrance.getTime())) return;
+                            const expiration = new Date(delivrance);
+                            expiration.setFullYear(expiration.getFullYear() + 1);
+                            if (expirationSpan) expirationSpan.textContent = formatDate(expiration);
+                            const now = new Date();
+                            const diffDays = (expiration - now) / (1000 * 60 * 60 * 24);
+                            if (diffDays < 0) {
+                                messageDiv.innerHTML = '<div class="alert alert-danger fw-bold">Attention, votre CACI est expiré. Merci de mettre à jour la date et de téléverser un nouveau fichier.</div>';
+                            } else if (diffDays < 30) {
+                                messageDiv.innerHTML = '<div class="alert alert-warning fw-bold">Attention, votre CACI expire bientôt.</div>';
+                            }
+                        }
+                        if (dateInput) {
+                            dateInput.addEventListener('blur', checkCaciValidity);
+                            dateInput.addEventListener('change', checkCaciValidity);
+                            checkCaciValidity();
+                        }
+                    });
+                    </script>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

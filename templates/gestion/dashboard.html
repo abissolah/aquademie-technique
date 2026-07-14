@@ -261,8 +261,11 @@
                 <td>{{ a.prenom|capfirst }}</td>
                 <td>{{ a.date_delivrance_caci|date:'d/m/Y' }}</td>
                 <td>
-                  {% if a.caci_fichier %}
-                    <a href="{{ a.caci_fichier.url }}" target="_blank">Télécharger</a>
+                  {% if a.caci_fichier_effectif %}
+                    <a href="{{ a.caci_fichier_effectif.url }}" target="_blank">Télécharger</a>
+                    {% if not a.caci_fichier and a.ancien_adherent %}
+                      <span class="badge bg-secondary ms-1">Saison préc.</span>
+                    {% endif %}
                   {% else %}-{% endif %}
                 </td>
                 <td>
@@ -270,7 +273,7 @@
                     {% csrf_token %}
                     <button class="btn btn-success btn-sm" title="Valider le CACI"><i class="fas fa-check"></i> Valider le CACI</button>
                   </form>
-                  {% if a.caci_fichier %}
+                  {% if a.caci_fichier_effectif %}
                     <a href="{% url 'copier_caci' a.pk %}?from=dashboard" class="btn btn-outline-secondary btn-sm ms-1" title="Copier CACI">
                       <i class="fas fa-copy"></i> Copier CACI
                     </a>

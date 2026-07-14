@@ -140,7 +140,10 @@ def dashboard(request):
     context['adherents_sans_caci'] = adherents_caci.filter(caci_fichier__isnull=True) | adherents_caci.filter(caci_fichier='',actif=True)
     context['adherents_caci_expire'] = adherents_caci.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__lt=today - timedelta(days=365),actif=True)
     context['adherents_caci_bientot'] = adherents_caci.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__gte=today - timedelta(days=365), date_delivrance_caci__lte=today - timedelta(days=335),actif=True)
-    context['adherents_caci_non_valide'] = adherents_caci.filter(caci_valide=False)
+    context['adherents_caci_non_valide'] = adherents_caci.filter(caci_valide=False).filter(
+        Q(caci_fichier__isnull=False) & ~Q(caci_fichier='')
+        | Q(ancien_adherent__caci_fichier__isnull=False) & ~Q(ancien_adherent__caci_fichier='')
+    )
     # Bloc dernières palanquées évaluées (par encadrant)
     # On récupère les palanquées qui ont au moins une évaluation_exercice
     palanquees_evaluees_ids = (
@@ -4073,7 +4076,8 @@ def envoyer_liens_evaluation_encadrants(request, seance_id):
 
 def copier_caci(request, adherent_id):
     adherent = get_object_or_404(Adherent, pk=adherent_id)
-    if not adherent.caci_fichier:
+    caci = adherent.caci_fichier_effectif
+    if not caci:
         messages.error(request, "Aucun fichier CACI à copier pour cet adhérent.")
         if request.GET.get('from') == 'dashboard':
             return redirect('dashboard')
@@ -4086,14 +4090,14 @@ def copier_caci(request, adherent_id):
         return redirect('adherent_list')
     nom = adherent.nom.strip().replace(' ', '_')
     prenom = adherent.prenom.strip().replace(' ', '_')
-    ext = os.path.splitext(adherent.caci_fichier.name)[1]
+    ext = os.path.splitext(caci.name)[1]
     date_caci = ''
     if adherent.date_delivrance_caci:
         date_caci = adherent.date_delivrance_caci.strftime('%Y-%m-%d')
     else:
         date_caci = 'sansdate'
     nouveau_nom = f"CACI_{nom}_{prenom}-{date_caci}{ext}"
-    source_path = adherent.caci_fichier.path
+    source_path = caci.path
     dest_path = os.path.join(chemin_sftp, nouveau_nom)
     try:
         shutil.copy2(source_path, dest_path)

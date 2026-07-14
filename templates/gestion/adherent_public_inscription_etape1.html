@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block title %}Inscription adhérent {{ saison_courante }} - Club de Plongée{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card mt-4">
+            <div class="card-header text-center" style="background: none; border-bottom: none;">
+                <img src="/static/bandeau_aquademie.png" alt="Bannière Aquademie" class="img-fluid mb-3" style="max-height:120px;object-fit:cover;">
+                <h3 class="mb-0"><i class="fas fa-user-plus me-2"></i>Adhésion Aquademie {{ saison_courante }}</h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted text-center mb-4">Étape 1 — Avez-vous été adhérent(e) du club lors de la saison {{ saison_precedente }} ?</p>
+
+                <div class="d-grid gap-3">
+                    <button type="button" class="btn btn-outline-primary btn-lg" id="btn-ancien-oui">
+                        <i class="fas fa-check me-2"></i>Oui, j'étais adhérent(e) en {{ saison_precedente }}
+                    </button>
+                    <a href="{% url 'adherent_public_create_2026_2027' %}" class="btn btn-outline-secondary btn-lg">
+                        <i class="fas fa-user me-2"></i>Non, je suis nouveau / nouvelle
+                    </a>
+                </div>
+
+                <div id="bloc-recherche" class="mt-4 d-none">
+                    <hr>
+                    <label for="recherche-ancien" class="form-label fw-bold">Recherchez votre nom</label>
+                    <input type="text" id="recherche-ancien" class="form-control form-control-lg" placeholder="Tapez votre nom ou prénom..." autocomplete="off">
+                    <div id="resultats-ancien" class="list-group mt-2"></div>
+                    <p class="text-muted small mt-2">Sélectionnez votre fiche dans la liste pour préremplir le formulaire.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btnOui = document.getElementById('btn-ancien-oui');
+    const blocRecherche = document.getElementById('bloc-recherche');
+    const input = document.getElementById('recherche-ancien');
+    const resultats = document.getElementById('resultats-ancien');
+    const urlFormulaire = "{% url 'adherent_public_create_2026_2027' %}";
+    let timer = null;
+
+    btnOui.addEventListener('click', function() {
+        blocRecherche.classList.remove('d-none');
+        input.focus();
+    });
+
+    input.addEventListener('input', function() {
+        clearTimeout(timer);
+        const q = input.value.trim();
+        if (q.length < 2) {
+            resultats.innerHTML = '';
+            return;
+        }
+        timer = setTimeout(function() {
+            fetch("{% url 'api_recherche_anciens_adherents' %}?q=" + encodeURIComponent(q))
+                .then(r => r.json())
+                .then(data => {
+                    resultats.innerHTML = '';
+                    if (!data.results.length) {
+                        resultats.innerHTML = '<div class="list-group-item text-muted">Aucun résultat</div>';
+                        return;
+                    }
+                    data.results.forEach(function(item) {
+                        const a = document.createElement('a');
+                        a.href = urlFormulaire + '?ancien_id=' + item.id;
+                        a.className = 'list-group-item list-group-item-action';
+                        a.textContent = item.label;
+                        resultats.appendChild(a);
+                    });
+                });
+        }, 300);
+    });
+});
+</script>
+{% endblock %}

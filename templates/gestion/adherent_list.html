@@ -135,6 +135,7 @@
                       </a>
                     </th>
                     <th>Fichier CACI</th>
+                    <th>Hello Asso</th>
                     <th>Compte</th>
                     <th>Section(s)</th>
                     <th>Actions</th>
@@ -171,10 +172,20 @@
                           {% endif %}
                         </td>
                         <td>
-                          {% if adherent.caci_fichier %}
-                            <a href="{{ adherent.caci_fichier.url }}" target="_blank">Télécharger</a>
+                          {% if adherent.caci_fichier_effectif %}
+                            <a href="{{ adherent.caci_fichier_effectif.url }}" target="_blank">Télécharger</a>
+                            {% if not adherent.caci_fichier and adherent.ancien_adherent %}
+                              <span class="badge bg-secondary ms-1">Saison préc.</span>
+                            {% endif %}
                           {% else %}
                             <span class="text-muted">Aucun fichier</span>
+                          {% endif %}
+                        </td>
+                        <td>
+                          {% if adherent.inscription_hello_asso %}
+                            <span class="badge bg-success">Réalisée</span>
+                          {% else %}
+                            <span class="badge bg-warning text-dark">En attente</span>
                           {% endif %}
                         </td>
                         <td>
@@ -207,7 +218,7 @@
                             <a href="{% url 'adherent_delete' adherent.pk %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
                               <i class="fas fa-trash"></i>
                             </a>
-                            {% if adherent.caci_fichier %}
+                            {% if adherent.caci_fichier_effectif %}
                             <a href="{% url 'copier_caci' adherent.pk %}" class="btn btn-sm btn-outline-secondary" title="Copier CACI">
                               <i class="fas fa-copy"></i>
                             </a>

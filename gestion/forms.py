@@ -58,7 +58,7 @@ class AdherentForm(forms.ModelForm):
         fields = [
             'nom', 'prenom', 'date_naissance', 'adresse', 'code_postal', 'ville', 'email', 
             'telephone', 'photo', 'numero_licence', 'assurance', 'date_delivrance_caci', 'niveau', 'statut', 'sections',
-            'type_personne', 'caci_fichier', 'caci_valide', 'actif'
+            'type_personne', 'caci_fichier', 'caci_valide', 'actif', 'inscription_hello_asso'
         ]
         widgets = {
             'date_naissance': forms.DateInput(
@@ -471,6 +471,73 @@ class AdherentPublicForm(forms.ModelForm):
 
     def clean_assurance(self):
         # Permettre la valeur vide ('') qui correspond à 'Aucune assurance' même si le champ est requis
+        value = self.cleaned_data.get('assurance')
+        if value is None:
+            return ''
+        return value
+
+
+class AdherentPublicForm2026(forms.ModelForm):
+    ancien_adherent_id = forms.IntegerField(required=False, widget=forms.HiddenInput())
+
+    class Meta:
+        model = Adherent
+        fields = [
+            'nom', 'prenom', 'date_naissance', 'adresse', 'code_postal', 'ville', 'email',
+            'telephone', 'photo', 'numero_licence', 'assurance', 'caci_fichier', 'date_delivrance_caci', 'niveau', 'statut',
+        ]
+        widgets = {
+            'date_naissance': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'date_delivrance_caci': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+            'adresse': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def __init__(self, *args, ancien_adherent=None, **kwargs):
+        self.ancien_adherent = ancien_adherent
+        super().__init__(*args, **kwargs)
+        self.fields['date_delivrance_caci'].required = True
+        self.fields['code_postal'].required = True
+        self.fields['ville'].required = True
+        self.fields['assurance'].required = False
+        self.fields['assurance'].label = 'Assurance personnelle * '
+        self.fields['numero_licence'].required = True
+        self.fields['numero_licence'].label = 'Numéro de licence (Pour les débutants mettre 0)'
+        self.fields['photo'].required = ancien_adherent is None or not ancien_adherent.photo
+        self.fields['caci_fichier'].required = False
+        self.fields['caci_fichier'].label = 'Nouveau fichier CACI (optionnel si votre CACI actuel est encore valide)'
+        if ancien_adherent:
+            self.fields['ancien_adherent_id'].initial = ancien_adherent.pk
+            if not self.is_bound:
+                for field_name in self.Meta.fields:
+                    if field_name in ('photo', 'caci_fichier'):
+                        continue
+                    value = getattr(ancien_adherent, field_name, None)
+                    if value is not None and value != '':
+                        self.fields[field_name].initial = value
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email and Adherent.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError(
+                "Un adhérent est déjà inscrit avec cette adresse email pour la saison en cours."
+            )
+        return email
+
+    def clean(self):
+        cleaned_data = super().clean()
+        ancien = self.ancien_adherent
+        ancien_id = cleaned_data.get('ancien_adherent_id')
+        if not ancien and ancien_id:
+            from .models import AncienAdherent
+            ancien = AncienAdherent.objects.filter(pk=ancien_id).first()
+            self.ancien_adherent = ancien
+        if not cleaned_data.get('photo') and (not ancien or not ancien.photo):
+            self.add_error('photo', 'La photo est obligatoire.')
+        if not cleaned_data.get('caci_fichier') and (not ancien or not ancien.caci_fichier):
+            self.add_error('caci_fichier', 'Merci de fournir un fichier CACI ou de sélectionner votre fiche adhérent 2025-2026.')
+        return cleaned_data
+
+    def clean_assurance(self):
         value = self.cleaned_data.get('assurance')
         if value is None:
             return ''

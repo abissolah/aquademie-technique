@@ -213,6 +213,13 @@ CHEMIN_SFTP = os.getenv('CHEMIN_SFTP', r'c:\mine\work')
 SITE_NAME = os.getenv('SITE_NAME', 'Aquadémie Paris Plongée')
 SITE_URL = os.getenv('DJANGO_SITE_URL', 'http://127.0.0.1:8000')
 
+# Hello Asso — campagne d'adhésion (saison 2026-2027)
+HELLO_ASSO_URL = os.getenv(
+    'HELLO_ASSO_URL',
+    'https://www.helloasso.com/associations/aquademie-paris-plongee/adhesions/adhesion-aquademie-2026-2027/1',
+)
+HELLO_ASSO_WEBHOOK_SECRET = os.getenv('HELLO_ASSO_WEBHOOK_SECRET', '')
+
 # CKEditor config
 CKEDITOR_UPLOAD_PATH = "uploads/"
 CKEDITOR_IMAGE_BACKEND = "pillow"
