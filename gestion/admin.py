@@ -13,10 +13,17 @@ class AdherentAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Informations personnelles', {
-            'fields': ('nom', 'prenom', 'date_naissance', 'adresse', 'email', 'telephone', 'photo')
+            'fields': ('nom', 'prenom', 'date_naissance', 'adresse', 'email', 'telephone', 'photo', 'personne_urgence')
         }),
         ('Informations de plongée', {
-            'fields': ('date_delivrance_caci', 'niveau', 'statut', 'inscription_hello_asso', 'ancien_adherent')
+            'fields': (
+                'date_delivrance_caci', 'niveau', 'statut', 'autres_brevets',
+                'nombre_plongees_milieu_naturel', 'souhait_perfectionnement_niveau_actuel',
+                'preparation_niveau_superieur', 'inscription_hello_asso', 'ancien_adherent',
+            )
+        }),
+        ('Consentements', {
+            'fields': ('acceptation_diffusion_image',)
         }),
         ('Métadonnées', {
             'fields': ('date_creation', 'date_modification'),
@@ -36,7 +43,12 @@ class AncienAdherentAdmin(admin.ModelAdmin):
             'fields': ('saison', 'nom', 'prenom', 'date_naissance', 'adresse', 'code_postal', 'ville', 'email', 'telephone', 'photo')
         }),
         ('Informations de plongée', {
-            'fields': ('date_delivrance_caci', 'caci_fichier', 'niveau', 'statut', 'numero_licence', 'assurance', 'sections')
+            'fields': (
+                'date_delivrance_caci', 'caci_fichier', 'niveau', 'statut', 'numero_licence', 'assurance',
+                'autres_brevets', 'nombre_plongees_milieu_naturel',
+                'souhait_perfectionnement_niveau_actuel', 'preparation_niveau_superieur',
+                'personne_urgence', 'acceptation_diffusion_image', 'sections',
+            )
         }),
         ('Métadonnées', {
             'fields': ('date_archivage',),

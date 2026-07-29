@@ -105,6 +105,27 @@
                         {% endif %}
                     </div>
                 </div>
+
+                <hr>
+                <h6>Compléments inscription :</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Autres brevets :</strong> {{ adherent.autres_brevets|default:"—" }}</p>
+                        <p><strong>Plongées milieu naturel :</strong> {{ adherent.nombre_plongees_milieu_naturel|default:"—" }}</p>
+                        <p><strong>Personne à prévenir :</strong> {{ adherent.personne_urgence|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Perfectionnement niveau actuel :</strong>
+                            {% if adherent.souhait_perfectionnement_niveau_actuel %}Oui{% else %}Non{% endif %}
+                        </p>
+                        <p><strong>Préparation niveau supérieur :</strong>
+                            {% if adherent.preparation_niveau_superieur %}Oui{% else %}Non{% endif %}
+                        </p>
+                        <p><strong>Diffusion d'image :</strong>
+                            {% if adherent.acceptation_diffusion_image %}Acceptée{% else %}Non acceptée{% endif %}
+                        </p>
+                    </div>
+                </div>
                 
                 <!-- Sections d'inscription -->
                 <hr>

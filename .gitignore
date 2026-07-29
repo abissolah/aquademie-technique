@@ -147,4 +147,11 @@ Thumbs.db
 
 # Temporary files
 *.tmp
-*.temp 
+*.temp
+
+# Backups / archives volumineuses (ne pas versionner)
+media.zip
+*.zip
+*.backup
+aquademie_backup_last.backup
+aquademie_db.backup 

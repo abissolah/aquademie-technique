@@ -499,9 +499,9 @@ Planifier dans **Planificateur de tâches** DSM (ex. tous les jours à 2h00).
 sudo docker compose -f docker-compose.prod.yml stop web
 
 # Restaurer
-cat /volume1/backup/aquademie/aquademie_20250619.sql | \
-  sudo docker compose -f docker-compose.prod.yml exec -T db \
-  psql -U aquademie_user -d aquademie_db
+cat ./aquademie_backup_last.backup | \
+  sudo docker-compose -f docker-compose.prod.yml exec -T db \
+  psql -U aquademie_use_25-26 -d aquademie_db_25-26
 
 # Redémarrer
 sudo docker compose -f docker-compose.prod.yml start web

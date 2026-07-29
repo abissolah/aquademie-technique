@@ -56,9 +56,12 @@ class AdherentForm(forms.ModelForm):
     class Meta:
         model = Adherent
         fields = [
-            'nom', 'prenom', 'date_naissance', 'adresse', 'code_postal', 'ville', 'email', 
+            'nom', 'prenom', 'date_naissance', 'adresse', 'code_postal', 'ville', 'email',
             'telephone', 'photo', 'numero_licence', 'assurance', 'date_delivrance_caci', 'niveau', 'statut', 'sections',
-            'type_personne', 'caci_fichier', 'caci_valide', 'actif', 'inscription_hello_asso'
+            'type_personne', 'caci_fichier', 'caci_valide', 'actif', 'inscription_hello_asso',
+            'autres_brevets', 'nombre_plongees_milieu_naturel',
+            'souhait_perfectionnement_niveau_actuel', 'preparation_niveau_superieur',
+            'personne_urgence', 'acceptation_diffusion_image',
         ]
         widgets = {
             'date_naissance': forms.DateInput(
@@ -71,6 +74,11 @@ class AdherentForm(forms.ModelForm):
             ),
             'adresse': forms.Textarea(attrs={'rows': 3}),
             'sections': forms.CheckboxSelectMultiple(),
+            'autres_brevets': forms.TextInput(attrs={'placeholder': 'RIFAP, NITROX, etc.'}),
+            'nombre_plongees_milieu_naturel': forms.TextInput(attrs={'placeholder': 'Ex. : 25'}),
+            'personne_urgence': forms.TextInput(
+                attrs={'placeholder': 'Nom, prénom, ville, téléphone'}
+            ),
         }
     
     def __init__(self, *args, **kwargs):
@@ -485,11 +493,26 @@ class AdherentPublicForm2026(forms.ModelForm):
         fields = [
             'nom', 'prenom', 'date_naissance', 'adresse', 'code_postal', 'ville', 'email',
             'telephone', 'photo', 'numero_licence', 'assurance', 'caci_fichier', 'date_delivrance_caci', 'niveau', 'statut',
+            'autres_brevets', 'nombre_plongees_milieu_naturel',
+            'souhait_perfectionnement_niveau_actuel', 'preparation_niveau_superieur',
+            'personne_urgence', 'acceptation_diffusion_image',
         ]
         widgets = {
             'date_naissance': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'date_delivrance_caci': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
             'adresse': forms.Textarea(attrs={'rows': 3}),
+            'autres_brevets': forms.TextInput(attrs={
+                'placeholder': 'RIFAP, NITROX, etc.',
+                'class': 'form-control',
+            }),
+            'nombre_plongees_milieu_naturel': forms.TextInput(attrs={
+                'placeholder': 'Ex. : 25',
+                'class': 'form-control',
+            }),
+            'personne_urgence': forms.TextInput(attrs={
+                'placeholder': 'Nom, prénom, ville, téléphone',
+                'class': 'form-control',
+            }),
         }
 
     def __init__(self, *args, ancien_adherent=None, **kwargs):
@@ -505,6 +528,18 @@ class AdherentPublicForm2026(forms.ModelForm):
         self.fields['photo'].required = ancien_adherent is None or not ancien_adherent.photo
         self.fields['caci_fichier'].required = False
         self.fields['caci_fichier'].label = 'Nouveau fichier CACI (optionnel si votre CACI actuel est encore valide)'
+        self.fields['autres_brevets'].required = False
+        self.fields['autres_brevets'].label = 'Autres brevets (sous niveau)'
+        self.fields['nombre_plongees_milieu_naturel'].required = False
+        self.fields['souhait_perfectionnement_niveau_actuel'].required = False
+        self.fields['preparation_niveau_superieur'].required = False
+        self.fields['personne_urgence'].required = True
+        self.fields['personne_urgence'].label = "Personne à prévenir en cas d'accident (nom, prénom, ville, téléphone)"
+        self.fields['acceptation_diffusion_image'].required = True
+        self.fields['acceptation_diffusion_image'].label = (
+            "J'accepte la diffusion de mon image sur le site internet du club "
+            "ainsi que sur les impressions destinées à faire connaître les activités du club."
+        )
         if ancien_adherent:
             self.fields['ancien_adherent_id'].initial = ancien_adherent.pk
             if not self.is_bound:
@@ -535,6 +570,11 @@ class AdherentPublicForm2026(forms.ModelForm):
             self.add_error('photo', 'La photo est obligatoire.')
         if not cleaned_data.get('caci_fichier') and (not ancien or not ancien.caci_fichier):
             self.add_error('caci_fichier', 'Merci de fournir un fichier CACI ou de sélectionner votre fiche adhérent 2025-2026.')
+        if not cleaned_data.get('acceptation_diffusion_image'):
+            self.add_error(
+                'acceptation_diffusion_image',
+                "Vous devez accepter la diffusion de votre image pour valider l'inscription.",
+            )
         return cleaned_data
 
     def clean_assurance(self):

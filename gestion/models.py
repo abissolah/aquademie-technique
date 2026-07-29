@@ -93,7 +93,42 @@ class Adherent(models.Model):
         default=False,
         verbose_name="Inscription Hello Asso réalisée",
     )
-    
+    autres_brevets = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name="Autres brevets (sous niveau)",
+        help_text="Ex. : RIFAP, NITROX, etc.",
+    )
+    nombre_plongees_milieu_naturel = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        verbose_name="Nombre de plongées en milieu naturel",
+    )
+    souhait_perfectionnement_niveau_actuel = models.BooleanField(
+        default=False,
+        verbose_name="Souhait de perfectionnement au niveau actuel",
+    )
+    preparation_niveau_superieur = models.BooleanField(
+        default=False,
+        verbose_name="Je souhaite me préparer au niveau supérieur",
+    )
+    personne_urgence = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name="Personne à prévenir en cas d'accident",
+        help_text="Nom, prénom, ville, téléphone",
+    )
+    acceptation_diffusion_image = models.BooleanField(
+        default=False,
+        verbose_name=(
+            "J'accepte la diffusion de mon image sur le site internet du club "
+            "ainsi que sur les impressions destinées à faire connaître les activités du club."
+        ),
+    )
+
     class Meta:
         verbose_name = "Adhérent"
         verbose_name_plural = "Adhérents"
@@ -166,6 +201,36 @@ class AncienAdherent(models.Model):
     niveau = models.CharField(max_length=20, choices=Adherent.NIVEAUX_CHOICES)
     statut = models.CharField(max_length=10, choices=Adherent.STATUT_CHOICES, default='eleve')
     sections = models.ManyToManyField(Section, related_name='anciens_adherents', blank=True, verbose_name="Sections")
+    autres_brevets = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name="Autres brevets (sous niveau)",
+    )
+    nombre_plongees_milieu_naturel = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        verbose_name="Nombre de plongées en milieu naturel",
+    )
+    souhait_perfectionnement_niveau_actuel = models.BooleanField(
+        default=False,
+        verbose_name="Souhait de perfectionnement au niveau actuel",
+    )
+    preparation_niveau_superieur = models.BooleanField(
+        default=False,
+        verbose_name="Je souhaite me préparer au niveau supérieur",
+    )
+    personne_urgence = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name="Personne à prévenir en cas d'accident",
+    )
+    acceptation_diffusion_image = models.BooleanField(
+        default=False,
+        verbose_name="Acceptation diffusion d'image",
+    )
     date_archivage = models.DateTimeField(auto_now_add=True)
 
     class Meta:
