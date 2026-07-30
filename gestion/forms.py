@@ -535,7 +535,7 @@ class AdherentPublicForm2026(forms.ModelForm):
         self.fields['preparation_niveau_superieur'].required = False
         self.fields['personne_urgence'].required = True
         self.fields['personne_urgence'].label = "Personne à prévenir en cas d'accident (nom, prénom, ville, téléphone)"
-        self.fields['acceptation_diffusion_image'].required = True
+        self.fields['acceptation_diffusion_image'].required = False
         self.fields['acceptation_diffusion_image'].label = (
             "J'accepte la diffusion de mon image sur le site internet du club "
             "ainsi que sur les impressions destinées à faire connaître les activités du club."
@@ -558,6 +558,18 @@ class AdherentPublicForm2026(forms.ModelForm):
             )
         return email
 
+    def clean_date_delivrance_caci(self):
+        from datetime import timedelta, date
+        date_delivrance = self.cleaned_data.get('date_delivrance_caci')
+        if date_delivrance:
+            expiration = date_delivrance + timedelta(days=365)
+            if expiration < date.today():
+                raise forms.ValidationError(
+                    "Votre CACI est expiré. Merci de mettre à jour la date de délivrance "
+                    "et de téléverser un nouveau fichier CACI."
+                )
+        return date_delivrance
+
     def clean(self):
         cleaned_data = super().clean()
         ancien = self.ancien_adherent
@@ -569,11 +581,9 @@ class AdherentPublicForm2026(forms.ModelForm):
         if not cleaned_data.get('photo') and (not ancien or not ancien.photo):
             self.add_error('photo', 'La photo est obligatoire.')
         if not cleaned_data.get('caci_fichier') and (not ancien or not ancien.caci_fichier):
-            self.add_error('caci_fichier', 'Merci de fournir un fichier CACI ou de sélectionner votre fiche adhérent 2025-2026.')
-        if not cleaned_data.get('acceptation_diffusion_image'):
             self.add_error(
-                'acceptation_diffusion_image',
-                "Vous devez accepter la diffusion de votre image pour valider l'inscription.",
+                'caci_fichier',
+                'Merci de fournir un fichier CACI ou de sélectionner votre fiche adhérent 2025-2026.',
             )
         return cleaned_data
 
