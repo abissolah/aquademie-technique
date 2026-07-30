@@ -106,27 +106,6 @@
                     </div>
                 </div>
 
-                <hr>
-                <h6>Compléments inscription :</h6>
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><strong>Autres brevets :</strong> {{ adherent.autres_brevets|default:"—" }}</p>
-                        <p><strong>Plongées milieu naturel :</strong> {{ adherent.nombre_plongees_milieu_naturel|default:"—" }}</p>
-                        <p><strong>Personne à prévenir :</strong> {{ adherent.personne_urgence|default:"—" }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <p><strong>Perfectionnement niveau actuel :</strong>
-                            {% if adherent.souhait_perfectionnement_niveau_actuel %}Oui{% else %}Non{% endif %}
-                        </p>
-                        <p><strong>Préparation niveau supérieur :</strong>
-                            {% if adherent.preparation_niveau_superieur %}Oui{% else %}Non{% endif %}
-                        </p>
-                        <p><strong>Diffusion d'image :</strong>
-                            {% if adherent.acceptation_diffusion_image %}Acceptée{% else %}Non acceptée{% endif %}
-                        </p>
-                    </div>
-                </div>
-                
                 <!-- Sections d'inscription -->
                 <hr>
                 <h6>Sections d'inscription :</h6>
@@ -139,6 +118,47 @@
                 {% else %}
                 <p class="text-muted mb-0">Aucune section d'inscription.</p>
                 {% endif %}
+            </div>
+        </div>
+
+        <!-- Compléments d'inscription -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-clipboard-list me-2"></i>Compléments d'inscription
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Autres brevets (sous niveau) :</strong> {{ adherent.autres_brevets|default:"—" }}</p>
+                        <p><strong>Nombre de plongées en milieu naturel :</strong> {{ adherent.nombre_plongees_milieu_naturel|default:"—" }}</p>
+                        <p><strong>Personne à prévenir en cas d'accident :</strong> {{ adherent.personne_urgence|default:"—" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Souhait de perfectionnement au niveau actuel :</strong>
+                            {% if adherent.souhait_perfectionnement_niveau_actuel %}
+                                <span class="badge bg-success">Oui</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Non</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Je souhaite me préparer au niveau supérieur :</strong>
+                            {% if adherent.preparation_niveau_superieur %}
+                                <span class="badge bg-success">Oui</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Non</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Acceptation diffusion d'image :</strong>
+                            {% if adherent.acceptation_diffusion_image %}
+                                <span class="badge bg-success">Acceptée</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">Non acceptée</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
 

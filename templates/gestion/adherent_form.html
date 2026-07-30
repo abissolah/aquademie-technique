@@ -94,6 +94,15 @@
                             <a href="{{ object.caci_fichier.url }}" target="_blank" class="btn btn-sm btn-outline-primary ms-2">Télécharger</a>
                         </div>
                     {% endif %}
+
+                    <hr>
+                    <h6 class="mb-3">Compléments d'inscription</h6>
+                    {{ form.autres_brevets|as_crispy_field }}
+                    {{ form.nombre_plongees_milieu_naturel|as_crispy_field }}
+                    {{ form.souhait_perfectionnement_niveau_actuel|as_crispy_field }}
+                    {{ form.preparation_niveau_superieur|as_crispy_field }}
+                    {{ form.personne_urgence|as_crispy_field }}
+                    {{ form.acceptation_diffusion_image|as_crispy_field }}
                     
                     {{ form.type_personne|as_crispy_field }}
                     {{ form.actif|as_crispy_field }}
