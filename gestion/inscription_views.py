@@ -4,7 +4,7 @@ import logging
 from django.conf import settings
 from django.db.models import Q
 from django.http import JsonResponse, HttpResponseForbidden
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt, csrf_protect
@@ -157,6 +157,10 @@ class AdherentPublicCreateView2026(CreateView):
         if form.cleaned_data.get('caci_fichier'):
             adherent.caci_fichier = form.cleaned_data['caci_fichier']
         adherent.save()
+
+        hello_asso_url = getattr(settings, 'HELLO_ASSO_URL', '') or ''
+        if hello_asso_url:
+            return redirect(hello_asso_url)
         return self.render_to_response(
             self.get_context_data(form=AdherentPublicForm2026(), inscription_success=True)
         )
