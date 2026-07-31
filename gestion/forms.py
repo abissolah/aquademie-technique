@@ -485,9 +485,31 @@ class AdherentPublicForm(forms.ModelForm):
         return value
 
 
+class OuiNonRadioSelect(forms.RadioSelect):
+    """Sélecteur Oui/Non affiché comme boutons Bootstrap."""
+    template_name = 'gestion/widgets/oui_non_radio.html'
+
+
+def _coerce_bool_oui_non(value):
+    if value in (True, False):
+        return value
+    return str(value) in ('True', 'true', '1', 'on')
+
+
 class AdherentPublicForm2026(forms.ModelForm):
     ancien_adherent_id = forms.IntegerField(required=False, widget=forms.HiddenInput())
     adherent_id = forms.IntegerField(required=False, widget=forms.HiddenInput())
+    acceptation_diffusion_image = forms.TypedChoiceField(
+        label=(
+            "J'accepte la diffusion de mon image sur le site internet du club "
+            "ainsi que sur les impressions destinées à faire connaître les activités du club."
+        ),
+        choices=((True, 'Oui'), (False, 'Non')),
+        coerce=_coerce_bool_oui_non,
+        widget=OuiNonRadioSelect,
+        initial=True,
+        required=True,
+    )
 
     class Meta:
         model = Adherent
@@ -535,7 +557,7 @@ class AdherentPublicForm2026(forms.ModelForm):
         self.fields['preparation_niveau_superieur'].required = False
         self.fields['personne_urgence'].required = True
         self.fields['personne_urgence'].label = "Personne à prévenir en cas d'accident (nom, prénom, ville, téléphone)"
-        self.fields['acceptation_diffusion_image'].required = False
+        self.fields['acceptation_diffusion_image'].required = True
         self.fields['acceptation_diffusion_image'].label = (
             "J'accepte la diffusion de mon image sur le site internet du club "
             "ainsi que sur les impressions destinées à faire connaître les activités du club."
@@ -553,11 +575,23 @@ class AdherentPublicForm2026(forms.ModelForm):
             if self.instance.date_delivrance_caci:
                 self.fields['date_delivrance_caci'].initial = self.instance.date_delivrance_caci.strftime('%Y-%m-%d')
 
+        if not self.is_bound:
+            if self.instance and self.instance.pk:
+                self.fields['acceptation_diffusion_image'].initial = bool(
+                    self.instance.acceptation_diffusion_image
+                )
+            elif ancien_adherent is not None and hasattr(ancien_adherent, 'acceptation_diffusion_image'):
+                self.fields['acceptation_diffusion_image'].initial = bool(
+                    ancien_adherent.acceptation_diffusion_image
+                )
+            else:
+                self.fields['acceptation_diffusion_image'].initial = True
+
         if ancien_adherent:
             self.fields['ancien_adherent_id'].initial = ancien_adherent.pk
             if not self.is_bound and not (self.instance and self.instance.pk):
                 for field_name in self.Meta.fields:
-                    if field_name in ('photo', 'caci_fichier'):
+                    if field_name in ('photo', 'caci_fichier', 'acceptation_diffusion_image'):
                         continue
                     value = getattr(ancien_adherent, field_name, None)
                     if value is not None and value != '':

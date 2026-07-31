@@ -1,0 +1,19 @@
+{% with id=widget.attrs.id %}
+<div class="btn-group" role="group" aria-label="{{ widget.name }}">
+  {% for group, options, index in widget.optgroups %}
+    {% for option in options %}
+      <input type="radio"
+             class="btn-check"
+             name="{{ option.name }}"
+             id="{{ option.attrs.id }}"
+             value="{{ option.value }}"
+             {% if option.selected %}checked{% endif %}
+             {% if option.attrs.disabled %}disabled{% endif %}>
+      <label class="btn {% if option.value == 'True' or option.value == True %}btn-outline-success{% else %}btn-outline-secondary{% endif %} px-4"
+             for="{{ option.attrs.id }}">
+        {{ option.label }}
+      </label>
+    {% endfor %}
+  {% endfor %}
+</div>
+{% endwith %}

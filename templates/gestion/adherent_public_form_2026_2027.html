@@ -65,6 +65,23 @@
                         {{ form.adherent_id }}
                         {{ form|crispy }}
 
+                        <style>
+                            #div_id_acceptation_diffusion_image .btn-group {
+                                display: inline-flex;
+                                gap: 0;
+                            }
+                            #div_id_acceptation_diffusion_image .btn-check:checked + .btn-outline-success {
+                                background-color: #198754;
+                                color: #fff;
+                                border-color: #198754;
+                            }
+                            #div_id_acceptation_diffusion_image .btn-check:checked + .btn-outline-secondary {
+                                background-color: #6c757d;
+                                color: #fff;
+                                border-color: #6c757d;
+                            }
+                        </style>
+
                         {% if photo_ancien_url %}
                         <div class="mb-3">
                             <label class="form-label">
