@@ -487,6 +487,7 @@ class AdherentPublicForm(forms.ModelForm):
 
 class AdherentPublicForm2026(forms.ModelForm):
     ancien_adherent_id = forms.IntegerField(required=False, widget=forms.HiddenInput())
+    adherent_id = forms.IntegerField(required=False, widget=forms.HiddenInput())
 
     class Meta:
         model = Adherent
@@ -525,7 +526,6 @@ class AdherentPublicForm2026(forms.ModelForm):
         self.fields['assurance'].label = 'Assurance personnelle * '
         self.fields['numero_licence'].required = True
         self.fields['numero_licence'].label = 'Numéro de licence (Pour les débutants mettre 0)'
-        self.fields['photo'].required = ancien_adherent is None or not ancien_adherent.photo
         self.fields['caci_fichier'].required = False
         self.fields['caci_fichier'].label = 'Nouveau fichier CACI (optionnel si votre CACI actuel est encore valide)'
         self.fields['autres_brevets'].required = False
@@ -540,9 +540,22 @@ class AdherentPublicForm2026(forms.ModelForm):
             "J'accepte la diffusion de mon image sur le site internet du club "
             "ainsi que sur les impressions destinées à faire connaître les activités du club."
         )
+
+        has_photo = bool(self.instance and self.instance.pk and self.instance.photo)
+        if not has_photo and ancien_adherent and ancien_adherent.photo:
+            has_photo = True
+        self.fields['photo'].required = not has_photo
+
+        if self.instance and self.instance.pk:
+            self.fields['adherent_id'].initial = self.instance.pk
+            if self.instance.date_naissance:
+                self.fields['date_naissance'].initial = self.instance.date_naissance.strftime('%Y-%m-%d')
+            if self.instance.date_delivrance_caci:
+                self.fields['date_delivrance_caci'].initial = self.instance.date_delivrance_caci.strftime('%Y-%m-%d')
+
         if ancien_adherent:
             self.fields['ancien_adherent_id'].initial = ancien_adherent.pk
-            if not self.is_bound:
+            if not self.is_bound and not (self.instance and self.instance.pk):
                 for field_name in self.Meta.fields:
                     if field_name in ('photo', 'caci_fichier'):
                         continue
@@ -552,7 +565,10 @@ class AdherentPublicForm2026(forms.ModelForm):
 
     def clean_email(self):
         email = self.cleaned_data.get('email')
-        if email and Adherent.objects.filter(email__iexact=email).exists():
+        qs = Adherent.objects.filter(email__iexact=email)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if email and qs.exists():
             raise forms.ValidationError(
                 "Un adhérent est déjà inscrit avec cette adresse email pour la saison en cours."
             )
@@ -578,12 +594,24 @@ class AdherentPublicForm2026(forms.ModelForm):
             from .models import AncienAdherent
             ancien = AncienAdherent.objects.filter(pk=ancien_id).first()
             self.ancien_adherent = ancien
-        if not cleaned_data.get('photo') and (not ancien or not ancien.photo):
+
+        instance = self.instance if self.instance and self.instance.pk else None
+        has_photo = bool(
+            cleaned_data.get('photo')
+            or (instance and instance.photo)
+            or (ancien and ancien.photo)
+        )
+        has_caci = bool(
+            cleaned_data.get('caci_fichier')
+            or (instance and instance.caci_fichier_effectif)
+            or (ancien and ancien.caci_fichier)
+        )
+        if not has_photo:
             self.add_error('photo', 'La photo est obligatoire.')
-        if not cleaned_data.get('caci_fichier') and (not ancien or not ancien.caci_fichier):
+        if not has_caci:
             self.add_error(
                 'caci_fichier',
-                'Merci de fournir un fichier CACI ou de sélectionner votre fiche adhérent 2025-2026.',
+                'Merci de fournir un fichier CACI ou de sélectionner votre fiche existante.',
             )
         return cleaned_data
 

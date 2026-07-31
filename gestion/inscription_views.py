@@ -55,6 +55,32 @@ def api_recherche_anciens_adherents(request):
     return JsonResponse({'results': results})
 
 
+@require_GET
+def api_recherche_adherents_en_cours(request):
+    """Recherche les adhérents déjà inscrits mais sans Hello Asso validé."""
+    q = request.GET.get('q', '').strip()
+    if len(q) < 2:
+        return JsonResponse({'results': []})
+    mots = q.split()
+    queryset = Adherent.objects.filter(
+        type_personne='adherent',
+        inscription_hello_asso=False,
+        actif=True,
+    )
+    for mot in mots:
+        queryset = queryset.filter(Q(nom__icontains=mot) | Q(prenom__icontains=mot))
+    results = [
+        {
+            'id': a.pk,
+            'label': f'{a.nom.upper()} {a.prenom.capitalize()} — né(e) le {a.date_naissance.strftime("%d/%m/%Y")}',
+            'nom': a.nom,
+            'prenom': a.prenom,
+        }
+        for a in queryset.order_by('nom', 'prenom')[:25]
+    ]
+    return JsonResponse({'results': results})
+
+
 @method_decorator(csrf_protect, name='dispatch')
 class AdherentPublicCreateView2026(CreateView):
     model = Adherent
@@ -67,41 +93,73 @@ class AdherentPublicCreateView2026(CreateView):
             return None
         return AncienAdherent.objects.filter(pk=ancien_id, saison=SAISON_PRECEDENTE).first()
 
+    def get_adherent_en_cours(self):
+        adherent_id = self.request.GET.get('adherent_id') or self.request.POST.get('adherent_id')
+        if not adherent_id:
+            return None
+        return Adherent.objects.filter(
+            pk=adherent_id,
+            type_personne='adherent',
+            inscription_hello_asso=False,
+        ).first()
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        kwargs['ancien_adherent'] = self.get_ancien_adherent()
+        adherent = self.get_adherent_en_cours()
+        if adherent:
+            kwargs['instance'] = adherent
+        kwargs['ancien_adherent'] = None if adherent else self.get_ancien_adherent()
         return kwargs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        ancien = self.get_ancien_adherent()
+        adherent = self.get_adherent_en_cours()
+        ancien = None if adherent else self.get_ancien_adherent()
         context['ancien_adherent'] = ancien
+        context['adherent_en_cours'] = adherent
+        context['reprise_inscription'] = adherent is not None
         context['saison_courante'] = '2026-2027'
         context['hello_asso_url'] = getattr(settings, 'HELLO_ASSO_URL', '')
         context['inscription_success'] = kwargs.get('inscription_success', False)
-        if ancien and ancien.photo:
+        if adherent and adherent.photo:
+            context['photo_ancien_url'] = adherent.photo.url
+        elif ancien and ancien.photo:
             context['photo_ancien_url'] = ancien.photo.url
-        if ancien and ancien.caci_fichier:
+        if adherent and adherent.caci_fichier_effectif:
+            context['caci_ancien_url'] = adherent.caci_fichier_effectif.url
+        elif ancien and ancien.caci_fichier:
             context['caci_ancien_url'] = ancien.caci_fichier.url
         return context
 
     def form_valid(self, form):
-        ancien = form.ancien_adherent or self.get_ancien_adherent()
+        adherent_existant = self.get_adherent_en_cours()
+        ancien = None if adherent_existant else (form.ancien_adherent or self.get_ancien_adherent())
         adherent = form.save(commit=False)
-        adherent.type_personne = 'adherent'
-        adherent.caci_valide = False
-        adherent.inscription_hello_asso = False
-        adherent.actif = True
-        if ancien:
-            adherent.ancien_adherent = ancien
+
+        if adherent_existant:
+            if form.cleaned_data.get('caci_fichier'):
+                adherent.caci_valide = False
+            adherent.inscription_hello_asso = False
+            adherent.actif = True
+        else:
+            adherent.type_personne = 'adherent'
+            adherent.caci_valide = False
+            adherent.inscription_hello_asso = False
+            adherent.actif = True
+            if ancien:
+                adherent.ancien_adherent = ancien
+
         adherent.save()
-        appliquer_photo_depuis_ancien(adherent, ancien)
+        if not adherent_existant:
+            appliquer_photo_depuis_ancien(adherent, ancien)
         if form.cleaned_data.get('photo'):
             adherent.photo = form.cleaned_data['photo']
         if form.cleaned_data.get('caci_fichier'):
             adherent.caci_fichier = form.cleaned_data['caci_fichier']
         adherent.save()
-        return self.render_to_response(self.get_context_data(form=AdherentPublicForm2026(), inscription_success=True))
+        return self.render_to_response(
+            self.get_context_data(form=AdherentPublicForm2026(), inscription_success=True)
+        )
 
     def form_invalid(self, form):
         return self.render_to_response(self.get_context_data(form=form, inscription_success=False))

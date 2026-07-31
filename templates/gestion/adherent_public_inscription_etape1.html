@@ -22,12 +22,31 @@
                     </a>
                 </div>
 
-                <div id="bloc-recherche" class="mt-4 d-none">
+                <div id="bloc-recherche-ancien" class="mt-4 d-none">
                     <hr>
-                    <label for="recherche-ancien" class="form-label fw-bold">Recherchez votre nom</label>
+                    <label for="recherche-ancien" class="form-label fw-bold">Recherchez votre nom (saison {{ saison_precedente }})</label>
                     <input type="text" id="recherche-ancien" class="form-control form-control-lg" placeholder="Tapez votre nom ou prénom..." autocomplete="off">
                     <div id="resultats-ancien" class="list-group mt-2"></div>
                     <p class="text-muted small mt-2">Sélectionnez votre fiche dans la liste pour préremplir le formulaire.</p>
+                </div>
+
+                <div class="mt-5 pt-4 border-top">
+                    <p class="text-muted text-center small mb-3">
+                        Vous avez déjà commencé votre inscription {{ saison_courante }} mais vous n'avez pas finalisé Hello Asso ?
+                    </p>
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-warning btn-lg" id="btn-reprise">
+                            <i class="fas fa-redo me-2"></i>Reprendre mon inscription
+                        </button>
+                    </div>
+                </div>
+
+                <div id="bloc-recherche-reprise" class="mt-4 d-none">
+                    <hr>
+                    <label for="recherche-reprise" class="form-label fw-bold">Recherchez votre inscription en cours</label>
+                    <input type="text" id="recherche-reprise" class="form-control form-control-lg" placeholder="Tapez votre nom ou prénom..." autocomplete="off">
+                    <div id="resultats-reprise" class="list-group mt-2"></div>
+                    <p class="text-muted small mt-2">Sélectionnez votre fiche pour la mettre à jour (Hello Asso non encore validé).</p>
                 </div>
             </div>
         </div>
@@ -36,44 +55,66 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const btnOui = document.getElementById('btn-ancien-oui');
-    const blocRecherche = document.getElementById('bloc-recherche');
-    const input = document.getElementById('recherche-ancien');
-    const resultats = document.getElementById('resultats-ancien');
     const urlFormulaire = "{% url 'adherent_public_create_2026_2027' %}";
-    let timer = null;
 
-    btnOui.addEventListener('click', function() {
-        blocRecherche.classList.remove('d-none');
-        input.focus();
-    });
+    function setupRecherche(btnId, blocId, inputId, resultatsId, apiUrl, paramName) {
+        const btn = document.getElementById(btnId);
+        const bloc = document.getElementById(blocId);
+        const input = document.getElementById(inputId);
+        const resultats = document.getElementById(resultatsId);
+        let timer = null;
 
-    input.addEventListener('input', function() {
-        clearTimeout(timer);
-        const q = input.value.trim();
-        if (q.length < 2) {
-            resultats.innerHTML = '';
-            return;
-        }
-        timer = setTimeout(function() {
-            fetch("{% url 'api_recherche_anciens_adherents' %}?q=" + encodeURIComponent(q))
-                .then(r => r.json())
-                .then(data => {
-                    resultats.innerHTML = '';
-                    if (!data.results.length) {
-                        resultats.innerHTML = '<div class="list-group-item text-muted">Aucun résultat</div>';
-                        return;
-                    }
-                    data.results.forEach(function(item) {
-                        const a = document.createElement('a');
-                        a.href = urlFormulaire + '?ancien_id=' + item.id;
-                        a.className = 'list-group-item list-group-item-action';
-                        a.textContent = item.label;
-                        resultats.appendChild(a);
+        btn.addEventListener('click', function() {
+            document.getElementById('bloc-recherche-ancien').classList.add('d-none');
+            document.getElementById('bloc-recherche-reprise').classList.add('d-none');
+            bloc.classList.remove('d-none');
+            input.focus();
+        });
+
+        input.addEventListener('input', function() {
+            clearTimeout(timer);
+            const q = input.value.trim();
+            if (q.length < 2) {
+                resultats.innerHTML = '';
+                return;
+            }
+            timer = setTimeout(function() {
+                fetch(apiUrl + '?q=' + encodeURIComponent(q))
+                    .then(r => r.json())
+                    .then(data => {
+                        resultats.innerHTML = '';
+                        if (!data.results.length) {
+                            resultats.innerHTML = '<div class="list-group-item text-muted">Aucun résultat</div>';
+                            return;
+                        }
+                        data.results.forEach(function(item) {
+                            const a = document.createElement('a');
+                            a.href = urlFormulaire + '?' + paramName + '=' + item.id;
+                            a.className = 'list-group-item list-group-item-action';
+                            a.textContent = item.label;
+                            resultats.appendChild(a);
+                        });
                     });
-                });
-        }, 300);
-    });
+            }, 300);
+        });
+    }
+
+    setupRecherche(
+        'btn-ancien-oui',
+        'bloc-recherche-ancien',
+        'recherche-ancien',
+        'resultats-ancien',
+        "{% url 'api_recherche_anciens_adherents' %}",
+        'ancien_id'
+    );
+    setupRecherche(
+        'btn-reprise',
+        'bloc-recherche-reprise',
+        'recherche-reprise',
+        'resultats-reprise',
+        "{% url 'api_recherche_adherents_en_cours' %}",
+        'adherent_id'
+    );
 });
 </script>
 {% endblock %}

@@ -40,7 +40,14 @@
                     </div>
                     {% endif %}
                 {% else %}
-                    {% if ancien_adherent %}
+                    {% if reprise_inscription and adherent_en_cours %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-redo me-2"></i>
+                        Reprise de votre inscription :
+                        <strong>{{ adherent_en_cours.nom|upper }} {{ adherent_en_cours.prenom|capfirst }}</strong>.
+                        Vérifiez et mettez à jour vos informations ci-dessous.
+                    </div>
+                    {% elif ancien_adherent %}
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
                         Fiche retrouvée : <strong>{{ ancien_adherent.nom|upper }} {{ ancien_adherent.prenom|capfirst }}</strong>
@@ -55,11 +62,14 @@
                     <form method="post" enctype="multipart/form-data" novalidate id="adherent-public-form">
                         {% csrf_token %}
                         {{ form.ancien_adherent_id }}
+                        {{ form.adherent_id }}
                         {{ form|crispy }}
 
                         {% if photo_ancien_url %}
                         <div class="mb-3">
-                            <label class="form-label">Photo actuelle (saison précédente)</label><br>
+                            <label class="form-label">
+                                {% if reprise_inscription %}Photo actuelle{% else %}Photo actuelle (saison précédente){% endif %}
+                            </label><br>
                             <img src="{{ photo_ancien_url }}" alt="Photo actuelle" class="rounded mb-2" style="max-height:120px;">
                             <p class="text-muted small mb-0">Vous pouvez conserver cette photo ou en téléverser une nouvelle ci-dessus.</p>
                         </div>
@@ -68,10 +78,18 @@
                         {% if caci_ancien_url %}
                         <div class="card mb-3 border-info">
                             <div class="card-body">
-                                <h6 class="card-title"><i class="fas fa-file-medical me-2"></i>CACI enregistré (saison précédente)</h6>
+                                <h6 class="card-title"><i class="fas fa-file-medical me-2"></i>
+                                    {% if reprise_inscription %}CACI enregistré{% else %}CACI enregistré (saison précédente){% endif %}
+                                </h6>
                                 <p class="mb-2">
                                     <strong>Date de délivrance :</strong>
-                                    <span id="caci-date-affichage">{{ form.date_delivrance_caci.value|default:ancien_adherent.date_delivrance_caci|date:'d/m/Y' }}</span>
+                                    <span id="caci-date-affichage">
+                                        {% if reprise_inscription %}
+                                            {{ form.date_delivrance_caci.value|default:adherent_en_cours.date_delivrance_caci|date:'d/m/Y' }}
+                                        {% else %}
+                                            {{ form.date_delivrance_caci.value|default:ancien_adherent.date_delivrance_caci|date:'d/m/Y' }}
+                                        {% endif %}
+                                    </span>
                                 </p>
                                 <p class="mb-2">
                                     <strong>Date d'expiration estimée :</strong>

@@ -41,6 +41,7 @@ urlpatterns = [
     path('adherents/inscription-2026-2027/', inscription_views.inscription_saison_etape1, name='adherent_public_inscription_etape1'),
     path('adherents/inscription-2026-2027/formulaire/', inscription_views.AdherentPublicCreateView2026.as_view(), name='adherent_public_create_2026_2027'),
     path('api/anciens-adherents/recherche/', inscription_views.api_recherche_anciens_adherents, name='api_recherche_anciens_adherents'),
+    path('api/adherents-en-cours/recherche/', inscription_views.api_recherche_adherents_en_cours, name='api_recherche_adherents_en_cours'),
     path('webhooks/helloasso/', inscription_views.helloasso_webhook, name='helloasso_webhook'),
     path('adherents/<int:adherent_id>/valider-caci/', views.valider_caci, name='valider_caci'),
     path('adherents/<int:adherent_id>/valider-hello-asso/', views.valider_hello_asso, name='valider_hello_asso'),
