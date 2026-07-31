@@ -43,6 +43,7 @@ urlpatterns = [
     path('api/anciens-adherents/recherche/', inscription_views.api_recherche_anciens_adherents, name='api_recherche_anciens_adherents'),
     path('webhooks/helloasso/', inscription_views.helloasso_webhook, name='helloasso_webhook'),
     path('adherents/<int:adherent_id>/valider-caci/', views.valider_caci, name='valider_caci'),
+    path('adherents/<int:adherent_id>/valider-hello-asso/', views.valider_hello_asso, name='valider_hello_asso'),
     path('adherents/<int:adherent_id>/copier-caci/', views.copier_caci, name='copier_caci'),
     path('adherents/copier-tous-caci/', views.copier_tous_caci, name='copier_tous_caci'),
     path('adherents/<int:adherent_id>/creer-compte/', views.creer_compte_adherent, name='creer_compte_adherent'),

@@ -273,6 +273,18 @@
                     {% csrf_token %}
                     <button class="btn btn-success btn-sm" title="Valider le CACI"><i class="fas fa-check"></i> Valider le CACI</button>
                   </form>
+                  {% if a.inscription_hello_asso %}
+                    <button type="button" class="btn btn-success btn-sm ms-1" disabled title="Inscription Hello Asso déjà réalisée">
+                      <i class="fas fa-check"></i> Hello Asso réalisé
+                    </button>
+                  {% else %}
+                    <form method="post" action="{% url 'valider_hello_asso' a.pk %}" style="display:inline;">
+                      {% csrf_token %}
+                      <button class="btn btn-outline-success btn-sm ms-1" title="Marquer l'inscription Hello Asso comme réalisée">
+                        <i class="fas fa-handshake"></i> Hello Asso réalisé
+                      </button>
+                    </form>
+                  {% endif %}
                   {% if a.caci_fichier_effectif %}
                     <a href="{% url 'copier_caci' a.pk %}?from=dashboard" class="btn btn-outline-secondary btn-sm ms-1" title="Copier CACI">
                       <i class="fas fa-copy"></i> Copier CACI

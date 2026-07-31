@@ -4016,6 +4016,19 @@ def valider_caci(request, adherent_id):
         messages.success(request, f"CACI validé pour {adherent.nom} {adherent.prenom}.")
     return redirect('dashboard')
 
+
+@login_required
+def valider_hello_asso(request, adherent_id):
+    adherent = get_object_or_404(Adherent, pk=adherent_id)
+    if request.method == 'POST':
+        adherent.inscription_hello_asso = True
+        adherent.save()
+        messages.success(
+            request,
+            f"Inscription Hello Asso marquée comme réalisée pour {adherent.nom} {adherent.prenom}.",
+        )
+    return redirect('dashboard')
+
 @login_required
 def envoyer_liens_evaluation_encadrants(request, seance_id):
     seance = get_object_or_404(Seance, pk=seance_id)
