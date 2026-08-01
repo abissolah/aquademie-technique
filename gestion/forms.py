@@ -577,14 +577,12 @@ class AdherentPublicForm2026(forms.ModelForm):
 
         if not self.is_bound:
             if self.instance and self.instance.pk:
+                # Reprise d'inscription en cours : conserver le choix déjà enregistré
                 self.fields['acceptation_diffusion_image'].initial = bool(
                     self.instance.acceptation_diffusion_image
                 )
-            elif ancien_adherent is not None and hasattr(ancien_adherent, 'acceptation_diffusion_image'):
-                self.fields['acceptation_diffusion_image'].initial = bool(
-                    ancien_adherent.acceptation_diffusion_image
-                )
             else:
+                # Nouveau ou depuis un ancien adhérent : Oui par défaut
                 self.fields['acceptation_diffusion_image'].initial = True
 
         if ancien_adherent:
