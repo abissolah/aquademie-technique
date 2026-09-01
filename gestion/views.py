@@ -4093,6 +4093,12 @@ def envoyer_liens_evaluation_encadrants(request, seance_id):
         messages.error(request, "Erreurs lors de l'envoi : " + ", ".join(erreurs))
     return redirect(_detail_route_name_for_seance(seance), pk=seance_id)
 
+def _message_chemin_caci_copie(dest_path, nom_fichier):
+    chemin_host = getattr(settings, 'CHEMIN_SFTP_HOST', None)
+    if chemin_host:
+        return f"Fichier CACI copié sur le serveur : {os.path.join(chemin_host, nom_fichier)}"
+    return f"Fichier CACI copié : {dest_path}"
+
 def copier_caci(request, adherent_id):
     adherent = get_object_or_404(Adherent, pk=adherent_id)
     caci = adherent.caci_fichier_effectif
@@ -4120,7 +4126,7 @@ def copier_caci(request, adherent_id):
     dest_path = os.path.join(chemin_sftp, nouveau_nom)
     try:
         shutil.copy2(source_path, dest_path)
-        messages.success(request, f"Fichier CACI copié : {dest_path}")
+        messages.success(request, _message_chemin_caci_copie(dest_path, nouveau_nom))
     except Exception as e:
         messages.error(request, f"Erreur lors de la copie : {e}")
     if request.GET.get('from') == 'dashboard':
@@ -4154,7 +4160,9 @@ def copier_tous_caci(request):
         except Exception as e:
             erreurs.append(f"{adherent.nom} {adherent.prenom} : {e}")
     if nb_copies:
-        messages.success(request, f"{nb_copies} fichier(s) CACI copié(s) dans {chemin_sftp}.")
+        chemin_host = getattr(settings, 'CHEMIN_SFTP_HOST', None)
+        dossier_affichage = chemin_host or chemin_sftp
+        messages.success(request, f"{nb_copies} fichier(s) CACI copié(s) dans {dossier_affichage}.")
     if erreurs:
         messages.error(request, "Erreurs : " + ", ".join(erreurs))
     return redirect('adherent_list')

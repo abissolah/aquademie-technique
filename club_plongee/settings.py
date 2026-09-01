@@ -209,6 +209,8 @@ EMAIL_CC_COVOIT = [
 
 # Dossier de destination locale pour « Copier CACI » (chemin accessible depuis le conteneur en prod)
 CHEMIN_SFTP = os.getenv('CHEMIN_SFTP', '').strip() or None
+# Chemin correspondant sur l'hôte (pour affichage ; doit correspondre au montage Docker)
+CHEMIN_SFTP_HOST = os.getenv('CHEMIN_SFTP_HOST', '').strip() or None
 
 # Configuration du site
 SITE_NAME = os.getenv('SITE_NAME', 'Aquadémie Paris Plongée')
