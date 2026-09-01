@@ -4120,7 +4120,7 @@ def copier_caci(request, adherent_id):
     dest_path = os.path.join(chemin_sftp, nouveau_nom)
     try:
         shutil.copy2(source_path, dest_path)
-        messages.success(request, f"Fichier CACI copié sous {nouveau_nom}.")
+        messages.success(request, f"Fichier CACI copié : {dest_path}")
     except Exception as e:
         messages.error(request, f"Erreur lors de la copie : {e}")
     if request.GET.get('from') == 'dashboard':
