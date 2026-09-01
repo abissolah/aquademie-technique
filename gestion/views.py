@@ -137,7 +137,11 @@ def dashboard(request):
         Q(type_personne='adherent') |
         (Q(type_personne='non_adherent') & ~Q(niveau='debutant'))
     )
-    context['adherents_sans_caci'] = adherents_caci.filter(caci_fichier__isnull=True) | adherents_caci.filter(caci_fichier='',actif=True)
+    avec_fichier_caci = (
+        Q(caci_fichier__isnull=False) & ~Q(caci_fichier='')
+        | Q(ancien_adherent__caci_fichier__isnull=False) & ~Q(ancien_adherent__caci_fichier='')
+    )
+    context['adherents_sans_caci'] = adherents_caci.exclude(avec_fichier_caci)
     context['adherents_caci_expire'] = adherents_caci.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__lt=today - timedelta(days=365),actif=True)
     context['adherents_caci_bientot'] = adherents_caci.filter(date_delivrance_caci__isnull=False, date_delivrance_caci__gte=today - timedelta(days=365), date_delivrance_caci__lte=today - timedelta(days=335),actif=True)
     context['adherents_caci_non_valide'] = adherents_caci.filter(
@@ -4099,7 +4103,7 @@ def copier_caci(request, adherent_id):
         return redirect('adherent_list')
     chemin_sftp = getattr(settings, 'CHEMIN_SFTP', None)
     if not chemin_sftp:
-        messages.error(request, "CHEMIN_SFTP non configuré dans les settings.")
+        messages.error(request, "CHEMIN_SFTP non configuré. Définissez CHEMIN_SFTP dans le fichier .env.")
         if request.GET.get('from') == 'dashboard':
             return redirect('dashboard')
         return redirect('adherent_list')
@@ -4127,7 +4131,7 @@ def copier_tous_caci(request):
     from .models import Adherent
     chemin_sftp = getattr(settings, 'CHEMIN_SFTP', None)
     if not chemin_sftp:
-        messages.error(request, "CHEMIN_SFTP non configuré dans les settings.")
+        messages.error(request, "CHEMIN_SFTP non configuré. Définissez CHEMIN_SFTP dans le fichier .env.")
         return redirect('adherent_list')
     adherents = Adherent.objects.filter(caci_fichier__isnull=False).exclude(caci_fichier='')
     nb_copies = 0

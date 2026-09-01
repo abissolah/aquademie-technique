@@ -101,6 +101,9 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
+# Export CACI (montage Docker local par défaut)
+caci_export/
+
 # Environments
 .env
 .venv

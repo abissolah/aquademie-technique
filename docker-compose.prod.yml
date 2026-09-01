@@ -38,6 +38,7 @@ services:
     volumes:
       - media_data:/app/media
       - static_data:/app/staticfiles
+      - ${CHEMIN_SFTP_HOST:-./caci_export}:${CHEMIN_SFTP:-/data/caci_export}
     expose:
       - "8000"
     depends_on:
