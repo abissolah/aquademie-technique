@@ -303,6 +303,23 @@ class AdherentUpdateView(LoginRequiredMixin, UpdateView):
         kwargs['for_eleve'] = is_eleve_restreint(self.request.user)
         return kwargs
 
+    def form_valid(self, form):
+        """
+        Un nouveau fichier CACI (ou une date de délivrance modifiée par l'élève)
+        doit repasser en « à valider » sur le dashboard admin.
+        """
+        if is_eleve_restreint(self.request.user):
+            nouveau_fichier = bool(form.cleaned_data.get('caci_fichier'))
+            date_modifiee = False
+            if self.object and self.object.pk and 'date_delivrance_caci' in form.cleaned_data:
+                date_modifiee = (
+                    form.cleaned_data.get('date_delivrance_caci') != self.object.date_delivrance_caci
+                )
+            if nouveau_fichier or date_modifiee:
+                form.instance.caci_valide = False
+
+        return super().form_valid(form)
+
     def get_success_url(self):
         if is_eleve_restreint(self.request.user):
             return reverse_lazy('adherent_detail', kwargs={'pk': self.object.pk})
