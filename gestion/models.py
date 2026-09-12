@@ -43,6 +43,12 @@ class Adherent(models.Model):
         ('eleve', 'Élève'),
         ('encadrant', 'Encadrant'),
     ]
+
+    STATUT_LICENCE_CHOICES = [
+        ('a_valider', 'À valider'),
+        ('valide', 'Valide'),
+        ('externe', 'Externe'),
+    ]
     
     TYPE_PERSONNE_CHOICES = [
         ('adherent', 'Adhérent du club'),
@@ -76,6 +82,12 @@ class Adherent(models.Model):
     date_delivrance_caci = models.DateField(verbose_name="Date de délivrance du CACI", null=True, blank=True)
     niveau = models.CharField(max_length=20, choices=NIVEAUX_CHOICES)
     statut = models.CharField(max_length=10, choices=STATUT_CHOICES, default='eleve')
+    statut_licence = models.CharField(
+        max_length=20,
+        choices=STATUT_LICENCE_CHOICES,
+        default='a_valider',
+        verbose_name="Statut de licence",
+    )
     sections = models.ManyToManyField(Section, related_name='adherents', blank=True, verbose_name="Sections")
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)

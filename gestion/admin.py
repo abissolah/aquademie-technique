@@ -4,9 +4,9 @@ from django.contrib.auth.models import User
 
 @admin.register(Adherent)
 class AdherentAdmin(admin.ModelAdmin):
-    list_display = ('nom', 'prenom', 'statut', 'type_personne', 'user')
+    list_display = ('nom', 'prenom', 'statut', 'statut_licence', 'type_personne', 'user')
     search_fields = ('nom', 'prenom', 'email')
-    list_filter = ('statut', 'type_personne')
+    list_filter = ('statut', 'statut_licence', 'type_personne')
     raw_id_fields = ('user',)
     date_hierarchy = 'date_creation'
     readonly_fields = ['date_creation', 'date_modification']
@@ -17,7 +17,7 @@ class AdherentAdmin(admin.ModelAdmin):
         }),
         ('Informations de plongée', {
             'fields': (
-                'date_delivrance_caci', 'niveau', 'statut', 'autres_brevets',
+                'date_delivrance_caci', 'niveau', 'statut', 'statut_licence', 'autres_brevets',
                 'nombre_plongees_milieu_naturel', 'souhait_perfectionnement_niveau_actuel',
                 'preparation_niveau_superieur', 'inscription_hello_asso', 'ancien_adherent',
             )

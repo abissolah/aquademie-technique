@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion licences - Aquadémie Paris Plongée{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <h1 class="mb-0">
+            <i class="fas fa-id-card me-2"></i>Gestion licences
+        </h1>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'export_licences_excel' %}" class="btn btn-success">
+                <i class="fas fa-file-excel me-2"></i>Exporter
+            </a>
+            <a href="{% url 'adherent_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Retour à la liste
+            </a>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-3" id="licencesTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-a-valider" data-bs-toggle="tab" data-bs-target="#pane-a-valider" type="button" role="tab">
+                Licences à valider
+                <span class="badge bg-warning text-dark ms-1" id="count-a_valider">{{ licences_a_valider|length }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-valide" data-bs-toggle="tab" data-bs-target="#pane-valide" type="button" role="tab">
+                Licences valides
+                <span class="badge bg-success ms-1" id="count-valide">{{ licences_valides|length }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-externe" data-bs-toggle="tab" data-bs-target="#pane-externe" type="button" role="tab">
+                Licences externes
+                <span class="badge bg-info text-dark ms-1" id="count-externe">{{ licences_externes|length }}</span>
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="licencesTabsContent">
+        <div class="tab-pane fade show active" id="pane-a-valider" role="tabpanel">
+            {% include 'gestion/_gestion_licences_table.html' with adherents=licences_a_valider table_id='table-a_valider' %}
+        </div>
+        <div class="tab-pane fade" id="pane-valide" role="tabpanel">
+            {% include 'gestion/_gestion_licences_table.html' with adherents=licences_valides table_id='table-valide' %}
+        </div>
+        <div class="tab-pane fade" id="pane-externe" role="tabpanel">
+            {% include 'gestion/_gestion_licences_table.html' with adherents=licences_externes table_id='table-externe' %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const csrfToken = '{{ csrf_token }}';
+    const statutChoices = [
+        {% for value, label in statut_licence_choices %}
+        { value: '{{ value }}', label: '{{ label|escapejs }}' }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    function getCsrfCookie() {
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        return match ? match[1] : csrfToken;
+    }
+
+    function updateCounts() {
+        ['a_valider', 'valide', 'externe'].forEach(function (statut) {
+            const tbody = document.querySelector('#table-' + statut + ' tbody');
+            const count = tbody ? tbody.querySelectorAll('tr[data-adherent-id]').length : 0;
+            const badge = document.getElementById('count-' + statut);
+            if (badge) badge.textContent = count;
+            const emptyRow = document.querySelector('#table-' + statut + ' .empty-row');
+            if (emptyRow) {
+                emptyRow.style.display = count === 0 ? '' : 'none';
+            }
+        });
+    }
+
+    function moveRow(row, newStatut) {
+        const targetBody = document.querySelector('#table-' + newStatut + ' tbody');
+        if (!targetBody) return;
+        targetBody.appendChild(row);
+        updateCounts();
+    }
+
+    document.addEventListener('change', function (event) {
+        const select = event.target.closest('.statut-licence-select');
+        if (!select) return;
+
+        const row = select.closest('tr[data-adherent-id]');
+        if (!row) return;
+
+        const adherentId = row.getAttribute('data-adherent-id');
+        const previous = select.getAttribute('data-current') || select.value;
+        const nouveau = select.value;
+        if (nouveau === previous) return;
+
+        select.disabled = true;
+        fetch('/api/adherents/' + adherentId + '/statut-licence/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfCookie()
+            },
+            body: JSON.stringify({ statut_licence: nouveau })
+        })
+        .then(function (response) { return response.json().then(function (data) {
+            return { ok: response.ok, data: data };
+        }); })
+        .then(function (result) {
+            if (!result.ok || !result.data.success) {
+                select.value = previous;
+                alert((result.data && result.data.error) || 'Impossible de mettre à jour le statut.');
+                return;
+            }
+            select.setAttribute('data-current', nouveau);
+            moveRow(row, nouveau);
+        })
+        .catch(function () {
+            select.value = previous;
+            alert('Erreur réseau lors de la mise à jour.');
+        })
+        .finally(function () {
+            select.disabled = false;
+        });
+    });
+})();
+</script>
+{% endblock %}

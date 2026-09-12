@@ -2447,7 +2447,8 @@ def export_adherents_excel(request):
     # Colonnes de base + section
     colonnes = [
         'Nom', 'Prénom', 'Email', 'Téléphone', 'Adresse', 'Code postal', 'Ville',
-        'Numéro de licence', 'Assurance', 'Date délivrance CACI', 'Niveau', 'Statut', 'Section', 'Date de naissance'
+        'Numéro de licence', 'Assurance', 'Date délivrance CACI', 'Niveau', 'Statut',
+        'Statut licence', 'Section', 'Date de naissance'
     ]
 
     def adherent_to_dict(a):
@@ -2464,6 +2465,7 @@ def export_adherents_excel(request):
             'Date délivrance CACI': a.date_delivrance_caci,
             'Niveau': a.get_niveau_display() if hasattr(a, 'get_niveau_display') else a.niveau,
             'Statut': a.get_statut_display() if hasattr(a, 'get_statut_display') else a.statut,
+            'Statut licence': a.get_statut_licence_display() if hasattr(a, 'get_statut_licence_display') else a.statut_licence,
             'Section': ', '.join([s.get_nom_display() for s in a.sections.all()]),
             'Date de naissance': a.date_naissance,
         }
@@ -4439,6 +4441,98 @@ def affecter_section_masse(request):
     else:
         form = AffectationSectionMasseForm(adherents_queryset=adherents_sans_section)
     return render(request, 'gestion/affecter_section_masse.html', {'form': form, 'adherents': adherents_sans_section})
+
+
+@login_required
+def gestion_licences(request):
+    """Écran de gestion des statuts de licence (admin / codir)."""
+    if not can_access_dashboard(request.user):
+        return redirect('login')
+
+    qs = Adherent.objects.filter(actif=True).order_by('nom', 'prenom')
+    context = {
+        'licences_a_valider': qs.filter(statut_licence='a_valider'),
+        'licences_valides': qs.filter(statut_licence='valide'),
+        'licences_externes': qs.filter(statut_licence='externe'),
+        'statut_licence_choices': Adherent.STATUT_LICENCE_CHOICES,
+    }
+    return render(request, 'gestion/gestion_licences.html', context)
+
+
+@login_required
+@require_POST
+def api_update_statut_licence(request, adherent_id):
+    """AJAX : met à jour le statut de licence d'un adhérent actif."""
+    if not can_access_dashboard(request.user):
+        return JsonResponse({'success': False, 'error': 'Permission refusée'}, status=403)
+
+    adherent = get_object_or_404(Adherent, pk=adherent_id, actif=True)
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        payload = {}
+    nouveau_statut = payload.get('statut_licence') or request.POST.get('statut_licence')
+    valeurs_valides = {choice[0] for choice in Adherent.STATUT_LICENCE_CHOICES}
+    if nouveau_statut not in valeurs_valides:
+        return JsonResponse({'success': False, 'error': 'Statut de licence invalide'}, status=400)
+
+    adherent.statut_licence = nouveau_statut
+    adherent.save(update_fields=['statut_licence', 'date_modification'])
+    return JsonResponse({
+        'success': True,
+        'adherent_id': adherent.id,
+        'statut_licence': adherent.statut_licence,
+        'statut_licence_display': adherent.get_statut_licence_display(),
+    })
+
+
+@login_required
+def export_licences_excel(request):
+    """Export Excel des adhérents/non-adhérents actifs avec statut de licence."""
+    if not can_access_dashboard(request.user):
+        return redirect('login')
+
+    import pandas as pd
+
+    qs = Adherent.objects.filter(actif=True).order_by('statut_licence', 'nom', 'prenom')
+    colonnes = [
+        'Nom', 'Prénom', 'Niveau', 'Statut', 'Date délivrance CACI',
+        'Statut licence', 'Type de personne', 'Email', 'Téléphone',
+    ]
+
+    def row(a):
+        return {
+            'Nom': a.nom.upper(),
+            'Prénom': a.prenom.capitalize(),
+            'Niveau': a.get_niveau_display(),
+            'Statut': a.get_statut_display(),
+            'Date délivrance CACI': a.date_delivrance_caci,
+            'Statut licence': a.get_statut_licence_display(),
+            'Type de personne': a.get_type_personne_display(),
+            'Email': a.email,
+            'Téléphone': a.telephone,
+        }
+
+    data_a_valider = [row(a) for a in qs.filter(statut_licence='a_valider')]
+    data_valides = [row(a) for a in qs.filter(statut_licence='valide')]
+    data_externes = [row(a) for a in qs.filter(statut_licence='externe')]
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="gestion_licences.xlsx"'
+    with pd.ExcelWriter(response, engine='openpyxl') as writer:
+        pd.DataFrame(data_a_valider, columns=colonnes).to_excel(
+            writer, sheet_name='Licences à valider', index=False
+        )
+        pd.DataFrame(data_valides, columns=colonnes).to_excel(
+            writer, sheet_name='Licences valides', index=False
+        )
+        pd.DataFrame(data_externes, columns=colonnes).to_excel(
+            writer, sheet_name='Licences externes', index=False
+        )
+    return response
+
 
 @login_required
 @group_required('admin')

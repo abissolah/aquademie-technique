@@ -1,0 +1,54 @@
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle" id="{{ table_id }}">
+                <thead class="table-light">
+                    <tr>
+                        <th>Nom</th>
+                        <th>Prénom</th>
+                        <th>Niveau</th>
+                        <th>Statut</th>
+                        <th>Date de délivrance CACI</th>
+                        <th style="min-width: 180px;">Statut de licence</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in adherents %}
+                    <tr data-adherent-id="{{ a.id }}">
+                        <td>
+                            <a href="{% url 'adherent_detail' a.pk %}">{{ a.nom|upper }}</a>
+                        </td>
+                        <td>{{ a.prenom|capfirst }}</td>
+                        <td><span class="badge bg-info">{{ a.get_niveau_display }}</span></td>
+                        <td>
+                            {% if a.statut == 'eleve' %}
+                            <span class="badge bg-success">Élève</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">Encadrant</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ a.date_delivrance_caci|date:"d/m/Y"|default:"—" }}</td>
+                        <td>
+                            <select class="form-select form-select-sm statut-licence-select"
+                                    data-current="{{ a.statut_licence }}">
+                                {% for value, label in statut_licence_choices %}
+                                <option value="{{ value }}" {% if a.statut_licence == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr class="empty-row">
+                        <td colspan="6" class="text-muted text-center py-4">Aucun adhérent dans cette liste.</td>
+                    </tr>
+                    {% endfor %}
+                    {% if adherents %}
+                    <tr class="empty-row" style="display:none;">
+                        <td colspan="6" class="text-muted text-center py-4">Aucun adhérent dans cette liste.</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
