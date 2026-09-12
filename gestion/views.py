@@ -4496,7 +4496,7 @@ def export_licences_excel(request):
 
     qs = Adherent.objects.filter(actif=True).order_by('statut_licence', 'nom', 'prenom')
     colonnes = [
-        'Nom', 'Prénom', 'Niveau', 'Statut', 'Date délivrance CACI',
+        'Nom', 'Prénom', 'Niveau', 'Statut', 'Numéro de licence', 'Date délivrance CACI',
         'Statut licence', 'Type de personne', 'Email', 'Téléphone',
     ]
 
@@ -4506,6 +4506,7 @@ def export_licences_excel(request):
             'Prénom': a.prenom.capitalize(),
             'Niveau': a.get_niveau_display(),
             'Statut': a.get_statut_display(),
+            'Numéro de licence': a.numero_licence or '',
             'Date délivrance CACI': a.date_delivrance_caci,
             'Statut licence': a.get_statut_licence_display(),
             'Type de personne': a.get_type_personne_display(),

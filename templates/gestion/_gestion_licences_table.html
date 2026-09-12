@@ -8,6 +8,7 @@
                         <th>Prénom</th>
                         <th>Niveau</th>
                         <th>Statut</th>
+                        <th>N° de licence</th>
                         <th>Date de délivrance CACI</th>
                         <th style="min-width: 180px;">Statut de licence</th>
                     </tr>
@@ -27,6 +28,7 @@
                             <span class="badge bg-warning text-dark">Encadrant</span>
                             {% endif %}
                         </td>
+                        <td>{{ a.numero_licence|default:"—" }}</td>
                         <td>{{ a.date_delivrance_caci|date:"d/m/Y"|default:"—" }}</td>
                         <td>
                             <select class="form-select form-select-sm statut-licence-select"
@@ -39,12 +41,12 @@
                     </tr>
                     {% empty %}
                     <tr class="empty-row">
-                        <td colspan="6" class="text-muted text-center py-4">Aucun adhérent dans cette liste.</td>
+                        <td colspan="7" class="text-muted text-center py-4">Aucun adhérent dans cette liste.</td>
                     </tr>
                     {% endfor %}
                     {% if adherents %}
                     <tr class="empty-row" style="display:none;">
-                        <td colspan="6" class="text-muted text-center py-4">Aucun adhérent dans cette liste.</td>
+                        <td colspan="7" class="text-muted text-center py-4">Aucun adhérent dans cette liste.</td>
                     </tr>
                     {% endif %}
                 </tbody>
