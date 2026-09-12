@@ -51,6 +51,16 @@ class CommunicationSeanceForm(forms.Form):
             self.fields['inscrits_choisis'].choices = inscrits_choices
 
 class AdherentForm(forms.ModelForm):
+    # Champs réservés à l'admin (non modifiables / non affichés pour un élève)
+    ELEVE_EXCLUDED_FIELDS = (
+        'statut',
+        'sections',
+        'caci_valide',
+        'inscription_hello_asso',
+        'type_personne',
+        'actif',
+    )
+
     caci_valide = forms.BooleanField(label="CACI validé", required=False)
     actif = forms.BooleanField(label="Actif", required=False)
     class Meta:
@@ -82,12 +92,16 @@ class AdherentForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
+        self.for_eleve = kwargs.pop('for_eleve', False)
         super().__init__(*args, **kwargs)
+        if self.for_eleve:
+            for field_name in self.ELEVE_EXCLUDED_FIELDS:
+                self.fields.pop(field_name, None)
         # S'assurer que les dates sont formatées correctement pour l'affichage HTML
         if self.instance and self.instance.pk:
             if self.instance.date_naissance:
                 self.fields['date_naissance'].initial = self.instance.date_naissance.strftime('%Y-%m-%d')
-            if self.instance.date_delivrance_caci:
+            if self.instance.date_delivrance_caci and 'date_delivrance_caci' in self.fields:
                 self.fields['date_delivrance_caci'].initial = self.instance.date_delivrance_caci.strftime('%Y-%m-%d')
         if 'nom' in self.fields and self.instance and self.instance.nom:
             self.fields['nom'].initial = self.instance.nom.upper()

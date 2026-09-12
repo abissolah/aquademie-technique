@@ -21,25 +21,16 @@
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            {% if user.is_authenticated %}
-                {% with is_eleve=False %}
-                    {% for group in user.groups.all %}
-                        {% if group.name == 'eleve' %}
-                            {% with True as is_eleve %}
-                                <span class="navbar-brand d-flex align-items-center" style="pointer-events: none; cursor: default;">
-                                    <img src="{% static 'logo.jpeg' %}" alt="Logo" style="height: 48px; width: auto; margin-right: 0.5rem;">
-                                    Aquadémie Paris Plongée
-                                </span>
-                            {% endwith %}
-                        {% endif %}
-                    {% endfor %}
-                    {% if not is_eleve %}
-                        <a class="navbar-brand d-flex align-items-center" href="{% url 'dashboard' %}">
-                            <img src="{% static 'logo.jpeg' %}" alt="Logo" style="height: 48px; width: auto; margin-right: 0.5rem;">
-                            Aquadémie Paris Plongée
-                        </a>
-                    {% endif %}
-                {% endwith %}
+            {% if user.is_authenticated and is_eleve_restreint and adherent_profile %}
+                <a class="navbar-brand d-flex align-items-center" href="{% url 'adherent_detail' adherent_profile.pk %}">
+                    <img src="{% static 'logo.jpeg' %}" alt="Logo" style="height: 48px; width: auto; margin-right: 0.5rem;">
+                    Aquadémie Paris Plongée
+                </a>
+            {% elif user.is_authenticated %}
+                <a class="navbar-brand d-flex align-items-center" href="{% url 'dashboard' %}">
+                    <img src="{% static 'logo.jpeg' %}" alt="Logo" style="height: 48px; width: auto; margin-right: 0.5rem;">
+                    Aquadémie Paris Plongée
+                </a>
             {% else %}
                 <a class="navbar-brand d-flex align-items-center" href="{% url 'dashboard' %}">
                     <img src="{% static 'logo.jpeg' %}" alt="Logo" style="height: 48px; width: auto; margin-right: 0.5rem;">
@@ -108,6 +99,17 @@
                             <li class="nav-item">
                                 <a class="nav-link" href="{% url 'eleve_list' %}">
                                     <i class="fas fa-user-graduate me-1"></i>Liste des élèves
+                                </a>
+                            </li>
+                        {% elif is_eleve_restreint and adherent_profile %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'adherent_detail' adherent_profile.pk %}">
+                                    <i class="fas fa-user me-1"></i>Ma fiche
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'suivi_formation_eleve' adherent_profile.pk %}">
+                                    <i class="fas fa-chart-line me-1"></i>Suivi de formation
                                 </a>
                             </li>
                         {% endif %}

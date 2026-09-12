@@ -35,7 +35,15 @@ import time
 
 from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Evaluation, LienEvaluation, Palanquee, Lieu, LienInscriptionSeance, InscriptionSeance, Exercice
 from .forms import AdherentForm, SectionForm, CompetenceForm, GroupeCompetenceForm, SeanceForm, EvaluationBulkForm, PalanqueeForm, NonAdherentInscriptionForm, AdherentPublicForm, ExerciceForm, ExerciceEvaluationForm, AdminInscriptionSeanceForm, AffectationSectionMasseForm, CommunicationSeanceForm, CommunicationAdherentsForm, GenererLienInscriptionForm
-from .utils import envoyer_lien_evaluation, envoyer_lien_evaluation_avec_cc
+from .utils import (
+    envoyer_lien_evaluation,
+    envoyer_lien_evaluation_avec_cc,
+    can_access_dashboard,
+    get_adherent_profile,
+    is_eleve_restreint,
+    peut_acceder_fiche_adherent,
+    redirect_eleve_home,
+)
 from .models import PalanqueeEleve
 from gestion.models import EvaluationExercice, GroupeCompetence, Competence, Exercice, Adherent
 from django.contrib.admin.views.decorators import staff_member_required
@@ -111,8 +119,9 @@ def _list_route_name_for_seance(seance):
 @login_required
 def dashboard(request):
     # Vérifier les permissions d'accès au dashboard
-    from .utils import can_access_dashboard
     if not can_access_dashboard(request.user):
+        if is_eleve_restreint(request.user):
+            return redirect_eleve_home(request.user)
         return redirect('login')
     """Tableau de bord principal"""
     from .utils import is_codir, is_codir_eleve, is_codir_encadrant
@@ -228,23 +237,22 @@ class AdherentListView(LoginRequiredMixin, ListView):
         context['is_codir_encadrant'] = is_codir_encadrant(self.request.user)
         return context
 
-@method_decorator(login_required, name='dispatch')
 class AdherentDetailView(LoginRequiredMixin, DetailView):
     model = Adherent
     template_name = 'gestion/adherent_detail.html'
     context_object_name = 'adherent'
-    
+
     def get(self, request, *args, **kwargs):
-        # Vérifier les permissions d'accès
-        from .utils import can_access_dashboard
-        if not can_access_dashboard(request.user):
+        if not peut_acceder_fiche_adherent(request.user, kwargs.get('pk')):
+            if is_eleve_restreint(request.user):
+                return redirect_eleve_home(request.user)
             return redirect('login')
         return super().get(request, *args, **kwargs)
-    
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         from .utils import is_codir, is_codir_eleve, is_codir_encadrant
-        
+
         context['today'] = timezone.now().date()
         # Ajout : séances où l'adhérent est inscrit
         from .models import InscriptionSeance
@@ -258,6 +266,7 @@ class AdherentDetailView(LoginRequiredMixin, DetailView):
         context['is_codir'] = is_codir(self.request.user)
         context['is_codir_eleve'] = is_codir_eleve(self.request.user)
         context['is_codir_encadrant'] = is_codir_encadrant(self.request.user)
+        context['is_eleve_restreint'] = is_eleve_restreint(self.request.user)
         return context
 
 @method_decorator(group_required('admin'), name='dispatch')
@@ -267,12 +276,42 @@ class AdherentCreateView(LoginRequiredMixin, CreateView):
     template_name = 'gestion/adherent_form.html'
     success_url = reverse_lazy('adherent_list')
 
-@method_decorator(group_required('admin'), name='dispatch')
 class AdherentUpdateView(LoginRequiredMixin, UpdateView):
     model = Adherent
     form_class = AdherentForm
     template_name = 'gestion/adherent_form.html'
     success_url = reverse_lazy('adherent_list')
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        self.object = self.get_object()
+        if request.user.is_superuser or request.user.groups.filter(name='admin').exists():
+            return super().dispatch(request, *args, **kwargs)
+        if is_eleve_restreint(request.user):
+            adherent = get_adherent_profile(request.user)
+            if adherent and adherent.id == self.object.id:
+                return super().dispatch(request, *args, **kwargs)
+            return redirect_eleve_home(request.user)
+        # Codir et autres : pas de modification
+        if can_access_dashboard(request.user):
+            return redirect('adherent_detail', pk=self.object.pk)
+        return redirect('login')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['for_eleve'] = is_eleve_restreint(self.request.user)
+        return kwargs
+
+    def get_success_url(self):
+        if is_eleve_restreint(self.request.user):
+            return reverse_lazy('adherent_detail', kwargs={'pk': self.object.pk})
+        return reverse_lazy('adherent_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_eleve_restreint'] = is_eleve_restreint(self.request.user)
+        return context
 
 @method_decorator(group_required('admin'), name='dispatch')
 class AdherentDeleteView(LoginRequiredMixin, DeleteView):
@@ -1310,9 +1349,11 @@ class CustomLoginView(LoginView):
         # Vérifier si l'utilisateur est encadrant uniquement (pas Codir)
         elif user.groups.filter(name='encadrant').exists():
             return reverse_lazy('eleve_list')
-        # Sinon, logique normale pour les élèves
-        elif hasattr(user, 'adherent_profile') and getattr(user.adherent_profile, 'statut', None) == 'eleve':
-            return reverse_lazy('suivi_formation_eleve', kwargs={'eleve_id': user.adherent_profile.pk})
+        # Élève : redirection vers sa fiche adhérent
+        elif is_eleve_restreint(user):
+            adherent = get_adherent_profile(user)
+            if adherent:
+                return reverse_lazy('adherent_detail', kwargs={'pk': adherent.pk})
         return super().get_success_url()
 
 class CustomLogoutView(LogoutView):
@@ -3261,18 +3302,18 @@ def peut_voir_suivi(user, eleve_id):
         return True
     if user.groups.filter(name='admin').exists():
         return True
+    if user.groups.filter(name='codir').exists():
+        return True
     if user.groups.filter(name='encadrant').exists():
         return True
-    adherent = getattr(user, 'adherent_profile', None)
-    return user.groups.filter(name='eleve').exists() and adherent and adherent.id == eleve_id
+    adherent = get_adherent_profile(user)
+    return is_eleve_restreint(user) and adherent and adherent.id == eleve_id
 
 def suivi_formation_eleve(request, eleve_id):
     if not peut_voir_suivi(request.user, int(eleve_id)):
         # Redirige l'élève vers sa propre fiche, les autres vers la liste des élèves
-        if request.user.groups.filter(name='eleve').exists():
-            adherent = getattr(request.user, 'adherent_profile', None)
-            if adherent:
-                return redirect('suivi_formation_eleve', eleve_id=adherent.id)
+        if is_eleve_restreint(request.user):
+            return redirect_eleve_home(request.user)
         elif request.user.groups.filter(name='encadrant').exists():
             return redirect('eleve_list')
         else:
@@ -3469,10 +3510,8 @@ def _build_suivi_formation_data(eleve, exercice_type=Exercice.TYPE_CLASSIQUE):
 def suivi_formation_eleve_pdf(request, eleve_id):
     """Génère un PDF du suivi de formation (ouvre dans un nouvel onglet)."""
     if not peut_voir_suivi(request.user, int(eleve_id)):
-        if request.user.groups.filter(name='eleve').exists():
-            adherent = getattr(request.user, 'adherent_profile', None)
-            if adherent:
-                return redirect('suivi_formation_eleve', eleve_id=adherent.id)
+        if is_eleve_restreint(request.user):
+            return redirect_eleve_home(request.user)
         elif request.user.groups.filter(name='encadrant').exists():
             return redirect('eleve_list')
         else:
@@ -3489,10 +3528,8 @@ def suivi_formation_eleve_pdf(request, eleve_id):
 def suivi_evaluations_exercices_eleve_pdf(request, eleve_id):
     """Génère un PDF du suivi des exercices d'évaluation (ouvre dans un nouvel onglet)."""
     if not peut_voir_suivi(request.user, int(eleve_id)):
-        if request.user.groups.filter(name='eleve').exists():
-            adherent = getattr(request.user, 'adherent_profile', None)
-            if adherent:
-                return redirect('suivi_formation_eleve', eleve_id=adherent.id)
+        if is_eleve_restreint(request.user):
+            return redirect_eleve_home(request.user)
         elif request.user.groups.filter(name='encadrant').exists():
             return redirect('eleve_list')
         else:

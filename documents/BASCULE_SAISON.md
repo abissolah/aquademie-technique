@@ -286,5 +286,6 @@ docker compose -f docker-compose.prod.yml exec web ls -la /app/media
 ## Documentation associée
 
 - [DEPLOIEMENT_DOCKER_UBUNTU_VPS.md](DEPLOIEMENT_DOCKER_UBUNTU_VPS.md) — installation VPS
+- [INSTANCE_SAISON_ARCHIVE.md](INSTANCE_SAISON_ARCHIVE.md) — deuxième instance (archive saison précédente)
 - [DEPLOIEMENT_DOCKER_SYNOLOGY.md](DEPLOIEMENT_DOCKER_SYNOLOGY.md) — variante Synology
 - [DEPLOIEMENT.md](DEPLOIEMENT.md)

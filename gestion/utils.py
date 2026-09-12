@@ -148,6 +148,48 @@ def get_signature_html():
     ''' 
 
 
+def get_adherent_profile(user):
+    """Retourne le profil adhérent lié à l'utilisateur, ou None."""
+    if not user or not user.is_authenticated:
+        return None
+    return getattr(user, 'adherent_profile', None)
+
+
+def is_eleve_restreint(user):
+    """
+    Élève « simple » : compte élève sans droits admin/codir/superuser.
+    Accès limité à sa fiche, sa modification et son suivi de formation.
+    """
+    if not user or not user.is_authenticated or user.is_superuser:
+        return False
+    if user.groups.filter(name__in=['admin', 'codir']).exists():
+        return False
+    if user.groups.filter(name='eleve').exists():
+        return True
+    adherent = get_adherent_profile(user)
+    return bool(adherent and adherent.statut == 'eleve')
+
+
+def redirect_eleve_home(user):
+    """Redirige un élève vers sa fiche adhérent (ou le login si pas de profil)."""
+    adherent = get_adherent_profile(user)
+    if adherent:
+        return redirect('adherent_detail', pk=adherent.id)
+    return redirect('login')
+
+
+def peut_acceder_fiche_adherent(user, adherent_id):
+    """Admin/codir/superuser : toutes les fiches. Élève : uniquement la sienne."""
+    if not user.is_authenticated:
+        return False
+    if can_access_dashboard(user):
+        return True
+    if user.groups.filter(name='encadrant').exists():
+        return False
+    adherent = get_adherent_profile(user)
+    return bool(adherent and adherent.id == int(adherent_id))
+
+
 def group_required(group_name):
     def decorator(view_func):
         @wraps(view_func)
@@ -159,10 +201,8 @@ def group_required(group_name):
             # Redirection selon le groupe
             if request.user.groups.filter(name='codir').exists():
                 return redirect('dashboard')
-            elif request.user.groups.filter(name='eleve').exists():
-                adherent = getattr(request.user, 'adherent_profile', None)
-                if adherent:
-                    return redirect('suivi_formation_eleve', eleve_id=adherent.id)
+            elif is_eleve_restreint(request.user):
+                return redirect_eleve_home(request.user)
             elif request.user.groups.filter(name='encadrant').exists():
                 return redirect('eleve_list')
             else:

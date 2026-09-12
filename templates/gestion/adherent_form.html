@@ -11,11 +11,23 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>
                 <i class="fas fa-user me-2"></i>
-                {% if object %}Modifier l'adhérent{% else %}Nouvel adhérent{% endif %}
+                {% if is_eleve_restreint %}
+                    Modifier mon profil
+                {% elif object %}
+                    Modifier l'adhérent
+                {% else %}
+                    Nouvel adhérent
+                {% endif %}
             </h1>
+            {% if is_eleve_restreint and object %}
+            <a href="{% url 'adherent_detail' object.pk %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Retour à ma fiche
+            </a>
+            {% else %}
             <a href="{% url 'adherent_list' %}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-2"></i>Retour à la liste
             </a>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -25,7 +37,8 @@
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">
-                    <i class="fas fa-info-circle me-2"></i>Informations de l'adhérent
+                    <i class="fas fa-info-circle me-2"></i>
+                    {% if is_eleve_restreint %}Mes informations{% else %}Informations de l'adhérent{% endif %}
                 </h5>
             </div>
             <div class="card-body">
@@ -59,12 +72,16 @@
                         <div class="col-md-6">
                             {{ form.niveau|as_crispy_field }}
                         </div>
+                        {% if form.statut %}
                         <div class="col-md-6">
                             {{ form.statut|as_crispy_field }}
                         </div>
+                        {% endif %}
                     </div>
                     
+                    {% if form.sections %}
                     {{ form.sections|as_crispy_field }}
+                    {% endif %}
                     
                     <div class="row">
                         <div class="col-md-6">
@@ -80,8 +97,12 @@
                     {{ form.date_delivrance_caci|as_crispy_field }}
 
                     {{ form.caci_fichier|as_crispy_field }}
+                    {% if form.caci_valide %}
                     {{ form.caci_valide|as_crispy_field }}
+                    {% endif %}
+                    {% if form.inscription_hello_asso %}
                     {{ form.inscription_hello_asso|as_crispy_field }}
+                    {% endif %}
                     {% if object and object.caci_fichier_effectif and not object.caci_fichier %}
                         <div class="mb-3">
                             <label class="form-label">CACI référencé (saison précédente) :</label>
@@ -104,12 +125,22 @@
                     {{ form.personne_urgence|as_crispy_field }}
                     {{ form.acceptation_diffusion_image|as_crispy_field }}
                     
+                    {% if form.type_personne %}
                     {{ form.type_personne|as_crispy_field }}
+                    {% endif %}
+                    {% if form.actif %}
                     {{ form.actif|as_crispy_field }}
+                    {% endif %}
                     <div class="d-flex justify-content-between">
+                        {% if is_eleve_restreint and object %}
+                        <a href="{% url 'adherent_detail' object.pk %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Annuler
+                        </a>
+                        {% else %}
                         <a href="{% url 'adherent_list' %}" class="btn btn-outline-secondary">
                             <i class="fas fa-times me-2"></i>Annuler
                         </a>
+                        {% endif %}
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save me-2"></i>
                             {% if object %}Mettre à jour{% else %}Créer{% endif %}
@@ -140,6 +171,7 @@
                     <li><strong>Moniteur fédéral 2 :</strong> Moniteur de club confirmé</li>
                 </ul>
                 
+                {% if not is_eleve_restreint %}
                 <hr>
                 
                 <h6>Statuts :</h6>
@@ -163,6 +195,7 @@
                 </ul>
                 
                 <hr>
+                {% endif %}
                 
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle me-2"></i>
@@ -179,4 +212,4 @@
 <script>
     // The toggleCaciField function and its associated JS block are removed as per the edit hint.
 </script>
-{% endblock %} 
+{% endblock %}
