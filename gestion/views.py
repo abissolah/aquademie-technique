@@ -41,7 +41,10 @@ from .utils import (
     can_access_dashboard,
     get_adherent_profile,
     is_eleve_restreint,
+    is_ma_fiche,
     peut_acceder_fiche_adherent,
+    peut_modifier_fiche_adherent,
+    formulaire_fiche_restreint,
     redirect_eleve_home,
 )
 from .models import PalanqueeEleve
@@ -246,6 +249,8 @@ class AdherentDetailView(LoginRequiredMixin, DetailView):
         if not peut_acceder_fiche_adherent(request.user, kwargs.get('pk')):
             if is_eleve_restreint(request.user):
                 return redirect_eleve_home(request.user)
+            if request.user.groups.filter(name='encadrant').exists():
+                return redirect('eleve_list')
             return redirect('login')
         return super().get(request, *args, **kwargs)
 
@@ -267,6 +272,17 @@ class AdherentDetailView(LoginRequiredMixin, DetailView):
         context['is_codir_eleve'] = is_codir_eleve(self.request.user)
         context['is_codir_encadrant'] = is_codir_encadrant(self.request.user)
         context['is_eleve_restreint'] = is_eleve_restreint(self.request.user)
+        context['est_ma_fiche'] = is_ma_fiche(self.request.user, self.object.pk)
+        context['peut_modifier_cette_fiche'] = peut_modifier_fiche_adherent(
+            self.request.user, self.object.pk
+        )
+        context['formulaire_restreint'] = formulaire_fiche_restreint(
+            self.request.user, self.object.pk
+        )
+        context['peut_supprimer_fiche'] = (
+            self.request.user.is_superuser
+            or self.request.user.groups.filter(name='admin').exists()
+        )
         return context
 
 @method_decorator(group_required('admin'), name='dispatch')
@@ -286,29 +302,27 @@ class AdherentUpdateView(LoginRequiredMixin, UpdateView):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
         self.object = self.get_object()
-        if request.user.is_superuser or request.user.groups.filter(name='admin').exists():
+        if peut_modifier_fiche_adherent(request.user, self.object.id):
             return super().dispatch(request, *args, **kwargs)
         if is_eleve_restreint(request.user):
-            adherent = get_adherent_profile(request.user)
-            if adherent and adherent.id == self.object.id:
-                return super().dispatch(request, *args, **kwargs)
             return redirect_eleve_home(request.user)
-        # Codir et autres : pas de modification
-        if can_access_dashboard(request.user):
+        if peut_acceder_fiche_adherent(request.user, self.object.id):
             return redirect('adherent_detail', pk=self.object.pk)
+        if request.user.groups.filter(name='encadrant').exists():
+            return redirect('eleve_list')
         return redirect('login')
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        kwargs['for_eleve'] = is_eleve_restreint(self.request.user)
+        kwargs['for_eleve'] = formulaire_fiche_restreint(self.request.user, self.object.pk)
         return kwargs
 
     def form_valid(self, form):
         """
-        Un nouveau fichier CACI (ou une date de délivrance modifiée par l'élève)
-        doit repasser en « à valider » sur le dashboard admin.
+        Un nouveau fichier CACI (ou une date de délivrance modifiée)
+        sur auto-édition doit repasser en « à valider » sur le dashboard.
         """
-        if is_eleve_restreint(self.request.user):
+        if formulaire_fiche_restreint(self.request.user, self.object.pk):
             nouveau_fichier = bool(form.cleaned_data.get('caci_fichier'))
             date_modifiee = False
             if self.object and self.object.pk and 'date_delivrance_caci' in form.cleaned_data:
@@ -321,13 +335,16 @@ class AdherentUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
     def get_success_url(self):
-        if is_eleve_restreint(self.request.user):
+        if formulaire_fiche_restreint(self.request.user, self.object.pk):
             return reverse_lazy('adherent_detail', kwargs={'pk': self.object.pk})
         return reverse_lazy('adherent_list')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        restreint = formulaire_fiche_restreint(self.request.user, self.object.pk)
         context['is_eleve_restreint'] = is_eleve_restreint(self.request.user)
+        context['formulaire_restreint'] = restreint
+        context['est_ma_fiche'] = is_ma_fiche(self.request.user, self.object.pk)
         return context
 
 @method_decorator(group_required('admin'), name='dispatch')
@@ -4225,6 +4242,8 @@ def copier_tous_caci(request):
 
 def creer_compte_adherent(request, adherent_id):
     from gestion.models import Adherent
+    from email.mime.image import MIMEImage
+
     adherent = Adherent.objects.get(pk=adherent_id)
     if adherent.user:
         messages.warning(request, "Un compte est déjà associé à cet adhérent.")
@@ -4266,13 +4285,53 @@ def creer_compte_adherent(request, adherent_id):
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
     activation_url = f"https://{current_site.domain}{reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})}"
-    message = render_to_string('registration/account_activation_email.html', {
+    context = {
         'user': user,
         'activation_url': activation_url,
         'site_name': current_site.name,
         'domain': current_site.domain,
-    })
-    send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email])
+    }
+    message_txt = render_to_string('registration/account_activation_email.txt', context)
+    message_html = render_to_string('registration/account_activation_email.html', context)
+
+    email_message = EmailMultiAlternatives(
+        subject,
+        message_txt,
+        settings.DEFAULT_FROM_EMAIL,
+        [user.email],
+    )
+    email_message.attach_alternative(message_html, "text/html")
+
+    # Signature inline
+    signature_img_path = os.path.join(settings.BASE_DIR, 'static', 'Signature_mouss2.png')
+    if os.path.exists(signature_img_path):
+        with open(signature_img_path, 'rb') as img:
+            mime_img = MIMEImage(img.read(), _subtype='png')
+            mime_img.add_header('Content-ID', '<signature_mouss2>')
+            mime_img.add_header('Content-Disposition', 'inline', filename='Signature_mouss2.png')
+            email_message.attach(mime_img)
+
+    # Procédure de création de compte en pièce jointe
+    pdf_candidates = [
+        os.path.join(settings.BASE_DIR, 'CREATION COMPTE APP.pdf'),
+        os.path.join(settings.BASE_DIR, 'documents', 'CREATION COMPTE APP.pdf'),
+        os.path.join(settings.BASE_DIR, 'static', 'CREATION COMPTE APP.pdf'),
+    ]
+    pdf_path = next((path for path in pdf_candidates if os.path.exists(path)), None)
+    if pdf_path:
+        with open(pdf_path, 'rb') as pdf_file:
+            email_message.attach(
+                'CREATION COMPTE APP.pdf',
+                pdf_file.read(),
+                'application/pdf',
+            )
+    else:
+        messages.warning(
+            request,
+            "Compte créé et mail envoyé, mais la pièce jointe PDF est introuvable.",
+        )
+
+    email_message.send()
     messages.success(request, f"Compte utilisateur créé et mail d'activation envoyé à {user.email}.")
     return redirect('adherent_list')
 

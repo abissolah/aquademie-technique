@@ -155,6 +155,15 @@ def get_adherent_profile(user):
     return getattr(user, 'adherent_profile', None)
 
 
+def is_ma_fiche(user, adherent_id):
+    """True si adherent_id correspond au profil lié à l'utilisateur."""
+    adherent = get_adherent_profile(user)
+    try:
+        return bool(adherent and adherent.id == int(adherent_id))
+    except (TypeError, ValueError):
+        return False
+
+
 def is_eleve_restreint(user):
     """
     Élève « simple » : compte élève sans droits admin/codir/superuser.
@@ -179,15 +188,47 @@ def redirect_eleve_home(user):
 
 
 def peut_acceder_fiche_adherent(user, adherent_id):
-    """Admin/codir/superuser : toutes les fiches. Élève : uniquement la sienne."""
+    """
+    - admin/codir/superuser : toutes les fiches
+    - chacun : sa propre fiche
+    - encadrant : fiches des élèves
+    """
     if not user.is_authenticated:
         return False
     if can_access_dashboard(user):
         return True
+    if is_ma_fiche(user, adherent_id):
+        return True
     if user.groups.filter(name='encadrant').exists():
+        from .models import Adherent
+        return Adherent.objects.filter(pk=adherent_id, statut='eleve').exists()
+    return False
+
+
+def peut_modifier_fiche_adherent(user, adherent_id):
+    """
+    - admin/superuser : toutes les fiches
+    - élève / encadrant / codir(+élève|encadrant) : uniquement sa propre fiche
+    """
+    if not user.is_authenticated:
         return False
-    adherent = get_adherent_profile(user)
-    return bool(adherent and adherent.id == int(adherent_id))
+    if user.is_superuser or user.groups.filter(name='admin').exists():
+        return True
+    return is_ma_fiche(user, adherent_id)
+
+
+def formulaire_fiche_restreint(user, adherent_id=None):
+    """
+    Formulaire sans champs réservés admin, pour l'auto-édition
+    (élève, encadrant, codir sur sa propre fiche).
+    """
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser or user.groups.filter(name='admin').exists():
+        return False
+    if adherent_id is None:
+        return get_adherent_profile(user) is not None
+    return is_ma_fiche(user, adherent_id)
 
 
 def group_required(group_name):
@@ -246,4 +287,4 @@ def can_access_dashboard(user):
         return False
     return (user.is_superuser or 
             user.groups.filter(name='admin').exists() or 
-            user.groups.filter(name='codir').exists()) 
+            user.groups.filter(name='codir').exists())

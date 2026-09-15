@@ -133,7 +133,7 @@
                                 {% endif %}
                                 <td>
                                     <div class="btn-group" role="group">
-                                        {% if user.is_superuser or user.groups.all.0.name == 'admin' or user.groups.all.0.name == 'encadrant' %}
+                                        {% if user.is_superuser or is_admin_nav or is_encadrant_nav %}
                                             <a href="{% url 'suivi_formation_eleve' eleve.pk %}" class="btn btn-sm btn-outline-success" title="Suivi formation">
                                                 <i class="fas fa-graduation-cap"></i>
                                             </a>
@@ -148,7 +148,7 @@
                                                 <i class="fas fa-file-pdf"></i>
                                             </a>
                                         {% endif %}
-                                        {% if user.is_superuser or user.groups.all.0.name == 'admin' %}
+                                        {% if user.is_superuser or is_admin_nav %}
                                             <a href="{% url 'adherent_detail' eleve.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
                                                 <i class="fas fa-eye"></i>
                                             </a>
@@ -158,7 +158,7 @@
                                             <a href="{% url 'adherent_delete' eleve.pk %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
                                                 <i class="fas fa-trash"></i>
                                             </a>
-                                        {% elif is_codir %}
+                                        {% elif is_codir_nav or is_encadrant_nav %}
                                             <a href="{% url 'adherent_detail' eleve.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
                                                 <i class="fas fa-eye"></i>
                                             </a>
@@ -258,7 +258,7 @@
                                 {% endif %}
                                 <td>
                                     <div class="btn-group" role="group">
-                                        {% if user.is_superuser or user.groups.all.0.name == 'admin' or user.groups.all.0.name == 'encadrant' %}
+                                        {% if user.is_superuser or is_admin_nav or is_encadrant_nav %}
                                             <a href="{% url 'suivi_formation_eleve' eleve.pk %}" class="btn btn-sm btn-outline-success" title="Suivi formation">
                                                 <i class="fas fa-graduation-cap"></i>
                                             </a>
@@ -273,7 +273,7 @@
                                                 <i class="fas fa-file-pdf"></i>
                                             </a>
                                         {% endif %}
-                                        {% if user.is_superuser or user.groups.all.0.name == 'admin' %}
+                                        {% if user.is_superuser or is_admin_nav %}
                                             <a href="{% url 'adherent_detail' eleve.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
                                                 <i class="fas fa-eye"></i>
                                             </a>
@@ -283,7 +283,7 @@
                                             <a href="{% url 'adherent_delete' eleve.pk %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
                                                 <i class="fas fa-trash"></i>
                                             </a>
-                                        {% elif is_codir %}
+                                        {% elif is_codir_nav or is_encadrant_nav %}
                                             <a href="{% url 'adherent_detail' eleve.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
                                                 <i class="fas fa-eye"></i>
                                             </a>

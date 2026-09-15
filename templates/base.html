@@ -45,75 +45,105 @@
             
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    {% with is_admin=False is_encadrant=False %}
-                        {% for group in user.groups.all %}
-                            {% if group.name == 'admin' %}
-                                {% with True as is_admin %}{% endwith %}
-                            {% elif group.name == 'encadrant' %}
-                                {% with True as is_encadrant %}{% endwith %}
-                            {% endif %}
-                        {% endfor %}
-                        {% if is_admin or user.is_superuser %}
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'dashboard' %}">
-                                    <i class="fas fa-tachometer-alt me-1"></i>Tableau de bord
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'seance_list' %}">
-                                    <i class="fas fa-calendar-alt me-1"></i>Séances
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'sortie_list' %}">
-                                    <i class="fas fa-water me-1"></i>Sorties
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'adherent_list' %}">
-                                    <i class="fas fa-user-friends me-1"></i>Adhérents
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'section_list' %}">
-                                    <i class="fas fa-layer-group me-1"></i>Sections
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'lieu_list' %}">
-                                    <i class="fas fa-map-marker-alt me-1"></i>Lieux
-                                </a>
-                            </li>
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="competenceDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-star me-1"></i>Compétences
-                                </a>
-                                <ul class="dropdown-menu" aria-labelledby="competenceDropdown">
-                                    <li><a class="dropdown-item" href="{% url 'competence_list' %}"><i class="fas fa-star me-1"></i>Liste des compétences</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'exercice_list' %}"><i class="fas fa-dumbbell me-1"></i>Liste des exercices</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'exercice_evaluation_list' %}"><i class="fas fa-clipboard-check me-1"></i>Exercices d'évaluation</a></li>
-                                    <li><a class="dropdown-item" href="{% url 'groupe_competence_list' %}"><i class="fas fa-object-group me-1"></i>Groupes de compétences</a></li>
-                                </ul>
-                            </li>
-                        {% elif is_encadrant %}
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'eleve_list' %}">
-                                    <i class="fas fa-user-graduate me-1"></i>Liste des élèves
-                                </a>
-                            </li>
-                        {% elif is_eleve_restreint and adherent_profile %}
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'adherent_detail' adherent_profile.pk %}">
-                                    <i class="fas fa-user me-1"></i>Ma fiche
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'suivi_formation_eleve' adherent_profile.pk %}">
-                                    <i class="fas fa-chart-line me-1"></i>Suivi de formation
-                                </a>
-                            </li>
+                    {% if is_admin_nav %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'dashboard' %}">
+                                <i class="fas fa-tachometer-alt me-1"></i>Tableau de bord
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'seance_list' %}">
+                                <i class="fas fa-calendar-alt me-1"></i>Séances
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'sortie_list' %}">
+                                <i class="fas fa-water me-1"></i>Sorties
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'adherent_list' %}">
+                                <i class="fas fa-user-friends me-1"></i>Adhérents
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'section_list' %}">
+                                <i class="fas fa-layer-group me-1"></i>Sections
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'lieu_list' %}">
+                                <i class="fas fa-map-marker-alt me-1"></i>Lieux
+                            </a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="competenceDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-star me-1"></i>Compétences
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="competenceDropdown">
+                                <li><a class="dropdown-item" href="{% url 'competence_list' %}"><i class="fas fa-star me-1"></i>Liste des compétences</a></li>
+                                <li><a class="dropdown-item" href="{% url 'exercice_list' %}"><i class="fas fa-dumbbell me-1"></i>Liste des exercices</a></li>
+                                <li><a class="dropdown-item" href="{% url 'exercice_evaluation_list' %}"><i class="fas fa-clipboard-check me-1"></i>Exercices d'évaluation</a></li>
+                                <li><a class="dropdown-item" href="{% url 'groupe_competence_list' %}"><i class="fas fa-object-group me-1"></i>Groupes de compétences</a></li>
+                            </ul>
+                        </li>
+                    {% elif is_codir_nav %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'dashboard' %}">
+                                <i class="fas fa-tachometer-alt me-1"></i>Tableau de bord
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'adherent_list' %}">
+                                <i class="fas fa-user-friends me-1"></i>Adhérents
+                            </a>
+                        </li>
+                        {% if is_encadrant_nav %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'eleve_list' %}">
+                                <i class="fas fa-user-graduate me-1"></i>Liste des élèves
+                            </a>
+                        </li>
                         {% endif %}
-                    {% endwith %}
+                        {% if adherent_profile %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'adherent_detail' adherent_profile.pk %}">
+                                <i class="fas fa-user me-1"></i>Ma fiche
+                            </a>
+                        </li>
+                        {% if adherent_profile.statut == 'eleve' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'suivi_formation_eleve' adherent_profile.pk %}">
+                                <i class="fas fa-chart-line me-1"></i>Suivi de formation
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% endif %}
+                    {% elif is_encadrant_nav %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'eleve_list' %}">
+                                <i class="fas fa-user-graduate me-1"></i>Liste des élèves
+                            </a>
+                        </li>
+                        {% if adherent_profile %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'adherent_detail' adherent_profile.pk %}">
+                                <i class="fas fa-user me-1"></i>Ma fiche
+                            </a>
+                        </li>
+                        {% endif %}
+                    {% elif is_eleve_restreint and adherent_profile %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'adherent_detail' adherent_profile.pk %}">
+                                <i class="fas fa-user me-1"></i>Ma fiche
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'suivi_formation_eleve' adherent_profile.pk %}">
+                                <i class="fas fa-chart-line me-1"></i>Suivi de formation
+                            </a>
+                        </li>
+                    {% endif %}
                 </ul>
                 
                 <ul class="navbar-nav">
@@ -122,6 +152,14 @@
                             <i class="fas fa-user me-1"></i>{{ user.username }}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
+                            {% if adherent_profile and not is_eleve_restreint %}
+                            <li>
+                                <a class="dropdown-item" href="{% url 'adherent_detail' adherent_profile.pk %}">
+                                    <i class="fas fa-id-card me-1"></i>Ma fiche
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            {% endif %}
                             <form method="post" action="{% url 'logout' %}" style="display:inline;">
                                 {% csrf_token %}
                                 <button type="submit" class="dropdown-item">

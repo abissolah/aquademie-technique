@@ -175,7 +175,7 @@ class Adherent(models.Model):
         if self.prenom:
             self.prenom = self.prenom.capitalize()
         super().save(*args, **kwargs)
-        # Synchronisation du groupe utilisateur
+        # Synchronisation du groupe utilisateur (préserve le groupe codir)
         if self.user:
             from django.contrib.auth.models import Group
             if self.statut == 'eleve':
@@ -185,8 +185,12 @@ class Adherent(models.Model):
             else:
                 group_name = 'admin'
             group, _ = Group.objects.get_or_create(name=group_name)
+            keep_codir = self.user.groups.filter(name='codir').exists()
             self.user.groups.clear()
             self.user.groups.add(group)
+            if keep_codir:
+                codir_group, _ = Group.objects.get_or_create(name='codir')
+                self.user.groups.add(codir_group)
 
 
 class AncienAdherent(models.Model):

@@ -1,10 +1,23 @@
-Bonjour {{ user.first_name }},
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+</head>
+<body style="font-family: Arial, sans-serif; color: #222; line-height: 1.5;">
+  <p>Bonjour {{ user.first_name }},</p>
 
-Bienvenue sur Aquadémie Paris Plongée !
+  <p>Bienvenue sur Aquadémie Paris Plongée !</p>
 
-Pour activer ton compte et choisir ton mot de passe, je te prie de cliquer sur le lien ci-dessous :
-{{ activation_url }}
+  <p>
+    Pour activer ton compte et choisir ton mot de passe, je te prie de cliquer sur le lien ci-dessous :<br>
+    <a href="{{ activation_url }}">{{ activation_url }}</a>
+  </p>
 
+  <p>Tu trouveras la procédure pour t'aider en pièce jointe (merci de bien suivre les instructions)</p>
 
-Subaquatiquement,
-Mouss.
+  <p>Subaquatiquement,</p>
+  <div style="margin-top:20px; text-align:left;">
+    <img src="cid:signature_mouss2" alt="Signature Mouss" style="min-width:420px; width:420px; max-width:100%;">
+  </div>
+</body>
+</html>
