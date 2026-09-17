@@ -191,18 +191,13 @@ def peut_acceder_fiche_adherent(user, adherent_id):
     """
     - admin/codir/superuser : toutes les fiches
     - chacun : sa propre fiche
-    - encadrant : fiches des élèves
+    - encadrant non-codir : uniquement sa propre fiche (pas les fiches élèves)
     """
     if not user.is_authenticated:
         return False
     if can_access_dashboard(user):
         return True
-    if is_ma_fiche(user, adherent_id):
-        return True
-    if user.groups.filter(name='encadrant').exists():
-        from .models import Adherent
-        return Adherent.objects.filter(pk=adherent_id, statut='eleve').exists()
-    return False
+    return is_ma_fiche(user, adherent_id)
 
 
 def peut_modifier_fiche_adherent(user, adherent_id):
