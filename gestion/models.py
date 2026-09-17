@@ -33,6 +33,7 @@ class Adherent(models.Model):
         ('niveau1', 'Niveau 1'),
         ('niveau2', 'Niveau 2'),
         ('niveau3', 'Niveau 3'),
+        ('niveau4', 'Niveau 4 (GP)'),
         ('initiateur1', 'Initiateur 1'),
         ('initiateur2', 'Initiateur 2'),
         ('moniteur_federal1', 'Moniteur fédéral 1'),

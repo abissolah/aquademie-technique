@@ -159,9 +159,7 @@ def dashboard(request):
     context['adherents_caci_non_valide'] = adherents_caci.filter(
         Q(caci_fichier__isnull=False) & ~Q(caci_fichier='')
         | Q(ancien_adherent__caci_fichier__isnull=False) & ~Q(ancien_adherent__caci_fichier='')
-    ).filter(
-        Q(caci_valide=False) | Q(inscription_hello_asso=False)
-    )
+    ).filter(caci_valide=False)
     # Bloc dernières palanquées évaluées (par encadrant)
     # On récupère les palanquées qui ont au moins une évaluation_exercice
     palanquees_evaluees_ids = (
@@ -2911,6 +2909,7 @@ def generer_fiche_securite_excel(request, seance_id):
             'niveau1': 'N1',
             'niveau2': 'N2',
             'niveau3': 'N3',
+            'niveau4': 'N4',
             'initiateur1': 'E1',
             'initiateur2': 'E2',
             'moniteur_federal1': 'E3',
