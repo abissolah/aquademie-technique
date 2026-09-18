@@ -19,7 +19,12 @@ media
 terminals
 .idea
 .vscode
+# Garder les modèles Excel nécessaires à l'app (fiche sécu, programmes…)
 *.xlsx
+!fiche_securite_modele.xlsx
+!ESTARTIT*.xlsx
+!APP_Fiche*.xlsx
+!Programme.xlsx
 *.docx
 *.csv
 *.backup

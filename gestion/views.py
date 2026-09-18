@@ -3055,7 +3055,10 @@ def generer_fiche_securite_excel(request, seance_id):
         )
 
         # Localiser le modèle (gère l'espace insécable dans le nom de fichier).
-        model_candidates = sorted(Path('.').glob('ESTARTIT*securite.xlsx'))
+        base_dir = Path(settings.BASE_DIR)
+        model_candidates = sorted(base_dir.glob('ESTARTIT*securite.xlsx'))
+        if not model_candidates:
+            model_candidates = sorted(Path('.').glob('ESTARTIT*securite.xlsx'))
         if not model_candidates:
             raise FileNotFoundError("Modèle ESTARTIT introuvable (ESTARTIT*securite.xlsx).")
         wb = openpyxl.load_workbook(model_candidates[0])
@@ -3188,12 +3191,21 @@ def generer_fiche_securite_excel(request, seance_id):
         return output
 
     seance = get_object_or_404(Seance, pk=seance_id)
+    detail_redirect = redirect(_detail_route_name_for_seance(seance), pk=seance.id)
+
     if seance.est_sortie:
         try:
             output = _generate_sortie_security_sheet(seance)
         except FileNotFoundError as exc:
             messages.error(request, str(exc))
-            return redirect('sortie_detail', pk=seance.id)
+            return detail_redirect
+        except Exception as exc:
+            logging.exception("Erreur génération fiche sécurité sortie seance_id=%s", seance_id)
+            messages.error(
+                request,
+                f"Impossible de générer la fiche de sécurité : {exc}",
+            )
+            return detail_redirect
 
         response = HttpResponse(
             output,
@@ -3206,128 +3218,149 @@ def generer_fiche_securite_excel(request, seance_id):
 
     from openpyxl.styles import PatternFill
     palanquees = list(seance.palanques.select_related('encadrant').prefetch_related('eleves'))
-    wb = openpyxl.load_workbook('fiche_securite_modele.xlsx')
-    ws = wb.active
+    modele_path = Path(settings.BASE_DIR) / 'fiche_securite_modele.xlsx'
+    if not modele_path.exists():
+        modele_path = Path('fiche_securite_modele.xlsx')
+    if not modele_path.exists():
+        messages.error(
+            request,
+            "Modèle de fiche de sécurité introuvable (fiche_securite_modele.xlsx). "
+            "Vérifiez le déploiement Docker (rebuild nécessaire).",
+        )
+        return detail_redirect
 
-    # --- Champs fixes ---
-    ws['D2'] = seance.date.strftime('%d/%m/%Y')
-    ws['P2'] = seance.heure_debut.strftime('%Hh%M') if seance.heure_debut else "-"
-    ws['AA2'] = seance.heure_fin.strftime('%Hh%M') if seance.heure_fin else "-"
-    directeur = seance.directeur_plongee.nom_complet if seance.directeur_plongee else "-"
-    ws['H5'] = directeur
-    ws['H56'] = directeur
-    # Présence du président
-    ws['AC4'] = "Oui" if getattr(seance, 'presence_president', False) else "Non"
+    try:
+        wb = openpyxl.load_workbook(modele_path)
+        ws = wb.active
 
-    # --- Mapping blocs palanquée ---
-    bloc_map = [
-        (18, 'A'), (18, 'M'), (18, 'Y'),
-        (31, 'A'), (31, 'M'), (31, 'Y'),
-        (44, 'A'), (44, 'M'), (44, 'Y'),
-    ]
-    niveau_col = {'A': 'J', 'M': 'V', 'Y': 'AH'}
-    prof_col = {'A': 'F', 'M': 'R', 'Y': 'AD'}
-    duree_col = {'A': 'J', 'M': 'V', 'Y': 'AH'}
-
-    def niveau_encadrant_display(niveau):
-        mapping = {
-            'encadrant1': 'E1',
-            'encadrant2': 'E2',
-            'initiateur1': 'E1',
-            'initiateur2': 'E2',
-            'moniteur_federal1': 'E3',
-            'moniteur_federal2': 'E4',
-        }
-        return mapping.get(niveau, niveau)
-
-    # Découpage en tranches de 9 palanquées
-    nb_blocs = (len(palanquees) + 8) // 9
-    for bloc_idx in range(nb_blocs):
-        if bloc_idx > 0:
-            # Ajoute une nouvelle feuille à partir du modèle
-            ws_new = wb.copy_worksheet(ws)
-            ws_new.title = f"Fiche {bloc_idx+1}"
-            ws = ws_new
-            # Vider les cellules des blocs palanquées (9 blocs max)
-            for idx in range(9):
-                if idx < len(bloc_map):
-                    base_row, base_col = bloc_map[idx]
-                    # Efface encadrant, niveau, profondeur, durée
-                    ws[f'{base_col}{base_row}'] = ""
-                    ws[f'{niveau_col[base_col]}{base_row}'] = ""
-                    for i in range(4):
-                        ws[f'{base_col}{base_row+2+i}'] = ""
-                        ws[f'{niveau_col[base_col]}{base_row+2+i}'] = ""
-                    ws[f'{prof_col[base_col]}{base_row+7}'] = ""
-                    ws[f'{duree_col[base_col]}{base_row+7}'] = ""
-        # Remplir les infos fixes à chaque feuille/bloc
+        # --- Champs fixes ---
         ws['D2'] = seance.date.strftime('%d/%m/%Y')
         ws['P2'] = seance.heure_debut.strftime('%Hh%M') if seance.heure_debut else "-"
         ws['AA2'] = seance.heure_fin.strftime('%Hh%M') if seance.heure_fin else "-"
+        directeur = seance.directeur_plongee.nom_complet if seance.directeur_plongee else "-"
         ws['H5'] = directeur
         ws['H56'] = directeur
+        # Présence du président
         ws['AC4'] = "Oui" if getattr(seance, 'presence_president', False) else "Non"
-        # Palanquées de ce bloc
-        palanquees_bloc = palanquees[bloc_idx*9:(bloc_idx+1)*9]
-        for idx, palanquee in enumerate(palanquees_bloc):
-            base_row, base_col = bloc_map[idx]
-            ws[f'{base_col}{base_row}'] = palanquee.encadrant.nom_complet if palanquee.encadrant else "AUTONOMES"
-            niveau = palanquee.encadrant.niveau if palanquee.encadrant and hasattr(palanquee.encadrant, 'niveau') else "-"
-            ws[f'{niveau_col[base_col]}{base_row}'] = niveau_encadrant_display(niveau)
-            eleves = list(palanquee.eleves.all())
-            for i in range(4):
-                nom_cell = f'{base_col}{base_row+2+i}'
-                niv_cell = f'{niveau_col[base_col]}{base_row+2+i}'
-                if i < len(eleves):
-                    eleve = eleves[i]
-                    ws[nom_cell] = f"{eleve.nom} {eleve.prenom}"
-                    aptitude = "-"
-                    palanquee_eleve = palanquee.palanqueeeleve_set.filter(eleve=eleve).first()
-                    if palanquee_eleve and palanquee_eleve.aptitude:
-                        aptitude = palanquee_eleve.get_aptitude_display()
-                    ws[niv_cell] = aptitude
-                else:
-                    ws[nom_cell] = ""
-                    ws[niv_cell] = ""
-            ws[f'{prof_col[base_col]}{base_row+7}'] = palanquee.profondeur_max if palanquee.profondeur_max else "-"
-            ws[f'{duree_col[base_col]}{base_row+7}'] = palanquee.duree if palanquee.duree else "-"
-        # Comptage adultes/enfants/total (sur la première feuille uniquement)
-        if bloc_idx == 0:
-            adultes = 0
-            enfants = 0
-            for palanquee in palanquees:
-                # Compter les élèves
-                for eleve in palanquee.eleves.all():
-                    if hasattr(eleve, 'date_naissance') and eleve.date_naissance:
+
+        # --- Mapping blocs palanquée ---
+        bloc_map = [
+            (18, 'A'), (18, 'M'), (18, 'Y'),
+            (31, 'A'), (31, 'M'), (31, 'Y'),
+            (44, 'A'), (44, 'M'), (44, 'Y'),
+        ]
+        niveau_col = {'A': 'J', 'M': 'V', 'Y': 'AH'}
+        prof_col = {'A': 'F', 'M': 'R', 'Y': 'AD'}
+        duree_col = {'A': 'J', 'M': 'V', 'Y': 'AH'}
+
+        def niveau_encadrant_display(niveau):
+            mapping = {
+                'encadrant1': 'E1',
+                'encadrant2': 'E2',
+                'initiateur1': 'E1',
+                'initiateur2': 'E2',
+                'moniteur_federal1': 'E3',
+                'moniteur_federal2': 'E4',
+            }
+            return mapping.get(niveau, niveau)
+
+        # Découpage en tranches de 9 palanquées
+        nb_blocs = (len(palanquees) + 8) // 9
+        for bloc_idx in range(nb_blocs):
+            if bloc_idx > 0:
+                # Ajoute une nouvelle feuille à partir du modèle
+                ws_new = wb.copy_worksheet(ws)
+                ws_new.title = f"Fiche {bloc_idx+1}"
+                ws = ws_new
+                # Vider les cellules des blocs palanquées (9 blocs max)
+                for idx in range(9):
+                    if idx < len(bloc_map):
+                        base_row, base_col = bloc_map[idx]
+                        # Efface encadrant, niveau, profondeur, durée
+                        ws[f'{base_col}{base_row}'] = ""
+                        ws[f'{niveau_col[base_col]}{base_row}'] = ""
+                        for i in range(4):
+                            ws[f'{base_col}{base_row+2+i}'] = ""
+                            ws[f'{niveau_col[base_col]}{base_row+2+i}'] = ""
+                        ws[f'{prof_col[base_col]}{base_row+7}'] = ""
+                        ws[f'{duree_col[base_col]}{base_row+7}'] = ""
+            # Remplir les infos fixes à chaque feuille/bloc
+            ws['D2'] = seance.date.strftime('%d/%m/%Y')
+            ws['P2'] = seance.heure_debut.strftime('%Hh%M') if seance.heure_debut else "-"
+            ws['AA2'] = seance.heure_fin.strftime('%Hh%M') if seance.heure_fin else "-"
+            ws['H5'] = directeur
+            ws['H56'] = directeur
+            ws['AC4'] = "Oui" if getattr(seance, 'presence_president', False) else "Non"
+            # Palanquées de ce bloc
+            palanquees_bloc = palanquees[bloc_idx*9:(bloc_idx+1)*9]
+            for idx, palanquee in enumerate(palanquees_bloc):
+                base_row, base_col = bloc_map[idx]
+                ws[f'{base_col}{base_row}'] = palanquee.encadrant.nom_complet if palanquee.encadrant else "AUTONOMES"
+                niveau = palanquee.encadrant.niveau if palanquee.encadrant and hasattr(palanquee.encadrant, 'niveau') else "-"
+                ws[f'{niveau_col[base_col]}{base_row}'] = niveau_encadrant_display(niveau)
+                eleves = list(palanquee.eleves.all())
+                for i in range(4):
+                    nom_cell = f'{base_col}{base_row+2+i}'
+                    niv_cell = f'{niveau_col[base_col]}{base_row+2+i}'
+                    if i < len(eleves):
+                        eleve = eleves[i]
+                        ws[nom_cell] = f"{eleve.nom} {eleve.prenom}"
+                        aptitude = "-"
+                        palanquee_eleve = palanquee.palanqueeeleve_set.filter(eleve=eleve).first()
+                        if palanquee_eleve and palanquee_eleve.aptitude:
+                            aptitude = palanquee_eleve.get_aptitude_display()
+                        ws[niv_cell] = aptitude
+                    else:
+                        ws[nom_cell] = ""
+                        ws[niv_cell] = ""
+                ws[f'{prof_col[base_col]}{base_row+7}'] = palanquee.profondeur_max if palanquee.profondeur_max else "-"
+                ws[f'{duree_col[base_col]}{base_row+7}'] = palanquee.duree if palanquee.duree else "-"
+            # Comptage adultes/enfants/total (sur la première feuille uniquement)
+            if bloc_idx == 0:
+                adultes = 0
+                enfants = 0
+                for palanquee in palanquees:
+                    # Compter les élèves
+                    for eleve in palanquee.eleves.all():
+                        if hasattr(eleve, 'date_naissance') and eleve.date_naissance:
+                            from datetime import date
+                            age = (date.today() - eleve.date_naissance).days // 365
+                            if age < 18:
+                                enfants += 1
+                            else:
+                                adultes += 1
+                        else:
+                            adultes += 1
+                    # Compter l'encadrant s'il existe
+                    if palanquee.encadrant and hasattr(palanquee.encadrant, 'date_naissance') and palanquee.encadrant.date_naissance:
                         from datetime import date
-                        age = (date.today() - eleve.date_naissance).days // 365
+                        age = (date.today() - palanquee.encadrant.date_naissance).days // 365
                         if age < 18:
                             enfants += 1
                         else:
                             adultes += 1
-                    else:
+                    elif palanquee.encadrant:
                         adultes += 1
-                # Compter l'encadrant s'il existe
-                if palanquee.encadrant and hasattr(palanquee.encadrant, 'date_naissance') and palanquee.encadrant.date_naissance:
-                    from datetime import date
-                    age = (date.today() - palanquee.encadrant.date_naissance).days // 365
-                    if age < 18:
-                        enfants += 1
-                    else:
-                        adultes += 1
-                elif palanquee.encadrant:
-                    adultes += 1
-            total = adultes + enfants
-            ws['AH57'] = adultes
-            ws['AH58'] = enfants
-            ws['AH59'] = total
+                total = adultes + enfants
+                ws['AH57'] = adultes
+                ws['AH58'] = enfants
+                ws['AH59'] = total
 
-    # Export
-    output = BytesIO()
-    wb.save(output)
-    output.seek(0)
+        # Export
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+    except Exception as exc:
+        logging.exception("Erreur génération fiche sécurité séance seance_id=%s", seance_id)
+        messages.error(
+            request,
+            f"Impossible de générer la fiche de sécurité : {exc}",
+        )
+        return detail_redirect
+
     response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = f'attachment; filename="APP_Fiche-secu_{seance.date.strftime('%Y-%m-%d')}.xlsx"'
+    date_str = seance.date.strftime("%Y-%m-%d")
+    response['Content-Disposition'] = f'attachment; filename="APP_Fiche-secu_{date_str}.xlsx"'
     return response
 
 def peut_voir_suivi(user, eleve_id):
