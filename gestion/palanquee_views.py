@@ -131,7 +131,6 @@ class PalanqueeUpdateView(LoginRequiredMixin, UpdateView):
     model = Palanquee
     form_class = PalanqueeForm
     template_name = 'gestion/palanquee_form.html'
-    success_url = reverse_lazy('palanquee_list')
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -172,21 +171,24 @@ class PalanqueeUpdateView(LoginRequiredMixin, UpdateView):
             pe, created = PalanqueeEleve.objects.get_or_create(palanquee=palanquee, eleve_id=eid)
             pe.aptitude = aptitude
             pe.save()
+        messages.success(self.request, 'Palanquée modifiée avec succès.')
         return response
-    
+
     def get_success_url(self):
-        # Rediriger vers la séance associée
-        update_url_name = 'sortie_update' if self.object.seance.est_sortie else 'seance_update'
-        return reverse_lazy(update_url_name, kwargs={'pk': self.object.seance.pk})
+        from django.urls import reverse
+        seance = self.object.seance
+        detail_url_name = 'sortie_detail' if seance.est_sortie else 'seance_detail'
+        return reverse(detail_url_name, kwargs={'pk': seance.pk})
 
 class PalanqueeDeleteView(LoginRequiredMixin, DeleteView):
     model = Palanquee
     template_name = 'gestion/palanquee_confirm_delete.html'
-    
+
     def get_success_url(self):
-        # Rediriger vers la séance associée
-        update_url_name = 'sortie_update' if self.object.seance.est_sortie else 'seance_update'
-        return reverse_lazy(update_url_name, kwargs={'pk': self.object.seance.pk})
+        from django.urls import reverse
+        seance = self.object.seance
+        detail_url_name = 'sortie_detail' if seance.est_sortie else 'seance_detail'
+        return reverse(detail_url_name, kwargs={'pk': seance.pk})
 
 # Vues pour les évaluations des palanquées
 @login_required
