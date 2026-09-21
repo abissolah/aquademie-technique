@@ -1,6 +1,21 @@
 from django.contrib import admin
-from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, LienEvaluation, Lieu, PalanqueeEleve, CorpsMailPdfPalanquees, AncienAdherent
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
+from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, LienEvaluation, Lieu, PalanqueeEleve, CorpsMailPdfPalanquees, AncienAdherent
+
+
+admin.site.unregister(User)
+
+
+@admin.register(User)
+class UserAdmin(BaseUserAdmin):
+    list_display = (*BaseUserAdmin.list_display, 'password_defined')
+    list_filter = (*BaseUserAdmin.list_filter, 'is_active')
+
+    @admin.display(boolean=True, description='Mot de passe défini')
+    def password_defined(self, obj):
+        return obj.has_usable_password()
+
 
 @admin.register(Adherent)
 class AdherentAdmin(admin.ModelAdmin):

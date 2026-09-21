@@ -61,7 +61,7 @@ from gestion.utils import get_signature_html
 from django.core.mail import EmailMultiAlternatives
 from email.mime.image import MIMEImage
 from django.contrib.auth.models import User, Group
-from django.contrib.auth.tokens import default_token_generator
+from gestion.tokens import account_activation_token
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.core.mail import send_mail
@@ -4315,7 +4315,7 @@ def creer_compte_adherent(request, adherent_id):
     current_site = get_current_site(request)
     subject = "Activation de votre compte Aquadémie Paris Plongée"
     uid = urlsafe_base64_encode(force_bytes(user.pk))
-    token = default_token_generator.make_token(user)
+    token = account_activation_token.make_token(user)
     activation_url = f"https://{current_site.domain}{reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})}"
     context = {
         'user': user,

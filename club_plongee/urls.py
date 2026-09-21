@@ -19,6 +19,7 @@ from django.urls import path, include, reverse_lazy
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
+from gestion.tokens import account_activation_token
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -31,6 +32,7 @@ urlpatterns = [
             email_template_name='registration/password_reset_email.html',
             subject_template_name='registration/password_reset_subject.txt',
             success_url=reverse_lazy('password_reset_done'),
+            token_generator=account_activation_token,
         ),
         name='password_reset',
     ),
@@ -46,6 +48,7 @@ urlpatterns = [
         auth_views.PasswordResetConfirmView.as_view(
             template_name='registration/password_reset_confirm.html',
             success_url=reverse_lazy('password_reset_complete'),
+            token_generator=account_activation_token,
         ),
         name='password_reset_confirm',
     ),
