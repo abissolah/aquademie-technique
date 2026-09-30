@@ -22,6 +22,14 @@ class EleveAccessMiddleware:
         'suivi_formation_eleve',
         'suivi_formation_eleve_pdf',
         'suivi_evaluations_exercices_eleve_pdf',
+        # Liens publics d'inscription aux séances (fosse / sorties)
+        'inscription_seance_uuid',
+        'api_membres_app',
+        'api_inscrire_membre_app',
+        'api_recherche_non_membre',
+        'api_liste_non_adherents_actifs',
+        'api_details_non_adherent',
+        'api_inscrire_non_membre',
     }
 
     OWN_PK_URL_NAMES = {
