@@ -17,6 +17,7 @@ from .views import envoyer_pdf_palanquee_encadrant
 from .views import CommunicationAdherentsView
 from .views import supprimer_modele_mail_adherents
 from . import inscription_views
+from . import assistant_api
 
 urlpatterns = [
     # URLs d'authentification
@@ -210,6 +211,15 @@ urlpatterns = [
     path('modele-mail/<int:modele_id>/supprimer/', supprimer_modele_mail, name='supprimer_modele_mail'),
     path('modele-mail-adherents/<int:modele_id>/supprimer/', supprimer_modele_mail_adherents, name='supprimer_modele_mail_adherents'),
     path('api/modele-mail-adherents/<int:modele_id>/', views.api_modele_mail_adherents, name='api_modele_mail_adherents'),
+    path('api/assistant/sections/', assistant_api.sections, name='api_assistant_sections'),
+    path('api/assistant/eleves/', assistant_api.eleves, name='api_assistant_eleves'),
+    path('api/assistant/eleves/<int:eleve_id>/suivi/', assistant_api.suivi_eleve, name='api_assistant_suivi_eleve'),
+    path('api/assistant/sections/<int:section_id>/comparaison/', assistant_api.comparaison_section, name='api_assistant_comparaison'),
+    path('api/assistant/sections/<int:section_id>/exercices/', assistant_api.catalogue_exercices, name='api_assistant_catalogue'),
+    path('api/assistant/palanquees/', assistant_api.palanquees, name='api_assistant_palanquees'),
+    path('api/assistant/palanquees/<int:palanquee_id>/', assistant_api.palanquee_detail, name='api_assistant_palanquee_detail'),
+    path('api/assistant/seances/', assistant_api.seances, name='api_assistant_seances'),
+    path('api/assistant/seances/<int:seance_id>/', assistant_api.seance_detail, name='api_assistant_seance_detail'),
 ]
 urlpatterns += [
     path('evaluations/', evaluations_list, name='evaluations_list'),

@@ -45,6 +45,22 @@ services:
       db:
         condition: service_healthy
 
+  mcp:
+    build:
+      context: .
+      dockerfile: mcp_server/Dockerfile
+    restart: unless-stopped
+    environment:
+      ASSISTANT_API_BASE_URL: http://web:8000
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "8080"
+      MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-}
+      MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-}
+    expose:
+      - "8080"
+    depends_on:
+      - web
+
 volumes:
   postgres_data:
   media_data:

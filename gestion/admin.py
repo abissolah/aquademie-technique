@@ -1,7 +1,11 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, LienEvaluation, Lieu, PalanqueeEleve, CorpsMailPdfPalanquees, AncienAdherent
+from django import forms
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from .assistant_api import utilisateur_autorise
+from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, LienEvaluation, Lieu, PalanqueeEleve, CorpsMailPdfPalanquees, AncienAdherent, JetonAssistant
 
 
 admin.site.unregister(User)
@@ -183,6 +187,55 @@ class LieuAdmin(admin.ModelAdmin):
     list_display = ['nom', 'ville', 'code_postal', 'adresse']
     search_fields = ['nom', 'ville', 'code_postal']
     ordering = ['nom', 'ville']
+
+
+class JetonAssistantAdminForm(forms.ModelForm):
+    class Meta:
+        model = JetonAssistant
+        fields = "__all__"
+
+    def clean_utilisateur(self):
+        utilisateur = self.cleaned_data["utilisateur"]
+        if not self.instance.pk and not utilisateur_autorise(utilisateur):
+            raise ValidationError(
+                "Ce compte n'est pas encadrant, codir, admin ou superutilisateur. "
+                "L'API refuserait le jeton."
+            )
+        return utilisateur
+
+
+@admin.register(JetonAssistant)
+class JetonAssistantAdmin(admin.ModelAdmin):
+    form = JetonAssistantAdminForm
+    list_display = ("utilisateur", "libelle", "date_creation", "dernier_usage", "revoque")
+    list_filter = ("revoque",)
+    search_fields = ("utilisateur__username", "utilisateur__first_name", "utilisateur__last_name", "libelle")
+    autocomplete_fields = ("utilisateur",)
+    readonly_fields = ("date_creation", "dernier_usage")
+    actions = ("revoquer_jetons",)
+
+    def get_fields(self, request, obj=None):
+        if obj is None:
+            return ("utilisateur", "libelle")
+        return ("utilisateur", "libelle", "revoque", "date_creation", "dernier_usage")
+
+    def save_model(self, request, obj, form, change):
+        clair = None
+        if not change:
+            clair = obj.definir_nouveau_jeton()
+        super().save_model(request, obj, form, change)
+        if clair:
+            url = settings.ASSISTANT_MCP_PUBLIC_URL
+            messages.success(
+                request,
+                "Jeton à transmettre maintenant, il ne sera plus affiché : "
+                f"{clair} — URL MCP : {url} — En-tête : Authorization: Bearer {clair}",
+            )
+
+    @admin.action(description="Révoquer les jetons sélectionnés")
+    def revoquer_jetons(self, request, queryset):
+        nombre = queryset.update(revoque=True)
+        self.message_user(request, f"{nombre} jeton(s) révoqué(s).")
 
 
 @admin.register(CorpsMailPdfPalanquees)

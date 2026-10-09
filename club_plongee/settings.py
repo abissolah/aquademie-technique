@@ -225,6 +225,12 @@ HELLO_ASSO_URL = os.getenv(
 )
 HELLO_ASSO_WEBHOOK_SECRET = os.getenv('HELLO_ASSO_WEBHOOK_SECRET', '')
 
+# URL affichée dans l'admin au moment de créer un jeton MCP.
+ASSISTANT_MCP_PUBLIC_URL = os.getenv(
+    'ASSISTANT_MCP_PUBLIC_URL',
+    os.getenv('DJANGO_SITE_URL', 'http://127.0.0.1:8000').rstrip('/') + '/mcp',
+)
+
 # CKEditor config
 CKEDITOR_UPLOAD_PATH = "uploads/"
 CKEDITOR_IMAGE_BACKEND = "pillow"

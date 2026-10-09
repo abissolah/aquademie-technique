@@ -635,6 +635,50 @@ class HistoriqueMailAdherents(models.Model):
     def __str__(self):
         return f"{self.objet} ({self.date_envoi:%d/%m/%Y %H:%M})"
 
+class JetonAssistant(models.Model):
+    """Jeton personnel d'accès à l'API assistant. Seule l'empreinte est conservée."""
+
+    utilisateur = models.ForeignKey(
+        get_user_model(),
+        on_delete=models.CASCADE,
+        related_name="jetons_assistant",
+        verbose_name="Utilisateur",
+    )
+    libelle = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Libellé",
+        help_text="Ex. : Cursor de Valérie",
+    )
+    empreinte = models.CharField(max_length=64, unique=True, editable=False)
+    date_creation = models.DateTimeField(auto_now_add=True)
+    dernier_usage = models.DateTimeField(null=True, blank=True)
+    revoque = models.BooleanField(default=False, verbose_name="Révoqué")
+
+    class Meta:
+        verbose_name = "Jeton assistant"
+        verbose_name_plural = "Jetons assistant"
+        ordering = ["-date_creation"]
+
+    def __str__(self):
+        if self.libelle:
+            return f"{self.utilisateur} — {self.libelle}"
+        if self.date_creation:
+            return f"{self.utilisateur} — {self.date_creation:%d/%m/%Y}"
+        return str(self.utilisateur)
+
+    @staticmethod
+    def empreinte_de(clair):
+        import hashlib
+        return hashlib.sha256(clair.encode("utf-8")).hexdigest()
+
+    def definir_nouveau_jeton(self):
+        import secrets
+        clair = secrets.token_urlsafe(32)
+        self.empreinte = self.empreinte_de(clair)
+        return clair
+
+
 class ListeDiffusion(models.Model):
     nom = models.CharField(max_length=100, unique=True, verbose_name="Nom de la liste")
     adherents = models.ManyToManyField(Adherent, related_name='listes_diffusion', verbose_name="Adhérents")
