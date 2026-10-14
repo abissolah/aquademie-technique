@@ -6,7 +6,7 @@ from django.utils.html import strip_tags
 from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
-from .models import LienEvaluation
+from .models import LienEvaluation, ModeleMailAdherents
 from django.templatetags.static import static
 from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import redirect
@@ -283,3 +283,20 @@ def can_access_dashboard(user):
     return (user.is_superuser or 
             user.groups.filter(name='admin').exists() or 
             user.groups.filter(name='codir').exists())
+
+
+def est_admin_communication(user):
+    """Groupe admin ou superutilisateur : voit tous les modèles de mail adhérents."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    return user.is_superuser or user.groups.filter(name='admin').exists()
+
+
+def modeles_mail_adherents_visibles(user):
+    """Tous les modèles pour un admin, sinon uniquement ceux du compte connecté."""
+    qs = ModeleMailAdherents.objects.select_related('auteur')
+    if not getattr(user, 'is_authenticated', False):
+        return qs.none()
+    if est_admin_communication(user):
+        return qs
+    return qs.filter(auteur=user)

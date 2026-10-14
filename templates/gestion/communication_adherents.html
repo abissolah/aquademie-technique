@@ -130,7 +130,7 @@
                 <ul class="list-group">
                     {% for modele in form.fields.modele.queryset %}
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            {{ modele.nom }}
+                            {{ modele.nom }}{% if is_admin_nav %} — {% if modele.auteur %}{{ modele.auteur.username }}{% else %}(sans compte){% endif %}{% endif %}
                             <form method="post" action="{% url 'supprimer_modele_mail_adherents' modele.id %}" style="display:inline;">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer ce modèle ?');">

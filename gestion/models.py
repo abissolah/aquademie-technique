@@ -605,7 +605,7 @@ class HistoriqueMailSeance(models.Model):
         return f"{self.objet} ({self.date_envoi:%d/%m/%Y %H:%M})"
 
 class ModeleMailAdherents(models.Model):
-    nom = models.CharField(max_length=100, unique=True)
+    nom = models.CharField(max_length=100)
     objet = models.CharField(max_length=255)
     contenu = models.TextField()
     date_creation = models.DateTimeField(auto_now_add=True)
@@ -615,6 +615,12 @@ class ModeleMailAdherents(models.Model):
         verbose_name = "Modèle de mail adhérents"
         verbose_name_plural = "Modèles de mail adhérents"
         ordering = ["-date_creation"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['nom', 'auteur'],
+                name='unique_modele_mail_adherents_nom_auteur',
+            ),
+        ]
 
     def __str__(self):
         return self.nom

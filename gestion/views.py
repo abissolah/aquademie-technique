@@ -69,7 +69,7 @@ from django.conf import settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.contrib.sites.shortcuts import get_current_site
-from .utils import eleve_only, encadrant_only, admin_only, group_required
+from .utils import eleve_only, encadrant_only, admin_only, group_required, modeles_mail_adherents_visibles
 from django.utils.decorators import method_decorator
 from .models import ModeleMailSeance
 from .models import Adherent, Section, ModeleMailAdherents, HistoriqueMailAdherents, CorpsMailPdfPalanquees
@@ -4819,12 +4819,16 @@ def api_modele_mail(request, modele_id):
     })
 
 
-@staff_member_required
+@login_required
 def supprimer_modele_mail_adherents(request, modele_id):
-    modele = get_object_or_404(ModeleMailAdherents, pk=modele_id)
-    modele.delete()
-    from django.contrib import messages
-    messages.success(request, "Modèle supprimé avec succès.")
+    if not can_access_dashboard(request.user):
+        return redirect('login')
+    modele = modeles_mail_adherents_visibles(request.user).filter(pk=modele_id).first()
+    if modele is None:
+        messages.error(request, "Modèle introuvable.")
+    else:
+        modele.delete()
+        messages.success(request, "Modèle supprimé avec succès.")
     return redirect(request.META.get('HTTP_REFERER', 'adherents_communiquer'))
 
 @staff_member_required
@@ -4935,8 +4939,12 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
             for a in adherents_qs
         ]
         listes_diffusion = ListeDiffusion.objects.all().prefetch_related('adherents')
-        form = CommunicationAdherentsForm(inscrits_choices=adherents_choices, listes_diffusion=listes_diffusion)
-        modeles = ModeleMailAdherents.objects.all()
+        form = CommunicationAdherentsForm(
+            inscrits_choices=adherents_choices,
+            listes_diffusion=listes_diffusion,
+            utilisateur=request.user,
+        )
+        modeles = modeles_mail_adherents_visibles(request.user)
         historique = HistoriqueMailAdherents.objects.order_by('-date_envoi')[:20]
         # Préparer les données des listes pour le JavaScript (IDs des adhérents par liste)
         import json
@@ -4977,8 +4985,14 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
             for a in adherents_qs
         ]
         listes_diffusion = ListeDiffusion.objects.all().prefetch_related('adherents')
-        form = CommunicationAdherentsForm(request.POST, request.FILES, inscrits_choices=adherents_choices, listes_diffusion=listes_diffusion)
-        modeles = ModeleMailAdherents.objects.all()
+        form = CommunicationAdherentsForm(
+            request.POST,
+            request.FILES,
+            inscrits_choices=adherents_choices,
+            listes_diffusion=listes_diffusion,
+            utilisateur=request.user,
+        )
+        modeles = modeles_mail_adherents_visibles(request.user)
         historique = HistoriqueMailAdherents.objects.all()[:20]
         # Préparer les données des listes pour le JavaScript (IDs des adhérents par liste)
         import json
@@ -4990,8 +5004,11 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
         if 'supprimer_modele' in request.POST:
             modele_id = request.POST.get('modele')
             if modele_id:
-                ModeleMailAdherents.objects.filter(id=modele_id).delete()
-                messages.success(request, "Modèle supprimé avec succès.")
+                supprime, _ = modeles.filter(id=modele_id).delete()
+                if supprime:
+                    messages.success(request, "Modèle supprimé avec succès.")
+                else:
+                    messages.error(request, "Modèle introuvable.")
                 return redirect('adherents_communiquer')
 
         # Enregistrement d'un modèle
@@ -5000,12 +5017,25 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
             objet = request.POST.get('objet', '').strip()
             contenu = request.POST.get('contenu', '').strip()
             if nom:
-                ModeleMailAdherents.objects.create(
-                    nom=nom,
-                    objet=objet,
-                    contenu=contenu,
-                    auteur=request.user
-                )
+                from django.db import IntegrityError
+                try:
+                    ModeleMailAdherents.objects.create(
+                        nom=nom,
+                        objet=objet,
+                        contenu=contenu,
+                        auteur=request.user
+                    )
+                except IntegrityError:
+                    messages.error(request, "Vous avez déjà un modèle portant ce nom.")
+                    return render(request, 'gestion/communication_adherents.html', {
+                        'form': form,
+                        'adherents': adherents_qs,
+                        'adherents_avec_codir': adherents_avec_codir,
+                        'modeles': modeles,
+                        'historique': historique,
+                        'listes_diffusion': listes_diffusion,
+                        'listes_data': json.dumps(listes_data),
+                    })
                 messages.success(request, "Modèle enregistré avec succès.")
                 return redirect('adherents_communiquer')
             else:
@@ -5189,8 +5219,12 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
                 'listes_data': json.dumps(listes_data),
             })
 
+@require_GET
+@login_required
 def api_modele_mail_adherents(request, modele_id):
-    modele = ModeleMailAdherents.objects.filter(id=modele_id).first()
+    if not can_access_dashboard(request.user):
+        return JsonResponse({'error': 'Accès refusé'}, status=403)
+    modele = modeles_mail_adherents_visibles(request.user).filter(id=modele_id).first()
     if not modele:
         return JsonResponse({'error': 'Modèle introuvable'}, status=404)
     return JsonResponse({

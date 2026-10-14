@@ -1,7 +1,11 @@
 from django import forms
 from django.utils import timezone
 from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, Lieu, Exercice, ModeleMailSeance, ModeleMailAdherents
-from .utils import calculer_date_expiration_lien_inscription_defaut
+from .utils import (
+    calculer_date_expiration_lien_inscription_defaut,
+    est_admin_communication,
+    modeles_mail_adherents_visibles,
+)
 from ckeditor_uploader.widgets import CKEditorUploadingWidget
 
 DESTINATAIRES_CHOICES = [
@@ -950,7 +954,7 @@ class CommunicationAdherentsForm(forms.Form):
         widget=forms.Select(attrs={"class": "form-select"})
     )
 
-    def __init__(self, *args, inscrits_choices=None, listes_diffusion=None, **kwargs):
+    def __init__(self, *args, inscrits_choices=None, listes_diffusion=None, utilisateur=None, **kwargs):
         super().__init__(*args, **kwargs)
         if inscrits_choices is not None:
             self.fields['inscrits_choisis'].choices = inscrits_choices
@@ -962,6 +966,19 @@ class CommunicationAdherentsForm(forms.Form):
             for liste in listes_diffusion:
                 choices.append((f"liste_{liste.id}", f"📋 {liste.nom} ({liste.adherents.count()} adhérent(s))"))
         self.fields['destinataires'].choices = choices
+
+        if utilisateur is not None and getattr(utilisateur, 'is_authenticated', False):
+            self.fields['modele'].queryset = modeles_mail_adherents_visibles(utilisateur)
+            if est_admin_communication(utilisateur):
+                self.fields['modele'].label_from_instance = self._libelle_modele_admin
+        else:
+            self.fields['modele'].queryset = ModeleMailAdherents.objects.none()
+
+    @staticmethod
+    def _libelle_modele_admin(modele):
+        if modele.auteur_id:
+            return f"{modele.nom} — {modele.auteur.get_username()}"
+        return f"{modele.nom} — (sans compte)"
 
 
 class GenererLienInscriptionForm(forms.Form):

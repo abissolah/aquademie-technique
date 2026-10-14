@@ -21,6 +21,9 @@ ASSISTANT_MCP_PUBLIC_URL=https://suivi.exemple.fr/mcp
 # Nom d'hôte public vu par Nginx. Plusieurs valeurs séparées par des virgules si besoin.
 MCP_ALLOWED_HOSTS=suivi.exemple.fr
 
+# Host envoyé à Django pour les appels internes (http://web:8000). Doit être dans DJANGO_ALLOWED_HOSTS.
+ASSISTANT_API_HOST=suivi.exemple.fr
+
 # Laisser vide si les clients n'envoient pas d'en-tête Origin.
 MCP_ALLOWED_ORIGINS=
 ```
@@ -134,11 +137,38 @@ La réponse attendue est `200`. Un jeton invalide donne `401`.
 
 Le point `/mcp` parle le protocole MCP (pas une page HTML). Le contrôle utile est l'apparition des outils dans Cursor ou Claude, puis une question du type : « Quelles sont les prochaines séances ? ».
 
+## 404 Django sur /mcp
+
+Sur `app-suivitech.fr`, le Nginx du système proxifie tout vers `http://127.0.0.1:8080`. Ce port est le Nginx Docker. Tant qu'il n'a pas rechargé sa configuration, `/mcp` suit la route `/` et Django répond 404. Un 502 voudrait dire que la route existe mais que le conteneur `mcp` est arrêté.
+
+Sur le VPS, dans le répertoire du projet :
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build mcp
+docker compose -f docker-compose.prod.yml exec nginx nginx -t
+docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
+curl -sI -H "Host: app-suivitech.fr" http://127.0.0.1:8080/mcp
+```
+
+La réponse locale ne doit plus être une page 404 Django. Ensuite seulement, retester `https://app-suivitech.fr/mcp` depuis Cursor.
+
+Dans le `.env` du serveur :
+
+```env
+ASSISTANT_MCP_PUBLIC_URL=https://app-suivitech.fr/mcp
+MCP_ALLOWED_HOSTS=app-suivitech.fr,www.app-suivitech.fr
+ASSISTANT_API_HOST=app-suivitech.fr
+```
+
+Puis `docker compose -f docker-compose.prod.yml up -d mcp` pour prendre ces variables.
+
 ## Dépannage
 
 - **401 Jeton invalide ou révoqué** : le jeton collé ne correspond plus, ou il a été révoqué. En créer un nouveau.
 - **403** : le compte n'est pas dans les groupes encadrant, codir ou admin.
+- **404 Django sur `https://<domaine>/mcp`** : la requête arrive sur Django. Le Nginx du VPS envoie déjà tout vers `127.0.0.1:8080` ; c'est le Nginx Docker qui n'a pas rechargé `docker/nginx/nginx.conf`. Voir ci-dessous.
 - **Les outils n'apparaissent pas** : URL exacte `https://<domaine>/mcp`, en-tête `Authorization` présent, client redémarré.
+- **400 Bad Request, page HTML Django vide** : l'appel interne utilise `Host: web`, refusé par `ALLOWED_HOSTS`. Renseigner `ASSISTANT_API_HOST=app-suivitech.fr` dans le `.env`, puis `docker compose -f docker-compose.prod.yml up -d --build mcp`.
 - **400 Invalid Host header** : `MCP_ALLOWED_HOSTS` ne contient pas le nom d'hôte envoyé par le reverse proxy. L'ajouter, puis `docker compose -f docker-compose.prod.yml up -d mcp`.
 - **Le MCP ne joint pas Django** : les deux services doivent être sur le même compose. `ASSISTANT_API_BASE_URL` reste `http://web:8000`.
 

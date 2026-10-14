@@ -9,6 +9,18 @@ from mcp.server.transport_security import TransportSecuritySettings
 
 API_BASE = os.environ.get("ASSISTANT_API_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 
+
+def _hote_django() -> str:
+    """Nom d'hôte accepté par ALLOWED_HOSTS. En Docker, l'URL interne est http://web:8000."""
+    explicite = os.environ.get("ASSISTANT_API_HOST", "").strip()
+    if explicite:
+        return explicite
+    for hote in os.environ.get("MCP_ALLOWED_HOSTS", "").split(","):
+        hote = hote.strip()
+        if hote:
+            return hote
+    return ""
+
 INSTRUCTIONS = """
 Tu aides les encadrants et les directeurs de plongée à préparer les palanquées
 et le programme des séances. Tu proposes, tu ne modifies aucune donnée.
@@ -42,11 +54,15 @@ async def _get(ctx: Context, path: str, params: dict | None = None) -> dict:
             "error": "Jeton manquant. Le client MCP doit envoyer l'en-tête Authorization: Bearer …",
         }
     query = {cle: valeur for cle, valeur in (params or {}).items() if valeur not in (None, "")}
+    entetes = {"Authorization": authorization}
+    hote = _hote_django()
+    if hote:
+        entetes["Host"] = hote
     async with httpx.AsyncClient(timeout=60) as client:
         response = await client.get(
             f"{API_BASE}{path}",
             params=query,
-            headers={"Authorization": authorization},
+            headers=entetes,
         )
     try:
         body = response.json()
