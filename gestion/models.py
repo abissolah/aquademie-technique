@@ -686,7 +686,7 @@ class JetonAssistant(models.Model):
 
 
 class ListeDiffusion(models.Model):
-    nom = models.CharField(max_length=100, unique=True, verbose_name="Nom de la liste")
+    nom = models.CharField(max_length=100, verbose_name="Nom de la liste")
     adherents = models.ManyToManyField(Adherent, related_name='listes_diffusion', verbose_name="Adhérents")
     date_creation = models.DateTimeField(auto_now_add=True)
     auteur = models.ForeignKey(get_user_model(), on_delete=models.SET_NULL, null=True, blank=True)
@@ -695,6 +695,12 @@ class ListeDiffusion(models.Model):
         verbose_name = "Liste de diffusion"
         verbose_name_plural = "Listes de diffusion"
         ordering = ["nom"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['nom', 'auteur'],
+                name='unique_liste_diffusion_nom_auteur',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.nom} ({self.adherents.count()} adhérent(s))"

@@ -69,7 +69,7 @@ from django.conf import settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.contrib.sites.shortcuts import get_current_site
-from .utils import eleve_only, encadrant_only, admin_only, group_required, modeles_mail_adherents_visibles
+from .utils import eleve_only, encadrant_only, admin_only, group_required, listes_diffusion_visibles, modeles_mail_adherents_visibles
 from django.utils.decorators import method_decorator
 from .models import ModeleMailSeance
 from .models import Adherent, Section, ModeleMailAdherents, HistoriqueMailAdherents, CorpsMailPdfPalanquees
@@ -4924,7 +4924,6 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
         from .utils import can_access_dashboard
         if not can_access_dashboard(request.user):
             return redirect('login')
-        from .models import ListeDiffusion
         adherents_qs = Adherent.objects.filter(actif=True).select_related('user').prefetch_related('user__groups').order_by('nom', 'prenom')
         # Préparer les données pour identifier les membres codir
         adherents_avec_codir = []
@@ -4938,7 +4937,7 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
             (str(a.id), f"{a.nom.upper()} {a.prenom.capitalize()} ({a.email})")
             for a in adherents_qs
         ]
-        listes_diffusion = ListeDiffusion.objects.all().prefetch_related('adherents')
+        listes_diffusion = listes_diffusion_visibles(request.user)
         form = CommunicationAdherentsForm(
             inscrits_choices=adherents_choices,
             listes_diffusion=listes_diffusion,
@@ -4984,7 +4983,7 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
             (str(a.id), f"{a.nom.upper()} {a.prenom.capitalize()} ({a.email})")
             for a in adherents_qs
         ]
-        listes_diffusion = ListeDiffusion.objects.all().prefetch_related('adherents')
+        listes_diffusion = listes_diffusion_visibles(request.user)
         form = CommunicationAdherentsForm(
             request.POST,
             request.FILES,
@@ -5055,7 +5054,20 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
             nom_liste = request.POST.get('nom_liste', '').strip()
             ids_adherents = request.POST.getlist('adherents_liste')
             if nom_liste and ids_adherents:
-                liste = ListeDiffusion.objects.create(nom=nom_liste, auteur=request.user)
+                from django.db import IntegrityError
+                try:
+                    liste = ListeDiffusion.objects.create(nom=nom_liste, auteur=request.user)
+                except IntegrityError:
+                    messages.error(request, "Vous avez déjà une liste de diffusion portant ce nom.")
+                    return render(request, 'gestion/communication_adherents.html', {
+                        'form': form,
+                        'adherents': adherents_qs,
+                        'adherents_avec_codir': adherents_avec_codir,
+                        'modeles': modeles,
+                        'historique': historique,
+                        'listes_diffusion': listes_diffusion,
+                        'listes_data': json.dumps(listes_data),
+                    })
                 liste.adherents.set(Adherent.objects.filter(id__in=ids_adherents))
                 messages.success(request, f"Liste de diffusion '{nom_liste}' créée avec succès.")
                 return redirect('adherents_communiquer')
@@ -5234,12 +5246,13 @@ def api_modele_mail_adherents(request, modele_id):
 
 @login_required
 def supprimer_liste_diffusion(request, liste_id):
-    from .models import ListeDiffusion
     from .utils import can_access_dashboard
     if not can_access_dashboard(request.user):
         return redirect('login')
-    liste = get_object_or_404(ListeDiffusion, pk=liste_id)
-    if request.method == 'POST':
+    liste = listes_diffusion_visibles(request.user).filter(pk=liste_id).first()
+    if liste is None:
+        messages.error(request, "Liste de diffusion introuvable.")
+    elif request.method == 'POST':
         nom_liste = liste.nom
         liste.delete()
         messages.success(request, f"Liste de diffusion '{nom_liste}' supprimée avec succès.")

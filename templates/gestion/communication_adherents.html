@@ -159,7 +159,7 @@
                     {% for liste in listes_diffusion %}
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             <div>
-                                <strong>{{ liste.nom }}</strong>
+                                <strong>{{ liste.nom }}</strong>{% if is_admin_nav %} — {% if liste.auteur %}{{ liste.auteur.username }}{% else %}(sans compte){% endif %}{% endif %}
                                 <span class="badge bg-secondary ms-2">{{ liste.adherents.count }} adhérent(s)</span>
                             </div>
                             <form method="post" action="{% url 'supprimer_liste_diffusion' liste.id %}" style="display:inline;">

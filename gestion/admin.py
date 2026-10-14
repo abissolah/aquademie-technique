@@ -5,7 +5,7 @@ from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from .assistant_api import utilisateur_autorise
-from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, LienEvaluation, Lieu, PalanqueeEleve, CorpsMailPdfPalanquees, AncienAdherent, JetonAssistant, ModeleMailAdherents
+from .models import Adherent, Section, Competence, GroupeCompetence, Seance, Palanquee, Evaluation, LienEvaluation, Lieu, PalanqueeEleve, CorpsMailPdfPalanquees, AncienAdherent, JetonAssistant, ListeDiffusion, ModeleMailAdherents
 
 
 admin.site.unregister(User)
@@ -236,6 +236,16 @@ class JetonAssistantAdmin(admin.ModelAdmin):
     def revoquer_jetons(self, request, queryset):
         nombre = queryset.update(revoque=True)
         self.message_user(request, f"{nombre} jeton(s) révoqué(s).")
+
+
+@admin.register(ListeDiffusion)
+class ListeDiffusionAdmin(admin.ModelAdmin):
+    list_display = ('nom', 'auteur', 'date_creation')
+    list_filter = ('auteur',)
+    search_fields = ('nom', 'auteur__username', 'auteur__first_name', 'auteur__last_name', 'auteur__email')
+    raw_id_fields = ('auteur',)
+    filter_horizontal = ('adherents',)
+    readonly_fields = ('date_creation',)
 
 
 @admin.register(ModeleMailAdherents)

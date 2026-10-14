@@ -962,9 +962,14 @@ class CommunicationAdherentsForm(forms.Form):
         # Construire les choix de destinataires avec les listes personnalisées
         choices = list(ADHERENTS_DESTINATAIRES_CHOICES)
         if listes_diffusion is not None:
+            afficher_auteur = utilisateur is not None and est_admin_communication(utilisateur)
             # Ajouter les listes personnalisées avec un préfixe pour les identifier
             for liste in listes_diffusion:
-                choices.append((f"liste_{liste.id}", f"📋 {liste.nom} ({liste.adherents.count()} adhérent(s))"))
+                libelle = f"📋 {liste.nom} ({liste.adherents.count()} adhérent(s))"
+                if afficher_auteur:
+                    compte = liste.auteur.get_username() if liste.auteur_id else "(sans compte)"
+                    libelle = f"{libelle} — {compte}"
+                choices.append((f"liste_{liste.id}", libelle))
         self.fields['destinataires'].choices = choices
 
         if utilisateur is not None and getattr(utilisateur, 'is_authenticated', False):
