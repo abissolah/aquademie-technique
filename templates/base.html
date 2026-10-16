@@ -93,6 +93,20 @@
                                 <i class="fas fa-user-friends me-1"></i>Adhérents
                             </a>
                         </li>
+                        {% if adherent_profile %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'adherent_detail' adherent_profile.pk %}">
+                                <i class="fas fa-user me-1"></i>Ma fiche
+                            </a>
+                        </li>
+                        {% if adherent_profile.statut == 'eleve' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'suivi_formation_eleve' adherent_profile.pk %}">
+                                <i class="fas fa-chart-line me-1"></i>Suivi de formation
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% endif %}
                     {% elif is_codir_nav %}
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'dashboard' %}">

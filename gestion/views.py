@@ -3396,7 +3396,8 @@ def peut_voir_suivi(user, eleve_id):
     if user.groups.filter(name='codir').exists():
         return True
     if is_voyage(user):
-        return False
+        adherent = get_adherent_profile(user)
+        return bool(adherent and adherent.id == int(eleve_id))
     if user.groups.filter(name='encadrant').exists():
         return True
     adherent = get_adherent_profile(user)

@@ -206,15 +206,12 @@ def peut_acceder_fiche_adherent(user, adherent_id):
 def peut_modifier_fiche_adherent(user, adherent_id):
     """
     - admin/superuser : toutes les fiches
-    - voyage sans droit admin/codir : aucune fiche
-    - élève / encadrant / codir(+élève|encadrant) : uniquement sa propre fiche
+    - élève / encadrant / codir / voyage : uniquement sa propre fiche
     """
     if not user.is_authenticated:
         return False
     if user.is_superuser or user.groups.filter(name='admin').exists():
         return True
-    if est_voyage_seul(user):
-        return False
     return is_ma_fiche(user, adherent_id)
 
 

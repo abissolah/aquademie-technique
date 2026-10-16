@@ -102,6 +102,7 @@ class VoyageAccessMiddleware:
         'password_reset_complete',
         'adherent_list',
         'adherent_detail',
+        'adherent_update',
         'export_adherents_excel',
         'adherents_communiquer',
         'exporter_destinataires_adherents_excel',
@@ -109,6 +110,15 @@ class VoyageAccessMiddleware:
         'supprimer_liste_diffusion',
         'supprimer_modele_mail_adherents',
         'api_modele_mail_adherents',
+        'suivi_formation_eleve',
+        'suivi_formation_eleve_pdf',
+        'suivi_evaluations_exercices_eleve_pdf',
+    }
+
+    OWN_ELEVE_ID_URL_NAMES = {
+        'suivi_formation_eleve',
+        'suivi_formation_eleve_pdf',
+        'suivi_evaluations_exercices_eleve_pdf',
     }
 
     def __init__(self, get_response):
@@ -139,4 +149,12 @@ class VoyageAccessMiddleware:
         except Resolver404:
             return True
 
-        return match.url_name not in self.ALLOWED_URL_NAMES
+        if match.url_name not in self.ALLOWED_URL_NAMES:
+            return True
+
+        if match.url_name in self.OWN_ELEVE_ID_URL_NAMES:
+            adherent = get_adherent_profile(request.user)
+            eleve_id = match.kwargs.get('eleve_id')
+            return not (adherent and eleve_id is not None and int(eleve_id) == adherent.id)
+
+        return False

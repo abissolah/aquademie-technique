@@ -89,7 +89,7 @@
                             {% endif %}
                         </p>
                     </div>
-                    {% if not is_voyage %}
+                    {% if not is_voyage or est_ma_fiche %}
                     <div class="col-md-6">
                         <p><strong>Date de délivrance du CACI :</strong> 
                             <span class="{% if adherent.date_delivrance_caci and adherent.date_delivrance_caci > today|date:'Y-m-d'|add:'-11 months' %}text-danger{% endif %}">
@@ -138,7 +138,7 @@
             </div>
         </div>
 
-        {% if not is_voyage %}
+        {% if not is_voyage or est_ma_fiche %}
         <!-- Compléments d'inscription -->
         <div class="card mb-4">
             <div class="card-header">
@@ -181,7 +181,7 @@
         </div>
         {% endif %}
 
-        {% if not is_voyage %}
+        {% if not is_voyage or est_ma_fiche %}
         <!-- Séances -->
         <div class="card">
             <div class="card-header">
@@ -244,7 +244,7 @@
             </div>
         </div>
 
-        {% if not is_voyage %}
+        {% if not is_voyage or est_ma_fiche %}
         <!-- Métadonnées -->
         <div class="card mb-4">
             <div class="card-header">
@@ -259,7 +259,7 @@
         </div>
         {% endif %}
 
-        {% if not is_voyage %}
+        {% if not is_voyage or est_ma_fiche %}
         <!-- Actions rapides -->
         <div class="card">
             <div class="card-header">
