@@ -79,6 +79,7 @@ MIDDLEWARE += [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'gestion.middleware.EleveAccessMiddleware',
+    'gestion.middleware.VoyageAccessMiddleware',
 ]
 
 ROOT_URLCONF = 'club_plongee.urls'

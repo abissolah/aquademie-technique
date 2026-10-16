@@ -11,16 +11,12 @@
                     <i class="fas fa-users me-2"></i>Adhérents
                 </h1>
                 <div class="d-flex flex-wrap gap-2 mb-3">
-                    {% if request.user.is_staff and not is_codir %}
-                    <a href="{% url 'adherents_communiquer' %}" class="btn btn-info">
-                        <i class="fas fa-envelope me-2"></i>Communiquer avec les adhérents
-                    </a>
-                    {% elif is_codir %}
+                    {% if is_voyage or is_codir or request.user.is_staff %}
                     <a href="{% url 'adherents_communiquer' %}" class="btn btn-info">
                         <i class="fas fa-envelope me-2"></i>Communiquer avec les adhérents
                     </a>
                     {% endif %}
-                    {% if not is_codir %}
+                    {% if not is_codir and not is_voyage %}
                     <a href="{% url 'download_excel_template' %}" class="btn btn-success">
                         <i class="fas fa-download me-2"></i>Télécharger modèle d'import
                     </a>
@@ -31,10 +27,12 @@
                     <a href="{% url 'export_adherents_excel' %}" class="btn btn-success">
                         <i class="fas fa-file-excel me-2"></i>Exporter La liste des adhérents
                     </a>
+                    {% if not is_voyage %}
                     <a href="{% url 'gestion_licences' %}" class="btn btn-primary">
                         <i class="fas fa-id-card me-2"></i>Gestion licences
                     </a>
-                    {% if not is_codir %}
+                    {% endif %}
+                    {% if not is_codir and not is_voyage %}
                     <a href="{% url 'adherent_create' %}" class="btn btn-primary">
                         <i class="fas fa-plus me-2"></i>Nouvel adhérent
                     </a>
@@ -69,6 +67,7 @@
           Adhérents du club <span class="badge bg-success ms-2">{{ adherents_adherents|length }}</span>
         </button>
       </li>
+      {% if not is_voyage %}
       <li class="nav-item" role="presentation">
         <button class="nav-link" id="nonadherents-tab" data-bs-toggle="tab" data-bs-target="#nonadherents" type="button" role="tab" aria-controls="nonadherents" aria-selected="false">
           Non adhérents <span class="badge bg-warning ms-2">{{ adherents_non_adherents|length }}</span>
@@ -79,6 +78,7 @@
           Non adhérents désactivés <span class="badge bg-danger ms-2">{{ adherents_non_adherents_desactives|length }}</span>
         </button>
       </li>
+      {% endif %}
     </ul>
     <div class="tab-content" id="adherentsTabsContent">
       <div class="tab-pane fade show active" id="adherents" role="tabpanel" aria-labelledby="adherents-tab">
@@ -125,6 +125,7 @@
                         {% endif %}
                       </a>
                     </th>
+                    {% if not is_voyage %}
                     <th>
                       <a href="?sort=date_delivrance_caci&order={% if request.GET.sort == 'date_delivrance_caci' and request.GET.order != 'desc' %}desc{% else %}asc{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">
                         Date de délivrance du CACI
@@ -139,6 +140,7 @@
                     </th>
                     <th>Fichier CACI</th>
                     <th>Hello Asso</th>
+                    {% endif %}
                     <th>Compte</th>
                     <th>Section(s)</th>
                     <th>Actions</th>
@@ -166,6 +168,7 @@
                             <span class="badge bg-warning">Encadrant</span>
                           {% endif %}
                         </td>
+                        {% if not is_voyage %}
                         <td>
                           {{ adherent.date_delivrance_caci|date:"d/m/Y" }}
                           {% if adherent.caci_status == 'expired' %}
@@ -191,6 +194,7 @@
                             <span class="badge bg-warning text-dark">En attente</span>
                           {% endif %}
                         </td>
+                        {% endif %}
                         <td>
                           {% if adherent.user %}
                             <span class="badge bg-success">Compte créé</span>
@@ -214,7 +218,7 @@
                             <a href="{% url 'adherent_detail' adherent.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
                               <i class="fas fa-eye"></i>
                             </a>
-                            {% if not is_codir %}
+                            {% if not is_codir and not is_voyage %}
                             <a href="{% url 'adherent_update' adherent.pk %}" class="btn btn-sm btn-outline-warning" title="Modifier">
                               <i class="fas fa-edit"></i>
                             </a>
@@ -252,6 +256,7 @@
           </div>
         </div>
       </div>
+      {% if not is_voyage %}
       <div class="tab-pane fade" id="nonadherents" role="tabpanel" aria-labelledby="nonadherents-tab">
         <div class="card">
           <div class="card-body">
@@ -319,7 +324,7 @@
                             <a href="{% url 'adherent_detail' adherent.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
                               <i class="fas fa-eye"></i>
                             </a>
-                            {% if not is_codir %}
+                            {% if not is_codir and not is_voyage %}
                             <a href="{% url 'adherent_update' adherent.pk %}" class="btn btn-sm btn-outline-warning" title="Modifier">
                               <i class="fas fa-edit"></i>
                             </a>
@@ -418,7 +423,7 @@
                           <a href="{% url 'adherent_detail' adherent.pk %}" class="btn btn-sm btn-outline-primary" title="Voir">
                             <i class="fas fa-eye"></i>
                           </a>
-                          {% if not is_codir %}
+                          {% if not is_codir and not is_voyage %}
                           <a href="{% url 'adherent_update' adherent.pk %}" class="btn btn-sm btn-outline-warning" title="Modifier">
                             <i class="fas fa-edit"></i>
                           </a>
@@ -433,6 +438,7 @@
           </div>
         </div>
       </div>
+      {% endif %}
     </div>
 </div>
 

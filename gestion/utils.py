@@ -6,7 +6,7 @@ from django.utils.html import strip_tags
 from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
-from .models import LienEvaluation, ListeDiffusion, ModeleMailAdherents
+from .models import Adherent, LienEvaluation, ListeDiffusion, ModeleMailAdherents
 from django.templatetags.static import static
 from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import redirect
@@ -171,7 +171,7 @@ def is_eleve_restreint(user):
     """
     if not user or not user.is_authenticated or user.is_superuser:
         return False
-    if user.groups.filter(name__in=['admin', 'codir']).exists():
+    if user.groups.filter(name__in=['admin', 'codir', 'voyage']).exists():
         return False
     if user.groups.filter(name='eleve').exists():
         return True
@@ -190,6 +190,7 @@ def redirect_eleve_home(user):
 def peut_acceder_fiche_adherent(user, adherent_id):
     """
     - admin/codir/superuser : toutes les fiches
+    - voyage : fiches des adhérents du club uniquement
     - chacun : sa propre fiche
     - encadrant non-codir : uniquement sa propre fiche (pas les fiches élèves)
     """
@@ -197,18 +198,23 @@ def peut_acceder_fiche_adherent(user, adherent_id):
         return False
     if can_access_dashboard(user):
         return True
+    if is_voyage(user):
+        return Adherent.objects.filter(pk=adherent_id, type_personne='adherent').exists()
     return is_ma_fiche(user, adherent_id)
 
 
 def peut_modifier_fiche_adherent(user, adherent_id):
     """
     - admin/superuser : toutes les fiches
+    - voyage sans droit admin/codir : aucune fiche
     - élève / encadrant / codir(+élève|encadrant) : uniquement sa propre fiche
     """
     if not user.is_authenticated:
         return False
     if user.is_superuser or user.groups.filter(name='admin').exists():
         return True
+    if est_voyage_seul(user):
+        return False
     return is_ma_fiche(user, adherent_id)
 
 
@@ -237,6 +243,8 @@ def group_required(group_name):
             # Redirection selon le groupe
             if request.user.groups.filter(name='codir').exists():
                 return redirect('dashboard')
+            elif is_voyage(request.user):
+                return redirect('adherent_list')
             elif is_eleve_restreint(request.user):
                 return redirect_eleve_home(request.user)
             elif request.user.groups.filter(name='encadrant').exists():
@@ -283,6 +291,27 @@ def can_access_dashboard(user):
     return (user.is_superuser or 
             user.groups.filter(name='admin').exists() or 
             user.groups.filter(name='codir').exists())
+
+
+def is_voyage(user):
+    """Vérifie si l'utilisateur appartient au groupe voyage."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    return user.groups.filter(name='voyage').exists()
+
+
+def est_voyage_seul(user):
+    """Profil voyage sans droit admin, codir ou superutilisateur."""
+    if not is_voyage(user):
+        return False
+    if user.is_superuser or user.groups.filter(name__in=['admin', 'codir']).exists():
+        return False
+    return True
+
+
+def peut_consulter_adherents(user):
+    """Liste des adhérents, communication et export : dashboard ou profil voyage."""
+    return can_access_dashboard(user) or is_voyage(user)
 
 
 def est_admin_communication(user):

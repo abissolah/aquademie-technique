@@ -89,6 +89,7 @@
                             {% endif %}
                         </p>
                     </div>
+                    {% if not is_voyage %}
                     <div class="col-md-6">
                         <p><strong>Date de délivrance du CACI :</strong> 
                             <span class="{% if adherent.date_delivrance_caci and adherent.date_delivrance_caci > today|date:'Y-m-d'|add:'-11 months' %}text-danger{% endif %}">
@@ -119,6 +120,7 @@
                         <p><strong>Ancienne fiche :</strong> {{ adherent.ancien_adherent.nom_complet }} ({{ adherent.ancien_adherent.saison }})</p>
                         {% endif %}
                     </div>
+                    {% endif %}
                 </div>
 
                 <!-- Sections d'inscription -->
@@ -136,6 +138,7 @@
             </div>
         </div>
 
+        {% if not is_voyage %}
         <!-- Compléments d'inscription -->
         <div class="card mb-4">
             <div class="card-header">
@@ -176,7 +179,9 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
+        {% if not is_voyage %}
         <!-- Séances -->
         <div class="card">
             <div class="card-header">
@@ -214,6 +219,7 @@
                 {% endif %}
             </div>
         </div>
+        {% endif %}
     </div>
 
     <!-- Photo et métadonnées -->
@@ -238,6 +244,7 @@
             </div>
         </div>
 
+        {% if not is_voyage %}
         <!-- Métadonnées -->
         <div class="card mb-4">
             <div class="card-header">
@@ -250,7 +257,9 @@
                 <p><strong>Modifié le :</strong> {{ adherent.date_modification|date:"d/m/Y à H:i" }}</p>
             </div>
         </div>
+        {% endif %}
 
+        {% if not is_voyage %}
         <!-- Actions rapides -->
         <div class="card">
             <div class="card-header">
@@ -278,6 +287,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
     </div>
 </div>
 
@@ -285,7 +295,7 @@
 <!-- Retour à la liste -->
 <div class="row mt-4">
     <div class="col-12">
-        {% if is_codir or peut_supprimer_fiche %}
+        {% if is_codir or is_voyage or peut_supprimer_fiche %}
         <a href="{% url 'adherent_list' %}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left me-2"></i>Retour à la liste des adhérents
         </a>

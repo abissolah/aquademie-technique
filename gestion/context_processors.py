@@ -1,5 +1,6 @@
 from .utils import (
     can_access_dashboard,
+    est_voyage_seul,
     get_adherent_profile,
     is_codir,
     is_eleve_restreint,
@@ -15,6 +16,7 @@ def user_roles(request):
         'is_eleve_restreint': is_eleve_restreint(user) if authenticated else False,
         'adherent_profile': adherent,
         'is_codir_nav': is_codir(user) if authenticated else False,
+        'is_voyage': est_voyage_seul(user) if authenticated else False,
         'is_encadrant_nav': bool(
             authenticated and user.groups.filter(name='encadrant').exists()
         ),

@@ -1,7 +1,8 @@
 from django.conf import settings
+from django.shortcuts import redirect
 from django.urls import Resolver404, resolve
 
-from .utils import get_adherent_profile, is_eleve_restreint, redirect_eleve_home
+from .utils import est_voyage_seul, get_adherent_profile, is_eleve_restreint, redirect_eleve_home
 
 
 class EleveAccessMiddleware:
@@ -84,3 +85,58 @@ class EleveAccessMiddleware:
             return eleve_id is None or int(eleve_id) != adherent.id
 
         return False
+
+
+class VoyageAccessMiddleware:
+    """
+    Restreint le profil voyage (sans droit admin/codir) à la liste des adhérents
+    du club, leurs fiches, la communication et l'export.
+    """
+
+    ALLOWED_URL_NAMES = {
+        'login',
+        'logout',
+        'password_reset',
+        'password_reset_done',
+        'password_reset_confirm',
+        'password_reset_complete',
+        'adherent_list',
+        'adherent_detail',
+        'export_adherents_excel',
+        'adherents_communiquer',
+        'exporter_destinataires_adherents_excel',
+        'supprimer_historique_mail_adherents',
+        'supprimer_liste_diffusion',
+        'supprimer_modele_mail_adherents',
+        'api_modele_mail_adherents',
+    }
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if self._should_restrict(request):
+            return redirect('adherent_list')
+        return self.get_response(request)
+
+    def _should_restrict(self, request):
+        if not est_voyage_seul(request.user):
+            return False
+
+        path = request.path_info or '/'
+        static_url = getattr(settings, 'STATIC_URL', '/static/') or '/static/'
+        media_url = getattr(settings, 'MEDIA_URL', '/media/') or '/media/'
+        if (
+            path.startswith(static_url)
+            or path.startswith(media_url)
+            or path.startswith('/ckeditor/')
+            or path.startswith('/admin/')
+        ):
+            return False
+
+        try:
+            match = resolve(path)
+        except Resolver404:
+            return True
+
+        return match.url_name not in self.ALLOWED_URL_NAMES

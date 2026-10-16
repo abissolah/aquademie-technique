@@ -39,6 +39,9 @@ from .utils import (
     envoyer_lien_evaluation,
     envoyer_lien_evaluation_avec_cc,
     can_access_dashboard,
+    est_voyage_seul,
+    is_voyage,
+    peut_consulter_adherents,
     get_adherent_profile,
     is_eleve_restreint,
     is_ma_fiche,
@@ -123,6 +126,8 @@ def _list_route_name_for_seance(seance):
 def dashboard(request):
     # Vérifier les permissions d'accès au dashboard
     if not can_access_dashboard(request.user):
+        if is_voyage(request.user):
+            return redirect('adherent_list')
         if is_eleve_restreint(request.user):
             return redirect_eleve_home(request.user)
         return redirect('login')
@@ -187,13 +192,14 @@ class AdherentListView(LoginRequiredMixin, ListView):
     
     def get(self, request, *args, **kwargs):
         # Vérifier les permissions d'accès
-        from .utils import can_access_dashboard
-        if not can_access_dashboard(request.user):
+        if not peut_consulter_adherents(request.user):
             return redirect('login')
         return super().get(request, *args, **kwargs)
     
     def get_queryset(self):
         queryset = Adherent.objects.all()
+        if est_voyage_seul(self.request.user):
+            queryset = queryset.filter(type_personne='adherent')
         q = self.request.GET.get('q')
         if q:
             queryset = queryset.filter(
@@ -245,6 +251,8 @@ class AdherentDetailView(LoginRequiredMixin, DetailView):
 
     def get(self, request, *args, **kwargs):
         if not peut_acceder_fiche_adherent(request.user, kwargs.get('pk')):
+            if is_voyage(request.user):
+                return redirect('adherent_list')
             if is_eleve_restreint(request.user):
                 return redirect_eleve_home(request.user)
             if request.user.groups.filter(name='encadrant').exists():
@@ -1806,6 +1814,8 @@ def exporter_destinataires_communication_excel(request, seance_id):
 @login_required
 def exporter_destinataires_adherents_excel(request):
     """Exporte la liste des destinataires de la communication avec les adhérents en Excel"""
+    if not peut_consulter_adherents(request.user):
+        return redirect('login')
     import openpyxl
     from openpyxl.utils import get_column_letter
     from openpyxl.styles import Alignment, Font, PatternFill
@@ -2454,17 +2464,29 @@ def export_adherents_excel(request):
     import pandas as pd
     from django.http import HttpResponse
 
+    if not peut_consulter_adherents(request.user):
+        return redirect('login')
+
+    voyage = est_voyage_seul(request.user)
     # Récupération des 3 groupes
     adherents = Adherent.objects.filter(type_personne='adherent').order_by('nom', 'prenom')
-    non_adh_actifs = Adherent.objects.filter(type_personne='non_adherent', actif=True).order_by('nom', 'prenom')
-    non_adh_inactifs = Adherent.objects.filter(type_personne='non_adherent', actif=False).order_by('nom', 'prenom')
+    non_adh_actifs = Adherent.objects.none()
+    non_adh_inactifs = Adherent.objects.none()
+    if not voyage:
+        non_adh_actifs = Adherent.objects.filter(type_personne='non_adherent', actif=True).order_by('nom', 'prenom')
+        non_adh_inactifs = Adherent.objects.filter(type_personne='non_adherent', actif=False).order_by('nom', 'prenom')
 
-    # Colonnes de base + section
-    colonnes = [
-        'Nom', 'Prénom', 'Email', 'Téléphone', 'Adresse', 'Code postal', 'Ville',
-        'Numéro de licence', 'Assurance', 'Date délivrance CACI', 'Niveau', 'Statut',
-        'Statut licence', 'Section', 'Date de naissance'
-    ]
+    if voyage:
+        colonnes = [
+            'Nom', 'Prénom', 'Email', 'Téléphone', 'Adresse', 'Code postal', 'Ville',
+            'Assurance', 'Niveau',
+        ]
+    else:
+        colonnes = [
+            'Nom', 'Prénom', 'Email', 'Téléphone', 'Adresse', 'Code postal', 'Ville',
+            'Numéro de licence', 'Assurance', 'Date délivrance CACI', 'Niveau', 'Statut',
+            'Statut licence', 'Section', 'Date de naissance',
+        ]
 
     def adherent_to_dict(a):
         return {
@@ -2498,8 +2520,9 @@ def export_adherents_excel(request):
     response['Content-Disposition'] = 'attachment; filename="adherents.xlsx"'
     with pd.ExcelWriter(response, engine='openpyxl') as writer:
         df_adh.to_excel(writer, sheet_name='Adhérents', index=False)
-        df_non_adh_actifs.to_excel(writer, sheet_name='Non adhérents actifs', index=False)
-        df_non_adh_inactifs.to_excel(writer, sheet_name='Non adhérents désactivés', index=False)
+        if not voyage:
+            df_non_adh_actifs.to_excel(writer, sheet_name='Non adhérents actifs', index=False)
+            df_non_adh_inactifs.to_excel(writer, sheet_name='Non adhérents désactivés', index=False)
     return response
 
 @login_required
@@ -3372,6 +3395,8 @@ def peut_voir_suivi(user, eleve_id):
         return True
     if user.groups.filter(name='codir').exists():
         return True
+    if is_voyage(user):
+        return False
     if user.groups.filter(name='encadrant').exists():
         return True
     adherent = get_adherent_profile(user)
@@ -3382,6 +3407,8 @@ def suivi_formation_eleve(request, eleve_id):
         # Redirige l'élève vers sa propre fiche, les autres vers la liste des élèves
         if is_eleve_restreint(request.user):
             return redirect_eleve_home(request.user)
+        elif is_voyage(request.user):
+            return redirect('adherent_list')
         elif request.user.groups.filter(name='encadrant').exists():
             return redirect('eleve_list')
         else:
@@ -3580,6 +3607,8 @@ def suivi_formation_eleve_pdf(request, eleve_id):
     if not peut_voir_suivi(request.user, int(eleve_id)):
         if is_eleve_restreint(request.user):
             return redirect_eleve_home(request.user)
+        elif is_voyage(request.user):
+            return redirect('adherent_list')
         elif request.user.groups.filter(name='encadrant').exists():
             return redirect('eleve_list')
         else:
@@ -3598,6 +3627,8 @@ def suivi_evaluations_exercices_eleve_pdf(request, eleve_id):
     if not peut_voir_suivi(request.user, int(eleve_id)):
         if is_eleve_restreint(request.user):
             return redirect_eleve_home(request.user)
+        elif is_voyage(request.user):
+            return redirect('adherent_list')
         elif request.user.groups.filter(name='encadrant').exists():
             return redirect('eleve_list')
         else:
@@ -4821,7 +4852,7 @@ def api_modele_mail(request, modele_id):
 
 @login_required
 def supprimer_modele_mail_adherents(request, modele_id):
-    if not can_access_dashboard(request.user):
+    if not peut_consulter_adherents(request.user):
         return redirect('login')
     modele = modeles_mail_adherents_visibles(request.user).filter(pk=modele_id).first()
     if modele is None:
@@ -4921,10 +4952,11 @@ def envoyer_pdf_palanquee_encadrant(request, palanquee_id):
 class CommunicationAdherentsView(LoginRequiredMixin, View):
     def get(self, request):
         # Vérifier les permissions d'accès
-        from .utils import can_access_dashboard
-        if not can_access_dashboard(request.user):
+        if not peut_consulter_adherents(request.user):
             return redirect('login')
         adherents_qs = Adherent.objects.filter(actif=True).select_related('user').prefetch_related('user__groups').order_by('nom', 'prenom')
+        if est_voyage_seul(request.user):
+            adherents_qs = adherents_qs.filter(type_personne='adherent')
         # Préparer les données pour identifier les membres codir
         adherents_avec_codir = []
         for adherent in adherents_qs:
@@ -4966,11 +4998,12 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
         })
 
     def post(self, request):
-        from .utils import can_access_dashboard
-        if not can_access_dashboard(request.user):
+        if not peut_consulter_adherents(request.user):
             return redirect('login')
         from .models import ListeDiffusion
         adherents_qs = Adherent.objects.filter(actif=True).select_related('user').prefetch_related('user__groups').order_by('nom', 'prenom')
+        if est_voyage_seul(request.user):
+            adherents_qs = adherents_qs.filter(type_personne='adherent')
         # Préparer les données pour identifier les membres codir
         adherents_avec_codir = []
         for adherent in adherents_qs:
@@ -5234,7 +5267,7 @@ class CommunicationAdherentsView(LoginRequiredMixin, View):
 @require_GET
 @login_required
 def api_modele_mail_adherents(request, modele_id):
-    if not can_access_dashboard(request.user):
+    if not peut_consulter_adherents(request.user):
         return JsonResponse({'error': 'Accès refusé'}, status=403)
     modele = modeles_mail_adherents_visibles(request.user).filter(id=modele_id).first()
     if not modele:
@@ -5246,8 +5279,7 @@ def api_modele_mail_adherents(request, modele_id):
 
 @login_required
 def supprimer_liste_diffusion(request, liste_id):
-    from .utils import can_access_dashboard
-    if not can_access_dashboard(request.user):
+    if not peut_consulter_adherents(request.user):
         return redirect('login')
     liste = listes_diffusion_visibles(request.user).filter(pk=liste_id).first()
     if liste is None:
@@ -5266,7 +5298,10 @@ def adherent_desactiver(request, pk):
     return redirect('adherent_list')
 
 @require_POST
+@login_required
 def supprimer_historique_mail_adherents(request, mail_id):
+    if not peut_consulter_adherents(request.user):
+        return redirect('login')
     HistoriqueMailAdherents.objects.filter(id=mail_id).delete()
     messages.success(request, "Entrée d'historique supprimée.")
     return redirect('adherents_communiquer')

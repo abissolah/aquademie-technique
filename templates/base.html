@@ -87,6 +87,12 @@
                                 <li><a class="dropdown-item" href="{% url 'groupe_competence_list' %}"><i class="fas fa-object-group me-1"></i>Groupes de compétences</a></li>
                             </ul>
                         </li>
+                    {% elif is_voyage %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'adherent_list' %}">
+                                <i class="fas fa-user-friends me-1"></i>Adhérents
+                            </a>
+                        </li>
                     {% elif is_codir_nav %}
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'dashboard' %}">
