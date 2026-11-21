@@ -3416,18 +3416,37 @@ def suivi_formation_eleve(request, eleve_id):
             return redirect('dashboard')
     return _suivi_formation_eleve(request, eleve_id)
 
+def _resume_meilleure_evaluation(evaluations):
+    """Note affichée d'un exercice : la plus haute (1 à 3).
+
+    ``evaluations`` est triée de la plus récente à la plus ancienne.
+    À note égale, on garde la plus récente pour le commentaire.
+    Sans aucune note, on reprend la dernière évaluation (« Non réalisé »).
+    """
+    meilleure = None
+    for evaluation in evaluations:
+        if not evaluation.note:
+            continue
+        if meilleure is None or evaluation.note > meilleure.note:
+            meilleure = evaluation
+    source = meilleure if meilleure is not None else (evaluations[0] if evaluations else None)
+    etoiles = source.note if source and source.note else 0
+    commentaire = source.commentaire if source else ''
+    raison = None if etoiles else (source.raison_non_realise if source else None)
+    raison_display = (
+        dict(EvaluationExercice.RAISON_NON_REALISE_CHOICES).get(raison, '') if raison else ''
+    )
+    return etoiles, commentaire, raison, raison_display
+
+
 def _suivi_formation_eleve(request, eleve_id):
     eleve = get_object_or_404(Adherent, pk=eleve_id)
     # Récupérer toutes les sections de l'élève
     sections = eleve.sections.all()
     # Récupérer tous les groupes de compétences de ses sections
     groupes = GroupeCompetence.objects.filter(section__in=sections).prefetch_related('competences__exercices')
-    # Récupérer toutes les évaluations exercices de l'élève (dernière par exercice = la plus récente)
+    # Toutes les évaluations, la plus récente en premier (le résumé retient la meilleure note)
     evals = EvaluationExercice.objects.filter(eleve=eleve, exercice__type=Exercice.TYPE_CLASSIQUE).order_by('-date_evaluation')
-    evals_dict = {}
-    for e in evals:
-        if e.exercice_id not in evals_dict:
-            evals_dict[e.exercice_id] = e
     # Historique par exercice
     historiques = {}
     for ex in Exercice.objects.filter(type=Exercice.TYPE_CLASSIQUE):
@@ -3446,13 +3465,9 @@ def _suivi_formation_eleve(request, eleve_id):
         for comp in groupe.competences.all():
             comp_data = {'competence': comp, 'exercices': [], 'etoile_competence': True}
             for ex in comp.exercices.filter(type=Exercice.TYPE_CLASSIQUE):
-                eval_ex = evals_dict.get(ex.id)
-                etoiles = eval_ex.note if eval_ex and eval_ex.note else 0
-                commentaire = eval_ex.commentaire if eval_ex else ''
-                raison = eval_ex.raison_non_realise if eval_ex else None
-                raison_display = ''
-                if raison:
-                    raison_display = dict(EvaluationExercice.RAISON_NON_REALISE_CHOICES).get(raison, '')
+                etoiles, commentaire, raison, raison_display = _resume_meilleure_evaluation(
+                    historiques.get(ex.id, [])
+                )
                 comp_data['exercices'].append({
                     'exercice': ex,
                     'etoiles': etoiles,
@@ -3541,7 +3556,19 @@ def _build_suivi_formation_pdf(eleve, progression, historiques, titre="SUIVI DE"
                         date_str = h.palanquee.seance.date.strftime('%d/%m/%Y')
                     moniteur = (getattr(h, 'encadrant', None) and h.encadrant.nom_complet) or "Validé par le DT"
                     comm = (getattr(h, 'commentaire', None) or '').replace('<', ' ').replace('>', ' ')
-                    elements.append(Paragraph(f"Date : {date_str} — Moniteur : {moniteur} — {comm}", hist_style))
+                    note = getattr(h, 'note', None) or 0
+                    if note:
+                        note_texte = '<font color="#6c7570">' + ('★' * note) + '</font>'
+                    elif getattr(h, 'raison_non_realise', None):
+                        libelle = dict(EvaluationExercice.RAISON_NON_REALISE_CHOICES).get(h.raison_non_realise, '')
+                        note_texte = f'Non réalisé : {libelle}'
+                    else:
+                        note_texte = ''
+                    milieu = f" — {note_texte}" if note_texte else ''
+                    elements.append(Paragraph(
+                        f"Date : {date_str}{milieu} — Moniteur : {moniteur} — {comm}",
+                        hist_style,
+                    ))
             elements.append(Spacer(1, 4))
         elements.append(Spacer(1, 8))
     doc.build(elements)
@@ -3552,11 +3579,6 @@ def _build_suivi_formation_pdf(eleve, progression, historiques, titre="SUIVI DE"
 def _build_suivi_formation_data(eleve, exercice_type=Exercice.TYPE_CLASSIQUE):
     sections = eleve.sections.all()
     groupes = GroupeCompetence.objects.filter(section__in=sections).prefetch_related('competences__exercices')
-    evals = EvaluationExercice.objects.filter(eleve=eleve, exercice__type=exercice_type).order_by('-date_evaluation')
-    evals_dict = {}
-    for e in evals:
-        if e.exercice_id not in evals_dict:
-            evals_dict[e.exercice_id] = e
 
     historiques = {}
     for ex in Exercice.objects.filter(type=exercice_type):
@@ -3580,11 +3602,9 @@ def _build_suivi_formation_data(eleve, exercice_type=Exercice.TYPE_CLASSIQUE):
         for comp in groupe.competences.all():
             comp_data = {'competence': comp, 'exercices': [], 'etoile_competence': True}
             for ex in comp.exercices.filter(type=exercice_type):
-                eval_ex = evals_dict.get(ex.id)
-                etoiles = eval_ex.note if eval_ex and eval_ex.note else 0
-                commentaire = eval_ex.commentaire if eval_ex else ''
-                raison = eval_ex.raison_non_realise if eval_ex else None
-                raison_display = dict(EvaluationExercice.RAISON_NON_REALISE_CHOICES).get(raison, '') if raison else ''
+                etoiles, commentaire, raison, raison_display = _resume_meilleure_evaluation(
+                    historiques.get(ex.id, [])
+                )
                 comp_data['exercices'].append({
                     'exercice': ex, 'etoiles': etoiles, 'commentaire': commentaire,
                     'raison': raison, 'raison_display': raison_display,
