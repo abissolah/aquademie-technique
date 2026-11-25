@@ -40,18 +40,36 @@ type_exercice vaut "classique" pour une séance en piscine et "evaluation" pour 
 mcp = MCPServer("rapports-moniteurs", instructions=INSTRUCTIONS)
 
 
-def _authorization(ctx: Context) -> str:
-    headers = ctx.headers
-    if not headers:
+def _app_token(ctx: Context) -> str:
+    """Jeton passé dans l'URL (?app_token=), vide s'il est absent."""
+    try:
+        request = ctx.request_context.request
+    except (ValueError, AttributeError):
         return ""
-    return headers.get("authorization") or headers.get("Authorization") or ""
+    query = getattr(request, "query_params", None)
+    if not query:
+        return ""
+    return (query.get("app_token") or "").strip()
+
+
+def _authorization(ctx: Context) -> str:
+    """En-tête Authorization s'il est présent, sinon Bearer fabriqué depuis app_token."""
+    headers = ctx.headers
+    if headers:
+        authorization = headers.get("authorization") or headers.get("Authorization") or ""
+        if authorization:
+            return authorization
+    jeton = _app_token(ctx)
+    if jeton:
+        return f"Bearer {jeton}"
+    return ""
 
 
 async def _get(ctx: Context, path: str, params: dict | None = None) -> dict:
     authorization = _authorization(ctx)
     if not authorization:
         return {
-            "error": "Jeton manquant. Le client MCP doit envoyer l'en-tête Authorization: Bearer …",
+            "error": "Jeton manquant. Envoyer Authorization: Bearer … ou le paramètre d'URL app_token.",
         }
     query = {cle: valeur for cle, valeur in (params or {}).items() if valeur not in (None, "")}
     entetes = {"Authorization": authorization}

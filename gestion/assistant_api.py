@@ -31,12 +31,19 @@ def _erreur(message, status):
     return _json({"error": message}, status=status)
 
 
-def _jeton_depuis_requete(request):
+def _clair_depuis_requete(request):
+    """Jeton en clair : en-tête Bearer, sinon paramètre d'URL app_token."""
     header = request.headers.get("Authorization", "")
     parts = header.split(" ", 1)
-    if len(parts) != 2 or parts[0].lower() != "bearer":
-        return None
-    clair = parts[1].strip()
+    if len(parts) == 2 and parts[0].lower() == "bearer":
+        clair = parts[1].strip()
+        if clair:
+            return clair
+    return (request.GET.get("app_token") or "").strip()
+
+
+def _jeton_depuis_requete(request):
+    clair = _clair_depuis_requete(request)
     if not clair:
         return None
     return (

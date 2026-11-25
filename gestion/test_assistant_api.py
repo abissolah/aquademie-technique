@@ -103,6 +103,26 @@ class AssistantApiTests(TestCase):
         response = self.client.get("/api/assistant/sections/")
         self.assertEqual(response.status_code, 401)
 
+    def test_app_token_valide(self):
+        response = self.client.get(f"/api/assistant/sections/?app_token={self.jeton}")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["sections"][0]["code"], "prepa_niveau1")
+
+    def test_app_token_inconnu(self):
+        response = self.client.get("/api/assistant/sections/?app_token=inconnu")
+        self.assertEqual(response.status_code, 401)
+
+    def test_app_token_vide_refuse(self):
+        response = self.client.get("/api/assistant/sections/?app_token=")
+        self.assertEqual(response.status_code, 401)
+
+    def test_en_tete_prioritaire_sur_app_token(self):
+        response = self.client.get(
+            "/api/assistant/sections/?app_token=inconnu",
+            HTTP_AUTHORIZATION=f"Bearer {self.jeton}",
+        )
+        self.assertEqual(response.status_code, 200)
+
     def test_jeton_revoque(self):
         creer_jeton(self.encadrant_user, "jeton-revoque", revoque=True)
         response = self._get("/api/assistant/sections/", token="jeton-revoque")
